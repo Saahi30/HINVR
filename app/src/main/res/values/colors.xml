@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="temple_stone">#FF1A120C</color>
+    <color name="temple_stone_deep">#FF100B08</color>
+    <color name="antique_gold">#FFC9A227</color>
+    <color name="diya_amber">#FFE8A317</color>
+    <color name="saffron">#FFC45C26</color>
+    <color name="linen">#FFF4EDE3</color>
+    <color name="ivory">#FFFFF8F0</color>
+</resources>

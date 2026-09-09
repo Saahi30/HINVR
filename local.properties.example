@@ -1,0 +1,10 @@
+# Copy these lines into local.properties (that file is gitignored).
+# Dashboard → Project Settings → Data API: Project URL
+# Dashboard → Project Settings → API Keys: publishable (or legacy anon)
+# Auth → Providers → Phone: enable SMS
+# Then run supabase/migrations/20260908120000_create_profiles.sql
+
+# Phone SMS is mocked (any 6 digits). Set false when a provider is wired.
+MOCK_PHONE_OTP=true
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=

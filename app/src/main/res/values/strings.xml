@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HINVR</string>
+    <string name="splash_wordmark">HINVR</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_mandirs">Mandirs</string>
+    <string name="nav_pass">Pass</string>
+    <string name="nav_concierge">Concierge</string>
+    <string name="cta_continue_phone">Continue with phone</string>
+    <string name="cta_have_account">I already have an account</string>
+    <string name="cta_send_otp">Send OTP</string>
+    <string name="cta_enter">Enter HINVR</string>
+    <string name="cta_join">Join HINVR</string>
+    <string name="skip">Skip</string>
+</resources>

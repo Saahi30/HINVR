@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HINVR</string>
+    <string name="splash_wordmark">HINVR</string>
+    <string name="nav_home">होम</string>
+    <string name="nav_mandirs">मंदिर</string>
+    <string name="nav_pass">पास</string>
+    <string name="nav_concierge">कंसीयर्ज</string>
+    <string name="cta_continue_phone">फ़ोन से जारी रखें</string>
+    <string name="cta_have_account">मेरा खाता पहले से है</string>
+    <string name="cta_send_otp">ओटीपी भेजें</string>
+    <string name="cta_enter">HINVR में प्रवेश</string>
+    <string name="cta_join">HINVR जॉइन करें</string>
+    <string name="skip">छोड़ें</string>
+</resources>

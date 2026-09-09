@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Wick flame -->
+    <path
+        android:fillColor="#E8A317"
+        android:pathData="M54,28 C48,40 50,48 54,54 C58,48 60,40 54,28 Z" />
+    <path
+        android:fillColor="#F5D76E"
+        android:pathData="M54,36 C51,42 52,47 54,50 C56,47 57,42 54,36 Z" />
+    <!-- Bowl -->
+    <path
+        android:fillColor="#C9A227"
+        android:pathData="M32,58 C32,58 36,74 54,74 C72,74 76,58 76,58 L70,58 C70,58 68,68 54,68 C40,68 38,58 38,58 Z" />
+    <path
+        android:fillColor="#A6861C"
+        android:pathData="M30,56 C30,56 34,58 54,58 C74,58 78,56 78,56 C78,60 70,62 54,62 C38,62 30,60 30,56 Z" />
+</vector>
