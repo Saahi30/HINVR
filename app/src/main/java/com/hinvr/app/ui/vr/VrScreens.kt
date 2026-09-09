@@ -7,17 +7,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.hinvr.app.ui.catalog.HinvrCatalog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.LivePill
@@ -25,6 +31,7 @@ import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.illustrations.TempleScene
+import com.hinvr.app.ui.media.StreamPane
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -33,7 +40,9 @@ import com.hinvr.app.ui.theme.HinvrTypography
 @Composable
 fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
     val colors = HinvrTheme.colors
-    val rows = HinvrCatalog.mandirs.filter { it.vr }
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val rows = mandirs.filter { it.vr }
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
             SabhaTopBar(onBack = onBack)
@@ -55,6 +64,7 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
                         place = "Recorded 360 · not live",
                         scene = row.scene,
                         live = false,
+                        photoUrl = row.photoUrl,
                         onClick = { onOpenPlayer(row.id) },
                         width = null,
                         height = 200.dp,
@@ -68,25 +78,50 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
 
 @Composable
 fun VrPlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
-    val mandir = HinvrCatalog.mandir(id)
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val mandir = remember(id, mandirs) { catalog.mandir(id) }
     val colors = HinvrTheme.colors
+    val stream = mandir.vrUrl
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         Box(Modifier.fillMaxSize()) {
-            TempleScene(mandir.scene, Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Color(0x55100B08)))
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding(),
-            ) {
-                SabhaTopBar(onBack = onBack, onPhoto = true)
-                LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
-                Spacer(Modifier.weight(1f))
-                Column(Modifier.padding(HinvrSideInset)) {
-                    Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
-                    Text("Move your phone — gyroscope comes next.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
-                    Spacer(Modifier.height(16.dp))
-                    HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+            if (stream.isNotBlank()) {
+                Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+                    SabhaTopBar(onBack = onBack, onPhoto = true)
+                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
+                    Spacer(Modifier.height(12.dp))
+                    StreamPane(
+                        url = stream,
+                        modifier = Modifier
+                            .padding(horizontal = HinvrSideInset)
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(24.dp)),
+                    )
+                    Column(Modifier.padding(HinvrSideInset)) {
+                        Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
+                        Text("Move your phone — gyroscope comes next.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+                        Spacer(Modifier.height(16.dp))
+                        HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+                    }
+                }
+            } else {
+                TempleScene(mandir.scene, Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Color(0x55100B08)))
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .navigationBarsPadding(),
+                ) {
+                    SabhaTopBar(onBack = onBack, onPhoto = true)
+                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
+                    Spacer(Modifier.weight(1f))
+                    Column(Modifier.padding(HinvrSideInset)) {
+                        Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
+                        Text("Paste a 360 URL in the desk to play here.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+                        Spacer(Modifier.height(16.dp))
+                        HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+                    }
                 }
             }
         }

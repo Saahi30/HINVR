@@ -1,11 +1,16 @@
 package com.hinvr.app.navigation
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.hinvr.app.data.CatalogRepository
 import com.hinvr.app.data.SessionRepository
 import com.hinvr.app.data.SessionSnapshot
 
 val LocalSessionRepository = staticCompositionLocalOf<SessionRepository> {
     error("SessionRepository not provided")
+}
+
+val LocalCatalogRepository = staticCompositionLocalOf<CatalogRepository> {
+    error("CatalogRepository not provided")
 }
 
 object Destinations {

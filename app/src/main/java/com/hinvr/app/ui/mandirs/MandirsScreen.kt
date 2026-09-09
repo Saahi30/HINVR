@@ -22,7 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.hinvr.app.ui.catalog.HinvrCatalog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.ui.components.FilterChip
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
@@ -40,10 +41,12 @@ import com.hinvr.app.ui.theme.HinvrTypography
 @Composable
 fun MandirsScreen(onOpenTemple: (String) -> Unit) {
     val colors = HinvrTheme.colors
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     var chip by remember { mutableStateOf<String?>(null) }
     val chips = listOf("Live", "VR", "Pass accepted", "Nearby")
-    val filtered = HinvrCatalog.mandirs.filter { row ->
+    val filtered = mandirs.filter { row ->
         val q = query.isBlank() || row.name.contains(query, true) || row.place.contains(query, true)
         val c = when (chip) {
             "Live" -> row.live
@@ -96,6 +99,7 @@ fun MandirsScreen(onOpenTemple: (String) -> Unit) {
                             place = row.city,
                             scene = row.scene,
                             live = row.live,
+                            photoUrl = row.photoUrl,
                             onClick = { onOpenTemple(row.id) },
                             width = null,
                             height = 200.dp,
@@ -116,7 +120,9 @@ fun TempleDetailScreen(
     onPass: () -> Unit = {},
     onAssist: () -> Unit = {},
 ) {
-    val mandir = HinvrCatalog.mandir(id)
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val mandir = remember(id, mandirs) { catalog.mandir(id) }
     val colors = HinvrTheme.colors
     HinvrBackground(atmosphere = Atmosphere.Sabha, darkIcons = false) {
         Column(
@@ -131,6 +137,7 @@ fun TempleDetailScreen(
                     place = mandir.place,
                     scene = mandir.scene,
                     live = mandir.live,
+                    photoUrl = mandir.photoUrl,
                     onPhoto = {},
                     onLive = onLive,
                     onVr = onVr,

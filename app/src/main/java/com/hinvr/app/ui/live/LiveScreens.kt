@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -17,12 +18,15 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.hinvr.app.ui.catalog.HinvrCatalog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.LivePill
@@ -30,6 +34,7 @@ import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.illustrations.TempleScene
+import com.hinvr.app.ui.media.StreamPane
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -38,8 +43,10 @@ import com.hinvr.app.ui.theme.HinvrTypography
 @Composable
 fun LiveListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
     val colors = HinvrTheme.colors
-    val live = HinvrCatalog.mandirs.filter { it.live }
-    val upcoming = HinvrCatalog.mandirs.filter { !it.live && it.nextAarti != null }
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val live = mandirs.filter { it.live }
+    val upcoming = mandirs.filter { !it.live && it.nextAarti != null }
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
             SabhaTopBar(onBack = onBack)
@@ -61,6 +68,7 @@ fun LiveListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
                         place = row.city,
                         scene = row.scene,
                         live = true,
+                        photoUrl = row.photoUrl,
                         onClick = { onOpenPlayer(row.id) },
                         width = null,
                         height = 200.dp,
@@ -82,39 +90,67 @@ fun LiveListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
 
 @Composable
 fun LivePlayerScreen(id: String, onBack: () -> Unit) {
-    val mandir = HinvrCatalog.mandir(id)
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val mandir = remember(id, mandirs) { catalog.mandir(id) }
     val colors = HinvrTheme.colors
+    val stream = mandir.liveUrl
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         Box(Modifier.fillMaxSize()) {
-            TempleScene(mandir.scene, Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Color(0x66100B08)))
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding(),
-            ) {
-                SabhaTopBar(onBack = onBack, onPhoto = true)
-                Spacer(Modifier.height(8.dp))
-                LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "OFFICIAL STREAM")
-                Spacer(Modifier.weight(1f))
-                Box(
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(colors.dusk.copy(alpha = 0.55f))
-                        .padding(18.dp),
-                ) {
-                    Icon(Icons.Outlined.PlayArrow, contentDescription = "Play", tint = colors.cream)
-                }
-                Spacer(Modifier.weight(1f))
-                Column(Modifier.padding(HinvrSideInset)) {
-                    Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
-                    Text(
-                        "The feed is the temple’s, not ours.",
-                        style = HinvrTypography.bodyMedium,
-                        color = colors.creamMuted,
+            if (stream.isNotBlank()) {
+                Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+                    SabhaTopBar(onBack = onBack, onPhoto = true)
+                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "OFFICIAL STREAM")
+                    Spacer(Modifier.height(12.dp))
+                    StreamPane(
+                        url = stream,
+                        modifier = Modifier
+                            .padding(horizontal = HinvrSideInset)
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp)),
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Column(Modifier.padding(HinvrSideInset)) {
+                        Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
+                        Text(
+                            "The feed is the temple’s, not ours.",
+                            style = HinvrTypography.bodyMedium,
+                            color = colors.creamMuted,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+            } else {
+                TempleScene(mandir.scene, Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Color(0x66100B08)))
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .navigationBarsPadding(),
+                ) {
+                    SabhaTopBar(onBack = onBack, onPhoto = true)
+                    Spacer(Modifier.height(8.dp))
+                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "OFFICIAL STREAM")
+                    Spacer(Modifier.weight(1f))
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(colors.dusk.copy(alpha = 0.55f))
+                            .padding(18.dp),
+                    ) {
+                        Icon(Icons.Outlined.PlayArrow, contentDescription = "Play", tint = colors.cream)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Column(Modifier.padding(HinvrSideInset)) {
+                        Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
+                        Text(
+                            "Paste a live URL in the desk to play here.",
+                            style = HinvrTypography.bodyMedium,
+                            color = colors.creamMuted,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
                 }
             }
         }

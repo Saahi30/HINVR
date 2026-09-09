@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hinvr.app.R
 import com.hinvr.app.ui.catalog.TileScene
+import coil3.compose.AsyncImage
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.BenefitLine
 import com.hinvr.app.ui.theme.CardTitleOnPhoto
@@ -157,6 +158,33 @@ fun StatusCard(
 }
 
 @Composable
+fun CatalogPhoto(
+    photoUrl: String,
+    fallback: Int,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    contentDescription: String? = null,
+) {
+    if (photoUrl.isNotBlank()) {
+        AsyncImage(
+            model = photoUrl,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale,
+            placeholder = painterResource(fallback),
+            error = painterResource(fallback),
+        )
+    } else {
+        Image(
+            painter = painterResource(fallback),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale,
+        )
+    }
+}
+
+@Composable
 fun BentoTile(
     title: String,
     benefit: String,
@@ -164,6 +192,7 @@ fun BentoTile(
     height: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    photoUrl: String = "",
 ) {
     val colors = HinvrTheme.colors
     Box(
@@ -180,11 +209,10 @@ fun BentoTile(
             .background(colors.ivory)
             .clickable(onClick = onClick),
     ) {
-        Image(
-            painter = painterResource(scene.homeCardDrawable()),
-            contentDescription = null,
+        CatalogPhoto(
+            photoUrl = photoUrl,
+            fallback = scene.homeCardDrawable(),
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
         )
         // Light footer scrim so the illustration reads as a Crew-style airy card
         // and the dark serif title/benefit stay legible on any scene.
@@ -242,6 +270,7 @@ fun PortraitPhotoCard(
     modifier: Modifier = Modifier,
     width: Dp? = 168.dp,
     height: Dp = 220.dp,
+    photoUrl: String = "",
 ) {
     val colors = HinvrTheme.colors
     Box(
@@ -252,11 +281,10 @@ fun PortraitPhotoCard(
             .clip(RoundedCornerShape(HinvrCardRadius))
             .clickable(onClick = onClick),
     ) {
-        Image(
-            painter = painterResource(scene.homeTempleDrawable()),
-            contentDescription = null,
+        CatalogPhoto(
+            photoUrl = photoUrl,
+            fallback = scene.homeTempleDrawable(),
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
         )
         PhotoScrim()
         if (live) {
@@ -285,6 +313,7 @@ fun MandirHeroCard(
     onPass: () -> Unit,
     onAssist: () -> Unit,
     modifier: Modifier = Modifier,
+    photoUrl: String = "",
 ) {
     val colors = HinvrTheme.colors
     Column(
@@ -299,11 +328,10 @@ fun MandirHeroCard(
                 .height(240.dp)
                 .clickable(onClick = onPhoto),
         ) {
-            Image(
-                painter = painterResource(scene.homeTempleDrawable()),
-                contentDescription = null,
+            CatalogPhoto(
+                photoUrl = photoUrl,
+                fallback = scene.homeTempleDrawable(),
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
             )
             PhotoScrim()
             if (live) LivePill(Modifier.padding(14.dp).align(Alignment.TopStart))

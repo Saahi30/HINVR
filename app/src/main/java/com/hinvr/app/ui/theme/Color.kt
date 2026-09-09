@@ -19,6 +19,6 @@ val Cream = Color(0xFFF3E6D0)
 val CreamMuted = Color(0xFFD9C7A8)
 val Ink = Color(0xFF1A120C)
 
-val Linen = Color(0xFFF4EDE3)
-val Ivory = Color(0xFFFFF8F0)
+val Linen = Color(0xFFF6E8D7)
+val Ivory = Color(0xFFFFF3E4)
 val InkMuted = Color(0xFF6B5E4E)

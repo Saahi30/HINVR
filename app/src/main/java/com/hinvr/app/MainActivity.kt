@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.CompositionLocalProvider
 import com.hinvr.app.navigation.HinvrNavHost
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.theme.HinvrTheme
 
@@ -15,9 +16,12 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val session = (application as HinvrApplication).sessionRepository
+        val app = application as HinvrApplication
         setContent {
-            CompositionLocalProvider(LocalSessionRepository provides session) {
+            CompositionLocalProvider(
+                LocalSessionRepository provides app.sessionRepository,
+                LocalCatalogRepository provides app.catalogRepository,
+            ) {
                 HinvrTheme {
                     HinvrNavHost()
                 }

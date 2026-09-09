@@ -33,13 +33,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.Destinations
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
-import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.catalog.ServiceTile
 import com.hinvr.app.ui.components.BentoTile
 import com.hinvr.app.ui.components.CircleIconButton
@@ -64,11 +65,17 @@ fun HomeScreen(
     onOpenRoute: (String) -> Unit,
 ) {
     val session = LocalSessionRepository.current
+    val catalog = LocalCatalogRepository.current
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val tiles by catalog.services.collectAsStateWithLifecycle()
+    val headline by catalog.headline.collectAsStateWithLifecycle()
     val colors = HinvrTheme.colors
-    val live = HinvrCatalog.liveNow
+    val live = mandirs.firstOrNull { it.live }
+    val hero = live ?: mandirs.firstOrNull()
     val member = snap.tier != MembershipTier.None
-    val tiles = HinvrCatalog.services
+
+    LaunchedEffect(Unit) { catalog.refresh() }
 
     HinvrBackground(atmosphere = Atmosphere.Sabha, darkIcons = false) {
         Column(
@@ -128,7 +135,7 @@ fun HomeScreen(
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
-                        "You see the aarti.\nThe internet sees a thumbnail.",
+                        headline,
                         style = HinvrTypography.headlineLarge.copy(fontSize = 30.sp, lineHeight = 36.sp),
                         color = colors.cream,
                         textAlign = TextAlign.Center,
@@ -139,14 +146,16 @@ fun HomeScreen(
             }
 
             Column(Modifier.padding(horizontal = HinvrSideInset)) {
-                StatusCard(
-                    title = "${live.city} · LIVE",
-                    subtitle = live.updatedLabel,
-                    icon = Icons.AutoMirrored.Outlined.Assignment,
-                    onClick = { onOpenRoute(Destinations.livePlayer(live.id)) },
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                Spacer(Modifier.height(22.dp))
+                if (live != null) {
+                    StatusCard(
+                        title = "${live.city} · LIVE",
+                        subtitle = live.updatedLabel,
+                        icon = Icons.AutoMirrored.Outlined.Assignment,
+                        onClick = { onOpenRoute(Destinations.livePlayer(live.id)) },
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Spacer(Modifier.height(22.dp))
+                }
                 BentoGrid(
                     tiles = tiles,
                     onOpenPass = onOpenPass,
@@ -164,12 +173,13 @@ fun HomeScreen(
                 contentPadding = PaddingValues(horizontal = HinvrSideInset),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(HinvrCatalog.mandirs, key = { it.id }) { mandir ->
+                items(mandirs, key = { it.id }) { mandir ->
                     PortraitPhotoCard(
                         title = mandir.name,
                         place = mandir.city,
                         scene = mandir.scene,
                         live = mandir.live,
+                        photoUrl = mandir.photoUrl,
                         onClick = { onOpenRoute(Destinations.mandir(mandir.id)) },
                     )
                 }
@@ -179,18 +189,21 @@ fun HomeScreen(
                 Spacer(Modifier.height(36.dp))
                 SectionTitle("Happening in the sabha tonight")
                 Spacer(Modifier.height(14.dp))
-                MandirHeroCard(
-                    title = live.name,
-                    place = live.city,
-                    scene = live.scene,
-                    live = true,
-                    onPhoto = { onOpenRoute(Destinations.mandir(live.id)) },
-                    onLive = { onOpenRoute(Destinations.livePlayer(live.id)) },
-                    onVr = { onOpenRoute(Destinations.vrPlayer(live.id)) },
-                    onPass = onOpenPass,
-                    onAssist = onOpenConcierge,
-                )
-                Spacer(Modifier.height(28.dp))
+                if (hero != null) {
+                    MandirHeroCard(
+                        title = hero.name,
+                        place = hero.city,
+                        scene = hero.scene,
+                        live = hero.live,
+                        photoUrl = hero.photoUrl,
+                        onPhoto = { onOpenRoute(Destinations.mandir(hero.id)) },
+                        onLive = { onOpenRoute(Destinations.livePlayer(hero.id)) },
+                        onVr = { onOpenRoute(Destinations.vrPlayer(hero.id)) },
+                        onPass = onOpenPass,
+                        onAssist = onOpenConcierge,
+                    )
+                    Spacer(Modifier.height(28.dp))
+                }
             }
         }
     }
@@ -203,12 +216,7 @@ private fun BentoGrid(
     onOpenConcierge: () -> Unit,
     onOpenRoute: (String) -> Unit,
 ) {
-    val live = tiles.first { it.route == Destinations.Live }
-    val vr = tiles.first { it.route == Destinations.Vr }
-    val pass = tiles.first { it.route == Destinations.Pass }
-    val pandit = tiles.first { it.route == Destinations.Pooja }
-    val concierge = tiles.first { it.route == Destinations.Concierge }
-    val yatra = tiles.first { it.route == Destinations.Yatra }
+    if (tiles.isEmpty()) return
 
     fun open(tile: ServiceTile) {
         when (tile.route) {
@@ -218,19 +226,36 @@ private fun BentoGrid(
         }
     }
 
+    val left = tiles.filterIndexed { index, _ -> index % 2 == 0 }
+    val right = tiles.filterIndexed { index, _ -> index % 2 == 1 }
+
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BentoTile(live.title, live.benefit, live.scene, 228.dp, { open(live) })
-            BentoTile(pandit.title, pandit.benefit, pandit.scene, 158.dp, { open(pandit) })
-            BentoTile(concierge.title, concierge.benefit, concierge.scene, 158.dp, { open(concierge) })
+            left.forEach { tile ->
+                BentoTile(
+                    tile.title,
+                    tile.benefit,
+                    tile.scene,
+                    if (tile.tall) 228.dp else 158.dp,
+                    { open(tile) },
+                    photoUrl = tile.photoUrl,
+                )
+            }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BentoTile(vr.title, vr.benefit, vr.scene, 158.dp, { open(vr) })
-            BentoTile(pass.title, pass.benefit, pass.scene, 158.dp, { open(pass) })
-            BentoTile(yatra.title, yatra.benefit, yatra.scene, 228.dp, { open(yatra) })
+            right.forEach { tile ->
+                BentoTile(
+                    tile.title,
+                    tile.benefit,
+                    tile.scene,
+                    if (tile.tall) 228.dp else 158.dp,
+                    { open(tile) },
+                    photoUrl = tile.photoUrl,
+                )
+            }
         }
     }
 }

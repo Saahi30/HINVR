@@ -1,6 +1,9 @@
 package com.hinvr.app.data
 
 import com.hinvr.app.BuildConfig
+import com.hinvr.app.ui.catalog.Mandir
+import com.hinvr.app.ui.catalog.ServiceTile
+import com.hinvr.app.ui.catalog.parseTileScene
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.OtpType
@@ -10,6 +13,7 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -35,22 +39,70 @@ data class RemoteUser(
     val profile: ProfileRow?,
 )
 
+@Serializable
+data class MandirRow(
+    val id: String,
+    val name: String,
+    val place: String = "",
+    val city: String = "",
+    val scene: String = "",
+    @SerialName("photo_url") val photoUrl: String = "",
+    val live: Boolean = false,
+    val vr: Boolean = false,
+    @SerialName("pass_accepted") val passAccepted: Boolean = false,
+    @SerialName("next_aarti") val nextAarti: String? = null,
+    val timings: String = "",
+    @SerialName("updated_label") val updatedLabel: String = "",
+    @SerialName("live_url") val liveUrl: String = "",
+    @SerialName("vr_url") val vrUrl: String = "",
+)
+
+@Serializable
+data class ServiceRow(
+    val id: String,
+    val title: String,
+    val benefit: String,
+    @SerialName("photo_url") val photoUrl: String = "",
+    val route: String,
+    val scene: String = "",
+    val tall: Boolean = false,
+)
+
+@Serializable
+data class HomeSettingsValue(
+    val headline: String = "",
+    val eyebrow: String = "",
+)
+
+@Serializable
+data class SettingRow(
+    val key: String,
+    val value: HomeSettingsValue = HomeSettingsValue(),
+)
+
+data class RemoteCatalog(
+    val mandirs: List<Mandir>,
+    val services: List<ServiceTile>,
+    val headline: String?,
+)
+
 /**
- * Supabase client for phone OTP, session, and [profiles].
+ * Supabase client for phone OTP, session, [profiles], and the public catalog.
  *
  * Phone SMS stays mocked while [BuildConfig.MOCK_PHONE_OTP] is true
- * (default). Set MOCK_PHONE_OTP=false in local.properties when a provider is ready.
+ * (default). Catalog still loads whenever URL + publishable key are set.
  */
 class SupabaseBackend {
 
     val mockPhoneOtp: Boolean = BuildConfig.MOCK_PHONE_OTP
 
-    val configured: Boolean =
-        !mockPhoneOtp &&
-            BuildConfig.SUPABASE_URL.isNotBlank() &&
+    val hasCloud: Boolean =
+        BuildConfig.SUPABASE_URL.isNotBlank() &&
             BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
 
-    private val client: SupabaseClient? = if (configured) {
+    val configured: Boolean = !mockPhoneOtp && hasCloud
+
+    private val client: SupabaseClient? = if (hasCloud) {
         createSupabaseClient(
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
@@ -176,6 +228,55 @@ class SupabaseBackend {
     suspend fun signOut() = io {
         if (!configured) return@io
         runCatching { client!!.auth.signOut() }
+    }
+
+    suspend fun fetchCatalog(): RemoteCatalog? = io {
+        if (!hasCloud) return@io null
+        val sb = client ?: return@io null
+        try {
+            val mandirs = sb.from("mandirs").select {
+                filter { eq("published", true) }
+                order("sort_order", Order.ASCENDING)
+            }.decodeList<MandirRow>().map { row ->
+                Mandir(
+                    id = row.id,
+                    name = row.name,
+                    place = row.place,
+                    city = row.city,
+                    scene = parseTileScene(row.scene, row.id),
+                    live = row.live,
+                    vr = row.vr,
+                    passAccepted = row.passAccepted,
+                    nextAarti = row.nextAarti,
+                    updatedLabel = row.updatedLabel.ifBlank { "Updated just now" },
+                    timings = row.timings,
+                    photoUrl = row.photoUrl,
+                    liveUrl = row.liveUrl,
+                    vrUrl = row.vrUrl,
+                )
+            }
+            val services = sb.from("home_services").select {
+                filter { eq("published", true) }
+                order("sort_order", Order.ASCENDING)
+            }.decodeList<ServiceRow>().map { row ->
+                ServiceTile(
+                    title = row.title,
+                    benefit = row.benefit,
+                    scene = parseTileScene(row.scene, row.id),
+                    route = row.route,
+                    tall = row.tall,
+                    photoUrl = row.photoUrl,
+                )
+            }
+            val headline = runCatching {
+                sb.from("app_settings").select {
+                    filter { eq("key", "home") }
+                }.decodeSingleOrNull<SettingRow>()?.value?.headline?.ifBlank { null }
+            }.getOrNull()
+            RemoteCatalog(mandirs, services, headline)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     companion object {

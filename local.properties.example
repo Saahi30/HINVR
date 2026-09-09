@@ -5,6 +5,11 @@
 # Then run supabase/migrations/20260908120000_create_profiles.sql
 
 # Phone SMS is mocked (any 6 digits). Set false when a provider is wired.
+# Catalog (mandirs, photos, live/VR links) loads whenever URL + key are set.
 MOCK_PHONE_OTP=true
 SUPABASE_URL=
 SUPABASE_PUBLISHABLE_KEY=
+
+# Web desk: copy the same URL + key into admin/.env.local as
+# NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+# Then: cd admin && npm install && npm run dev

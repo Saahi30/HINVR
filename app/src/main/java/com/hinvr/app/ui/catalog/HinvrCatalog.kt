@@ -16,12 +16,18 @@ enum class TileScene {
     Somnath,
 }
 
+fun parseTileScene(raw: String, fallbackId: String = ""): TileScene {
+    val key = raw.ifBlank { fallbackId }
+    return TileScene.entries.find { it.name.equals(key, true) } ?: TileScene.Tirupati
+}
+
 data class ServiceTile(
     val title: String,
     val benefit: String,
     val scene: TileScene,
     val route: String,
     val tall: Boolean = false,
+    val photoUrl: String = "",
 )
 
 data class Mandir(
@@ -36,6 +42,9 @@ data class Mandir(
     val nextAarti: String? = null,
     val updatedLabel: String = "Updated 12 min ago",
     val timings: String = "Suprabhatam 3:30 AM · Aarti through the evening",
+    val photoUrl: String = "",
+    val liveUrl: String = "",
+    val vrUrl: String = "",
 )
 
 data class ChatBlock(
@@ -49,7 +58,9 @@ data class ChatBlock(
 )
 
 object HinvrCatalog {
-    val services = listOf(
+    const val DefaultHeadline = "You see the aarti.\nThe internet sees a thumbnail."
+
+    val bundledServices = listOf(
         ServiceTile("Live Darshan", "Aarti, from the sabha", TileScene.LiveAarti, Destinations.Live, tall = true),
         ServiceTile("VR Darshan", "360. Move your phone", TileScene.VrHall, Destinations.Vr),
         ServiceTile("Priority Pass", "Show this at the desk", TileScene.PassDesk, Destinations.Pass),
@@ -58,7 +69,7 @@ object HinvrCatalog {
         ServiceTile("Yatra", "Club desk, not a portal", TileScene.YatraRoad, Destinations.Yatra, tall = true),
     )
 
-    val mandirs = listOf(
+    val bundledMandirs = listOf(
         Mandir(
             id = "tirupati",
             name = "Sri Venkateswara",
@@ -114,11 +125,21 @@ object HinvrCatalog {
         ),
     )
 
-    val liveNow: Mandir get() = mandirs.first { it.live }
+    val services: List<ServiceTile> get() = bundledServices
+    val mandirs: List<Mandir> get() = bundledMandirs
+    val liveNow: Mandir get() = mandirs.firstOrNull { it.live } ?: mandirs.first()
 
     fun mandir(id: String): Mandir =
         mandirs.find { it.id.equals(id, true) || it.city.equals(id, true) }
             ?: mandirs.first().copy(id = id, name = id.replaceFirstChar { it.uppercase() }, city = id)
+
+    fun mergeServices(remote: List<ServiceTile>): List<ServiceTile> {
+        if (remote.isEmpty()) return bundledServices
+        val byRoute = remote.associateBy { it.route }
+        return bundledServices.map { local ->
+            byRoute[local.route]?.copy(tall = local.tall) ?: local
+        }
+    }
 
     val conciergeThread = listOf(
         ChatBlock(

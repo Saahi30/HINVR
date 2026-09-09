@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hinvr.app.R
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.navigation.startRoute
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -77,6 +78,7 @@ private val GoldKnockout = ColorFilter.colorMatrix(
 @Composable
 fun SplashScreen(onFinished: (String) -> Unit) {
     val session = LocalSessionRepository.current
+    val catalog = LocalCatalogRepository.current
     val context = LocalContext.current
     val finishOnce = rememberUpdatedState(onFinished)
     var navigated by remember { mutableStateOf(false) }
@@ -98,6 +100,7 @@ fun SplashScreen(onFinished: (String) -> Unit) {
     LaunchedEffect(navigated) {
         if (!navigated) return@LaunchedEffect
         runCatching { session.syncRemote() }
+        runCatching { catalog.refresh() }
         val route = session.snapshot.first().startRoute()
         finishOnce.value(route)
     }
