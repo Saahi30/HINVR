@@ -1,6 +1,7 @@
 package com.hinvr.app.ui.components
 
 import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,12 +42,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hinvr.app.R
 import com.hinvr.app.ui.catalog.TileScene
-import com.hinvr.app.ui.illustrations.TempleScene
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.BenefitLine
 import com.hinvr.app.ui.theme.CardTitleOnPhoto
@@ -177,7 +180,12 @@ fun BentoTile(
             .background(colors.ivory)
             .clickable(onClick = onClick),
     ) {
-        TempleScene(scene)
+        Image(
+            painter = painterResource(scene.homeCardDrawable()),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
         // Light footer scrim so the illustration reads as a Crew-style airy card
         // and the dark serif title/benefit stay legible on any scene.
         Box(
@@ -214,6 +222,16 @@ fun BentoTile(
     }
 }
 
+private fun TileScene.homeCardDrawable(): Int = when (this) {
+    TileScene.LiveAarti -> R.drawable.home_card_live_darshan
+    TileScene.VrHall -> R.drawable.home_card_vr_darshan
+    TileScene.PassDesk -> R.drawable.home_card_priority_pass
+    TileScene.PanditDoor -> R.drawable.home_card_book_pandit
+    TileScene.ConciergeDesk -> R.drawable.home_card_concierge
+    TileScene.YatraRoad -> R.drawable.home_card_yatra
+    else -> R.drawable.home_card_live_darshan
+}
+
 @Composable
 fun PortraitPhotoCard(
     title: String,
@@ -234,7 +252,12 @@ fun PortraitPhotoCard(
             .clip(RoundedCornerShape(HinvrCardRadius))
             .clickable(onClick = onClick),
     ) {
-        TempleScene(scene)
+        Image(
+            painter = painterResource(scene.homeTempleDrawable()),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
         PhotoScrim()
         if (live) {
             LivePill(Modifier.padding(12.dp).align(Alignment.TopStart))
@@ -276,7 +299,12 @@ fun MandirHeroCard(
                 .height(240.dp)
                 .clickable(onClick = onPhoto),
         ) {
-            TempleScene(scene)
+            Image(
+                painter = painterResource(scene.homeTempleDrawable()),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
             PhotoScrim()
             if (live) LivePill(Modifier.padding(14.dp).align(Alignment.TopStart))
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
@@ -288,6 +316,15 @@ fun MandirHeroCard(
             items = listOf("Live" to onLive, "VR" to onVr, "Pass" to onPass, "Assist" to onAssist),
         )
     }
+}
+
+private fun TileScene.homeTempleDrawable(): Int = when (this) {
+    TileScene.Tirupati -> R.drawable.temple_tirupati
+    TileScene.Kashi -> R.drawable.temple_kashi
+    TileScene.Shirdi -> R.drawable.temple_shirdi
+    TileScene.Kedarnath -> R.drawable.temple_kedarnath
+    TileScene.Somnath -> R.drawable.temple_somnath
+    else -> R.drawable.temple_tirupati
 }
 
 @Composable
