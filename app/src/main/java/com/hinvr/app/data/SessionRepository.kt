@@ -32,6 +32,8 @@ data class SessionSnapshot(
     val memberId: String = "",
     val validUntilLabel: String = "",
     val userId: String = "",
+    val favoriteMandirs: Set<String> = emptySet(),
+    val localRequests: List<String> = emptyList(),
 )
 
 data class PendingOtp(
@@ -70,6 +72,15 @@ class SessionRepository(
             memberId = prefs[Keys.memberId].orEmpty(),
             validUntilLabel = prefs[Keys.validUntil].orEmpty(),
             userId = prefs[Keys.userId].orEmpty(),
+            favoriteMandirs = prefs[Keys.favoriteMandirs]
+                .orEmpty()
+                .split(",")
+                .filter { it.isNotBlank() }
+                .toSet(),
+            localRequests = prefs[Keys.localRequests]
+                .orEmpty()
+                .lines()
+                .filter { it.isNotBlank() },
         )
     }
 
@@ -119,6 +130,28 @@ class SessionRepository(
             it[Keys.tier] = tier.name
             it[Keys.memberId] = memberId
             it[Keys.validUntil] = validUntilLabel
+        }
+    }
+
+    suspend fun toggleFavorite(mandirId: String) {
+        store.edit { prefs ->
+            val current = prefs[Keys.favoriteMandirs]
+                .orEmpty()
+                .split(",")
+                .filter { it.isNotBlank() }
+                .toMutableSet()
+            if (!current.add(mandirId)) current.remove(mandirId)
+            prefs[Keys.favoriteMandirs] = current.sorted().joinToString(",")
+        }
+    }
+
+    suspend fun addLocalRequest(kind: String, summary: String) {
+        val sanitized = summary.replace("\n", " ").trim()
+        if (sanitized.isBlank()) return
+        store.edit { prefs ->
+            val existing = prefs[Keys.localRequests].orEmpty()
+            prefs[Keys.localRequests] = (existing.lines().filter { it.isNotBlank() } +
+                "$kind · $sanitized").takeLast(20).joinToString("\n")
         }
     }
 
@@ -186,5 +219,7 @@ class SessionRepository(
         val memberId = stringPreferencesKey("member_id")
         val validUntil = stringPreferencesKey("valid_until")
         val userId = stringPreferencesKey("user_id")
+        val favoriteMandirs = stringPreferencesKey("favorite_mandirs")
+        val localRequests = stringPreferencesKey("local_requests")
     }
 }

@@ -30,11 +30,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
@@ -45,10 +49,14 @@ import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
+import kotlinx.coroutines.launch
 
 @Composable
 fun ConciergeScreen(onOpenFaq: (String) -> Unit, onBack: (() -> Unit)? = null) {
     val colors = HinvrTheme.colors
+    val session = LocalSessionRepository.current
+    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val scope = rememberCoroutineScope()
     var draft by remember { mutableStateOf("") }
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(
@@ -143,6 +151,22 @@ fun ConciergeScreen(onOpenFaq: (String) -> Unit, onBack: (() -> Unit)? = null) {
                     }
                     Spacer(Modifier.height(14.dp))
                 }
+                snap.localRequests.filter { it.startsWith("CONCIERGE ·") }.forEach { request ->
+                    Text("JUST NOW", style = HinvrTypography.labelSmall, color = colors.inkMuted)
+                    Spacer(Modifier.height(8.dp))
+                    IvoryCard {
+                        Text("Desk request", style = HinvrTypography.titleMedium, color = colors.ink)
+                        Spacer(Modifier.height(6.dp))
+                        Text(request.substringAfter(" · "), style = HinvrTypography.bodyLarge, color = colors.inkMuted)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Saved locally · ${snap.city.ifBlank { "City to confirm" }}",
+                            style = HinvrTypography.labelSmall,
+                            color = colors.gold,
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                }
             }
             Row(
                 Modifier
@@ -170,7 +194,11 @@ fun ConciergeScreen(onOpenFaq: (String) -> Unit, onBack: (() -> Unit)? = null) {
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(if (draft.isBlank()) colors.ivory else colors.saffron)
-                        .clickable(enabled = draft.isNotBlank()) { draft = "" },
+                        .clickable(enabled = draft.isNotBlank()) {
+                            val request = draft
+                            draft = ""
+                            scope.launch { session.addLocalRequest("CONCIERGE", request) }
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(

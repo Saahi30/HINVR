@@ -55,6 +55,18 @@ data class MandirRow(
     @SerialName("updated_label") val updatedLabel: String = "",
     @SerialName("live_url") val liveUrl: String = "",
     @SerialName("vr_url") val vrUrl: String = "",
+    val deity: String = "",
+    val summary: String = "",
+    val history: String = "",
+    val significance: String = "",
+    val architecture: String = "",
+    @SerialName("dress_code") val dressCode: String = "",
+    @SerialName("best_time") val bestTime: String = "",
+    @SerialName("visitor_notes") val visitorNotes: String = "",
+    val facilities: String = "",
+    val address: String = "",
+    @SerialName("official_website") val officialWebsite: String = "",
+    @SerialName("contact_phone") val contactPhone: String = "",
 )
 
 @Serializable
@@ -253,6 +265,18 @@ class SupabaseBackend {
                     photoUrl = row.photoUrl,
                     liveUrl = row.liveUrl,
                     vrUrl = row.vrUrl,
+                    deity = row.deity,
+                    summary = row.summary,
+                    history = row.history,
+                    significance = row.significance,
+                    architecture = row.architecture,
+                    dressCode = row.dressCode,
+                    bestTime = row.bestTime,
+                    visitorNotes = row.visitorNotes,
+                    facilities = row.facilities,
+                    address = row.address,
+                    officialWebsite = row.officialWebsite,
+                    contactPhone = row.contactPhone,
                 )
             }
             val services = sb.from("home_services").select {

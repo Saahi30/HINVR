@@ -27,12 +27,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.navigation.LocalCatalogRepository
+import com.hinvr.app.navigation.LocalSessionRepository
+import com.hinvr.app.data.MembershipTier
+import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.LivePill
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
+import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.illustrations.TempleScene
 import com.hinvr.app.ui.media.StreamPane
 import com.hinvr.app.ui.theme.Atmosphere
@@ -89,10 +93,12 @@ fun LiveListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
 }
 
 @Composable
-fun LivePlayerScreen(id: String, onBack: () -> Unit) {
+fun LivePlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
     val catalog = LocalCatalogRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val mandir = remember(id, mandirs) { catalog.mandir(id) }
+    val snap by LocalSessionRepository.current.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val isMember = snap.tier != MembershipTier.None
     val colors = HinvrTheme.colors
     val stream = mandir.liveUrl
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
@@ -117,6 +123,23 @@ fun LivePlayerScreen(id: String, onBack: () -> Unit) {
                             style = HinvrTypography.bodyMedium,
                             color = colors.creamMuted,
                         )
+                        if (!isMember) {
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
+                                    .background(colors.ivory)
+                                    .padding(14.dp),
+                            ) {
+                                Column {
+                                    Text("Darshan stays open.", style = HinvrTypography.titleMedium, color = colors.ink)
+                                    Text("Join for the pass and visit desk.", style = HinvrTypography.bodyMedium, color = colors.inkMuted)
+                                    Spacer(Modifier.height(10.dp))
+                                    HinvrPrimaryButton("Join the club", onPlans)
+                                }
+                            }
+                        }
                         Spacer(Modifier.height(16.dp))
                     }
                 }
@@ -145,10 +168,14 @@ fun LivePlayerScreen(id: String, onBack: () -> Unit) {
                     Column(Modifier.padding(HinvrSideInset)) {
                         Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
                         Text(
-                            "Paste a live URL in the desk to play here.",
+                            "The feed is the temple’s, not ours. It is not broadcasting right now.",
                             style = HinvrTypography.bodyMedium,
                             color = colors.creamMuted,
                         )
+                        if (!isMember) {
+                            Spacer(Modifier.height(12.dp))
+                            HinvrPrimaryButton("Join for the pass and visit desk", onPlans)
+                        }
                         Spacer(Modifier.height(16.dp))
                     }
                 }

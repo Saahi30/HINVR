@@ -1,5 +1,12 @@
 package com.hinvr.app.navigation
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -9,7 +16,6 @@ import androidx.navigation.navArgument
 import com.hinvr.app.ui.auth.OtpScreen
 import com.hinvr.app.ui.auth.PhoneLoginScreen
 import com.hinvr.app.ui.auth.ProfileSetupScreen
-import com.hinvr.app.ui.components.PlaceholderScreen
 import com.hinvr.app.ui.concierge.ConciergeScreen
 import com.hinvr.app.ui.concierge.FaqArticleScreen
 import com.hinvr.app.ui.desk.PoojaScreen
@@ -17,9 +23,11 @@ import com.hinvr.app.ui.desk.YatraScreen
 import com.hinvr.app.ui.live.LiveListScreen
 import com.hinvr.app.ui.live.LivePlayerScreen
 import com.hinvr.app.ui.main.MainScaffold
+import com.hinvr.app.ui.motion.HinvrMotion
 import com.hinvr.app.ui.mandirs.TempleDetailScreen
 import com.hinvr.app.ui.onboarding.OnboardingScreen
 import com.hinvr.app.ui.pass.HowPassWorksScreen
+import com.hinvr.app.ui.pass.PlanVisitScreen
 import com.hinvr.app.ui.plans.PaySuccessScreen
 import com.hinvr.app.ui.plans.PlansScreen
 import com.hinvr.app.ui.profile.LegalScreen
@@ -42,7 +50,55 @@ fun HinvrNavHost() {
         }
     }
 
-    NavHost(navController = nav, startDestination = Destinations.Splash) {
+    NavHost(
+        navController = nav,
+        startDestination = Destinations.Splash,
+        enterTransition = {
+            val immersive = isImmersiveRoute(targetState.destination.route)
+            if (immersive) {
+                fadeIn(
+                    tween(HinvrMotion.Immersive, easing = HinvrMotion.EnterEasing),
+                ) + scaleIn(
+                    initialScale = 1.035f,
+                    animationSpec = tween(HinvrMotion.Immersive, easing = HinvrMotion.EnterEasing),
+                )
+            } else {
+                fadeIn(
+                    tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                ) + slideInHorizontally(
+                    animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                    initialOffsetX = { width -> width / 3 },
+                )
+            }
+        },
+        exitTransition = {
+            fadeOut(
+                tween(HinvrMotion.Quick, easing = HinvrMotion.ExitEasing),
+            ) + slideOutHorizontally(
+                animationSpec = tween(HinvrMotion.Quick, easing = HinvrMotion.ExitEasing),
+                targetOffsetX = { width -> -width / 9 },
+            )
+        },
+        popEnterTransition = {
+            fadeIn(
+                tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+            ) + slideInHorizontally(
+                animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                initialOffsetX = { width -> -width / 3 },
+            )
+        },
+        popExitTransition = {
+            fadeOut(
+                tween(HinvrMotion.Quick, easing = HinvrMotion.ExitEasing),
+            ) + slideOutHorizontally(
+                animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                targetOffsetX = { width -> width / 3 },
+            ) + scaleOut(
+                targetScale = 0.99f,
+                animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+            )
+        },
+    ) {
         composable(Destinations.Splash) {
             SplashScreen { route ->
                 nav.navigate(route) {
@@ -121,12 +177,14 @@ fun HinvrNavHost() {
             LivePlayerScreen(
                 id = entry.arguments?.getString("id").orEmpty(),
                 onBack = { nav.popBackStack() },
+                onPlans = { go(Destinations.Plans) },
             )
         }
         composable(Destinations.Vr) {
             VrListScreen(
                 onBack = { nav.popBackStack() },
                 onOpenPlayer = { go(Destinations.vrPlayer(it)) },
+                onPlans = { go(Destinations.Plans) },
             )
         }
         composable(
@@ -149,11 +207,7 @@ fun HinvrNavHost() {
             HowPassWorksScreen(onBack = { nav.popBackStack() })
         }
         composable(Destinations.PassVisit) {
-            PlaceholderScreen(
-                title = "Plan a visit",
-                body = "Partner desk opening at this mandir. We’ll message you.",
-                onBack = { nav.popBackStack() },
-            )
+            PlanVisitScreen(onBack = { nav.popBackStack() })
         }
         composable(
             Destinations.Faq,
@@ -209,3 +263,8 @@ fun HinvrNavHost() {
         }
     }
 }
+
+private fun isImmersiveRoute(route: String?): Boolean =
+    route == Destinations.LivePlayer ||
+        route == Destinations.VrPlayer ||
+        route == Destinations.PaySuccess

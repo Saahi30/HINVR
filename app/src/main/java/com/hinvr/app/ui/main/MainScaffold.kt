@@ -1,6 +1,16 @@
 package com.hinvr.app.ui.main
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -42,6 +54,7 @@ import com.hinvr.app.ui.components.PassSeal
 import com.hinvr.app.ui.concierge.ConciergeScreen
 import com.hinvr.app.ui.home.HomeScreen
 import com.hinvr.app.ui.mandirs.MandirsScreen
+import com.hinvr.app.ui.motion.HinvrMotion
 import com.hinvr.app.ui.pass.PassScreen
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
@@ -70,9 +83,14 @@ fun MainScaffold(
     val currentRoute = current?.destination?.route
     val colors = HinvrTheme.colors
     val onPass = currentRoute == Destinations.Pass
+    val scaffoldColor by animateColorAsState(
+        targetValue = if (onPass) colors.duskDeep else colors.linen,
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "main atmosphere",
+    )
 
     Scaffold(
-        containerColor = if (onPass) colors.duskDeep else colors.linen,
+        containerColor = scaffoldColor,
         bottomBar = {
             HinvrTabDock(
                 tabs = tabs,
@@ -92,6 +110,46 @@ fun MainScaffold(
             navController = tabNav,
             startDestination = Destinations.Home,
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            enterTransition = {
+                val from = tabIndex(initialState.destination.route)
+                val to = tabIndex(targetState.destination.route)
+                val direction = if (to >= from) 1 else -1
+                if (targetState.destination.route == Destinations.Pass) {
+                    fadeIn(
+                        tween(HinvrMotion.Immersive, easing = HinvrMotion.EnterEasing),
+                    ) + scaleIn(
+                        initialScale = 1.035f,
+                        animationSpec = tween(HinvrMotion.Immersive, easing = HinvrMotion.EnterEasing),
+                    )
+                } else {
+                    fadeIn(
+                        tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                    ) + slideInHorizontally(
+                        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                        initialOffsetX = { width -> direction * width / 3 },
+                    )
+                }
+            },
+            exitTransition = {
+                val from = tabIndex(initialState.destination.route)
+                val to = tabIndex(targetState.destination.route)
+                val direction = if (to >= from) 1 else -1
+                fadeOut(
+                    tween(HinvrMotion.Quick, easing = HinvrMotion.ExitEasing),
+                ) + slideOutHorizontally(
+                    animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.ExitEasing),
+                    targetOffsetX = { width -> -direction * width / 8 },
+                ) + scaleOut(
+                    targetScale = 0.992f,
+                    animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.ExitEasing),
+                )
+            },
+            popEnterTransition = {
+                fadeIn(tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing))
+            },
+            popExitTransition = {
+                fadeOut(tween(HinvrMotion.Quick, easing = HinvrMotion.ExitEasing))
+            },
         ) {
             composable(Destinations.Home) {
                 HomeScreen(
@@ -132,56 +190,120 @@ private fun HinvrTabDock(
     onSelect: (String) -> Unit,
 ) {
     val colors = HinvrTheme.colors
+    val dockTop by animateColorAsState(
+        targetValue = if (sanctum) colors.stoneRaised else Color(0xFFFFF8EF),
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "tab dock top",
+    )
+    val dockBottom by animateColorAsState(
+        targetValue = if (sanctum) colors.stone else Color(0xFFF7EBDD),
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "tab dock bottom",
+    )
+    val dockOutside by animateColorAsState(
+        targetValue = if (sanctum) colors.duskDeep else Color.Transparent,
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "tab dock outside",
+    )
     Box(
         Modifier
             .fillMaxWidth()
-            .background(if (sanctum) colors.duskDeep else Color.Transparent)
+            .background(dockOutside)
             .navigationBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, bottom = 10.dp),
+            .padding(start = 18.dp, end = 18.dp, bottom = 11.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(76.dp)
                 .shadow(
-                    16.dp,
-                    RoundedCornerShape(36.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.08f),
+                    20.dp,
+                    RoundedCornerShape(38.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.12f),
+                    spotColor = Color.Black.copy(alpha = 0.08f),
                 )
-                .clip(RoundedCornerShape(36.dp))
-                .background(if (sanctum) colors.stone else colors.ivory.copy(alpha = 0.96f))
-                .padding(horizontal = 10.dp),
+                .clip(RoundedCornerShape(38.dp))
+                .border(
+                    1.dp,
+                    if (sanctum) colors.gold.copy(alpha = 0.2f) else colors.gold.copy(alpha = 0.14f),
+                    RoundedCornerShape(38.dp),
+                )
+                .background(Brush.verticalGradient(listOf(dockTop, dockBottom)))
+                .padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.Center,
         ) {
             tabs.forEach { tab ->
                 val selected = currentRoute == tab.route
                 val idle = if (sanctum) colors.creamMuted else colors.inkMuted
+                val selectedColor = if (sanctum) colors.gold else colors.saffron
+                val itemScale by animateFloatAsState(
+                    targetValue = if (selected) 1.08f else 0.96f,
+                    animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                    label = "${tab.route} selection",
+                )
                 if (tab.route == Destinations.Pass) {
-                    PassSeal(selected = selected, onClick = { onSelect(tab.route) })
-                } else {
                     Column(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .weight(1f)
+                            .clip(RoundedCornerShape(24.dp))
                             .clickable { onSelect(tab.route) }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .padding(vertical = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        PassSeal(
+                            selected = selected,
+                            onClick = { onSelect(tab.route) },
+                            size = 45.dp,
+                        )
+                        Text(
+                            stringResource(tab.labelRes),
+                            style = HinvrTypography.labelSmall.copy(letterSpacing = 0.15.sp),
+                            color = if (selected) selectedColor else idle,
+                        )
+                    }
+                } else {
+                    val itemBackground by animateColorAsState(
+                        targetValue = if (selected) selectedColor.copy(alpha = 0.1f) else Color.Transparent,
+                        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+                        label = "${tab.route} background",
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .graphicsLayer {
+                                scaleX = itemScale
+                                scaleY = itemScale
+                            }
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(itemBackground)
+                            .clickable { onSelect(tab.route) }
+                            .padding(vertical = 7.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Icon(
                             tab.icon!!,
                             contentDescription = stringResource(tab.labelRes),
-                            tint = if (selected) colors.gold else idle,
-                            modifier = Modifier.size(22.dp),
+                            tint = if (selected) selectedColor else idle,
+                            modifier = Modifier.size(21.dp),
                         )
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(3.dp))
                         Text(
                             stringResource(tab.labelRes),
-                            style = HinvrTypography.labelSmall.copy(letterSpacing = 0.2.sp),
-                            color = if (selected) colors.gold else idle,
+                            style = HinvrTypography.labelSmall.copy(letterSpacing = 0.15.sp),
+                            color = if (selected) selectedColor else idle,
                         )
                     }
                 }
             }
         }
     }
+}
+
+private fun tabIndex(route: String?): Int = when (route) {
+    Destinations.Home -> 0
+    Destinations.Mandirs -> 1
+    Destinations.Pass -> 2
+    Destinations.Concierge -> 3
+    else -> 0
 }

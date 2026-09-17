@@ -21,8 +21,32 @@ class CatalogRepository(
 
     suspend fun refresh() {
         val remote = backend.fetchCatalog() ?: return
-        _mandirs.value = remote.mandirs
-        _services.value = remote.services
+        if (remote.mandirs.isNotEmpty()) {
+            val remoteById = remote.mandirs.associateBy { it.id }
+            val bundledIds = HinvrCatalog.bundledMandirs.mapTo(mutableSetOf()) { it.id }
+            _mandirs.value = HinvrCatalog.bundledMandirs.map { bundled ->
+                remoteById[bundled.id]?.let { row ->
+                    row.copy(
+                        photoUrl = row.photoUrl.ifBlank { bundled.photoUrl },
+                        liveUrl = row.liveUrl.ifBlank { bundled.liveUrl },
+                        vrUrl = row.vrUrl.ifBlank { bundled.vrUrl },
+                        deity = row.deity.ifBlank { bundled.deity },
+                        summary = row.summary.ifBlank { bundled.summary },
+                        history = row.history.ifBlank { bundled.history },
+                        significance = row.significance.ifBlank { bundled.significance },
+                        architecture = row.architecture.ifBlank { bundled.architecture },
+                        dressCode = row.dressCode.ifBlank { bundled.dressCode },
+                        bestTime = row.bestTime.ifBlank { bundled.bestTime },
+                        visitorNotes = row.visitorNotes.ifBlank { bundled.visitorNotes },
+                        facilities = row.facilities.ifBlank { bundled.facilities },
+                        address = row.address.ifBlank { bundled.address },
+                        officialWebsite = row.officialWebsite.ifBlank { bundled.officialWebsite },
+                        contactPhone = row.contactPhone.ifBlank { bundled.contactPhone },
+                    )
+                } ?: bundled
+            } + remote.mandirs.filterNot { it.id in bundledIds }
+        }
+        _services.value = HinvrCatalog.mergeServices(remote.services)
         remote.headline?.takeIf { it.isNotBlank() }?.let { _headline.value = it }
     }
 

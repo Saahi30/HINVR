@@ -42,6 +42,18 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
       updated_label: row.updated_label.trim() || "Updated just now",
       live_url: row.live_url.trim(),
       vr_url: row.vr_url.trim(),
+      deity: row.deity.trim(),
+      summary: row.summary.trim(),
+      history: row.history.trim(),
+      significance: row.significance.trim(),
+      architecture: row.architecture.trim(),
+      dress_code: row.dress_code.trim(),
+      best_time: row.best_time.trim(),
+      visitor_notes: row.visitor_notes.trim(),
+      facilities: row.facilities.trim(),
+      address: row.address.trim(),
+      official_website: row.official_website.trim(),
+      contact_phone: row.contact_phone.trim(),
       sort_order: Number(row.sort_order) || 0,
       published: row.published,
     };
@@ -79,6 +91,7 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
   return (
     <form onSubmit={onSubmit} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <Card className="space-y-4 p-5">
+        <SectionHeading eyebrow="Identity" title="How the mandir appears" />
         {isNew ? (
           <Field label="Slug" hint="Used in the app URL. Lowercase, no spaces.">
             <input
@@ -102,6 +115,23 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
             <input value={row.place} onChange={(event) => patch("place", event.target.value)} className={fieldClass} />
           </Field>
         </div>
+        <Field label="Main deity or sacred focus">
+          <input
+            value={row.deity}
+            onChange={(event) => patch("deity", event.target.value)}
+            placeholder="Sri Venkateswara"
+            className={fieldClass}
+          />
+        </Field>
+        <Field label="Short introduction" hint="One or two sentences shown directly below the hero photo.">
+          <textarea
+            rows={3}
+            value={row.summary}
+            onChange={(event) => patch("summary", event.target.value)}
+            placeholder="Why this place matters, in clear and respectful language."
+            className={fieldClass}
+          />
+        </Field>
         <Field label="Fallback illustration">
           <select value={row.scene} onChange={(event) => patch("scene", event.target.value)} className={fieldClass}>
             {MANDIR_SCENES.map((scene) => (
@@ -112,6 +142,84 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
         <Field label="Official timings">
           <textarea rows={3} value={row.timings} onChange={(event) => patch("timings", event.target.value)} className={fieldClass} />
         </Field>
+        <SectionHeading eyebrow="Story" title="History and meaning" />
+        <Field label="History">
+          <textarea rows={5} value={row.history} onChange={(event) => patch("history", event.target.value)} className={fieldClass} />
+        </Field>
+        <Field label="Spiritual significance">
+          <textarea
+            rows={5}
+            value={row.significance}
+            onChange={(event) => patch("significance", event.target.value)}
+            className={fieldClass}
+          />
+        </Field>
+        <Field label="Architecture">
+          <textarea
+            rows={4}
+            value={row.architecture}
+            onChange={(event) => patch("architecture", event.target.value)}
+            className={fieldClass}
+          />
+        </Field>
+        <SectionHeading eyebrow="Visit" title="Practical guidance" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Dress code">
+            <textarea
+              rows={4}
+              value={row.dress_code}
+              onChange={(event) => patch("dress_code", event.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+          <Field label="Best time to visit">
+            <textarea
+              rows={4}
+              value={row.best_time}
+              onChange={(event) => patch("best_time", event.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+        </div>
+        <Field label="Visitor notes" hint="Security, booking, weather, or etiquette that members should know.">
+          <textarea
+            rows={4}
+            value={row.visitor_notes}
+            onChange={(event) => patch("visitor_notes", event.target.value)}
+            className={fieldClass}
+          />
+        </Field>
+        <Field label="Facilities" hint="One facility per line. These become chips in the app.">
+          <textarea
+            rows={5}
+            value={row.facilities}
+            onChange={(event) => patch("facilities", event.target.value)}
+            placeholder={"Wheelchair assistance\nOfficial lockers\nPrasad counter"}
+            className={fieldClass}
+          />
+        </Field>
+        <Field label="Full address">
+          <textarea rows={2} value={row.address} onChange={(event) => patch("address", event.target.value)} className={fieldClass} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Official website">
+            <input
+              type="url"
+              value={row.official_website}
+              onChange={(event) => patch("official_website", event.target.value)}
+              placeholder="https://"
+              className={fieldClass}
+            />
+          </Field>
+          <Field label="Contact phone">
+            <input
+              value={row.contact_phone}
+              onChange={(event) => patch("contact_phone", event.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+        </div>
+        <SectionHeading eyebrow="Media" title="Official streams" />
         <Field label="Live stream URL">
           <input
             value={row.live_url}
@@ -176,6 +284,15 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
         ) : null}
       </aside>
     </form>
+  );
+}
+
+function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="border-t border-zinc-200 pt-5 first:border-0 first:pt-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">{eyebrow}</p>
+      <h2 className="mt-1 font-serif text-xl text-zinc-900">{title}</h2>
+    </div>
   );
 }
 

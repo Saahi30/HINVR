@@ -25,3 +25,13 @@
 
 - `app/src/main/res/drawable-nodpi/home_card_vr_darshan.png`
   - Generated for this project with a landscape composition tailored to the short VR Darshan tile.
+
+## Priority Pass
+
+- `app/src/main/res/drawable-nodpi/pass_envelope_art.png`
+  - Generated for HINVR from the supplied Indian invitation reference.
+  - Uses a restrained lotus, marigold, foliage, ivory-paper, and antique-gold treatment without deity imagery or text.
+
+- `app/src/main/res/drawable-nodpi/pass_metal_texture.png`
+  - Generated for HINVR from the supplied metal QR-card reference.
+  - Brushed antique-gold texture with a subtle engraved lotus/jaali field; all member data and QR content are rendered natively.

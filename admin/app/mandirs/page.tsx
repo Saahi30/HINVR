@@ -15,7 +15,7 @@ export default async function MandirsPage() {
   const { data } = await desk.supabase
     .from("mandirs")
     .select(
-      "id,name,place,city,scene,photo_url,live,vr,pass_accepted,next_aarti,timings,updated_label,live_url,vr_url,sort_order,published,updated_at",
+      "id,name,place,city,scene,photo_url,live,vr,pass_accepted,next_aarti,timings,updated_label,live_url,vr_url,deity,summary,history,significance,architecture,dress_code,best_time,visitor_notes,facilities,address,official_website,contact_phone,sort_order,published,updated_at",
     )
     .order("sort_order");
 

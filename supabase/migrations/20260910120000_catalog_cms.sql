@@ -304,37 +304,39 @@ create policy media_staff_delete
 
 insert into public.mandirs (
   id, name, place, city, scene, live, vr, pass_accepted, next_aarti,
-  timings, updated_label, sort_order, published
+  timings, updated_label, live_url, sort_order, published
 ) values
   (
     'tirupati', 'Sri Venkateswara', 'Tirupati, Andhra Pradesh', 'Tirupati', 'Tirupati',
     true, true, true, null,
     'Suprabhatam 2:30 AM · Tomala 3:30 AM · Ekantha 1:00 AM',
-    'Updated 12 min ago', 10, true
+    'Updated 12 min ago',
+    'https://www.youtube.com/embed/live_stream?channel=UCTboTRX74UydvU_cBdm_cCQ',
+    10, true
   ),
   (
     'kashi', 'Kashi Vishwanath', 'Varanasi, Uttar Pradesh', 'Kashi', 'Kashi',
     false, true, true, '4:30 PM',
     'Mangala 3:00 AM · Saptarishi aarti 7:00 PM',
-    'Updated 12 min ago', 20, true
+    'Updated 12 min ago', null, 20, true
   ),
   (
     'shirdi', 'Sai Baba', 'Shirdi, Maharashtra', 'Shirdi', 'Shirdi',
     true, false, true, null,
     'Kakad aarti 5:00 AM · Shej aarti 10:00 PM',
-    'Updated 8 min ago', 30, true
+    'Updated 8 min ago', 'https://www.youtube.com/@saibabasansthantrust/live', 30, true
   ),
   (
     'kedarnath', 'Kedarnath', 'Rudraprayag, Uttarakhand', 'Kedarnath', 'Kedarnath',
     false, true, false, null,
     'Opening aarti 4:00 AM · Closed in winter',
-    'Updated 12 min ago', 40, true
+    'Updated 12 min ago', null, 40, true
   ),
   (
     'somnath', 'Somnath', 'Gir Somnath, Gujarat', 'Somnath', 'Somnath',
     false, false, true, null,
     'Mangala 6:00 AM · Aarti 7:00 PM',
-    'Updated 12 min ago', 50, true
+    'Updated 12 min ago', null, 50, true
   )
 on conflict (id) do nothing;
 

@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -18,6 +21,8 @@ import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.components.HinvrPrimaryButton
+import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -35,6 +40,9 @@ fun ProfileScreen(
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
+    var editing by remember { mutableStateOf(false) }
+    var name by remember(snap.displayName) { mutableStateOf(snap.displayName) }
+    var city by remember(snap.city) { mutableStateOf(snap.city) }
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(
@@ -47,8 +55,38 @@ fun ProfileScreen(
                 Text(snap.displayName.ifBlank { "Member" }, style = HinvrTypography.headlineLarge, color = colors.ink)
                 Text(snap.phoneE164, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
                 Text("${snap.city} · ${snap.tier.name}", style = HinvrTypography.bodyMedium, color = colors.gold)
+                if (snap.memberId.isNotBlank()) {
+                    Text(
+                        "${snap.memberId} · ${snap.validUntilLabel}",
+                        style = HinvrTypography.bodyMedium,
+                        color = colors.inkMuted,
+                    )
+                }
                 Spacer(Modifier.height(22.dp))
+                if (editing) {
+                    SabhaSearchField(name, { name = it }, "Member name")
+                    Spacer(Modifier.height(10.dp))
+                    SabhaSearchField(city, { city = it }, "City")
+                    Spacer(Modifier.height(12.dp))
+                    HinvrPrimaryButton(
+                        "Save profile",
+                        onClick = {
+                            scope.launch {
+                                session.completeProfile(name, city, snap.languageTag, snap.audience)
+                                editing = false
+                            }
+                        },
+                    )
+                    Spacer(Modifier.height(16.dp))
+                }
                 IvoryCard {
+                    Text(
+                        if (editing) "Cancel editing" else "Edit name and city",
+                        style = HinvrTypography.titleMedium,
+                        color = colors.ink,
+                        modifier = Modifier.clickable { editing = !editing }.padding(vertical = 6.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         "Membership",
                         style = HinvrTypography.titleMedium,

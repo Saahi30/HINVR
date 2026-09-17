@@ -11,19 +11,30 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.catalog.TileScene
 import com.hinvr.app.ui.components.CustomRequestPill
 import com.hinvr.app.ui.components.HinvrBackground
+import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
+import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
+import kotlinx.coroutines.launch
 
 @Composable
 fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
@@ -58,6 +69,8 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
             Column(Modifier.padding(HinvrSideInset)) {
                 Spacer(Modifier.height(20.dp))
                 CustomRequestPill(onClick = onConcierge)
+                Spacer(Modifier.height(18.dp))
+                WaitlistForm(kind = "POOJA", defaultCity = null)
             }
         }
     }
@@ -96,7 +109,45 @@ fun YatraScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
             Column(Modifier.padding(HinvrSideInset)) {
                 Spacer(Modifier.height(20.dp))
                 CustomRequestPill(onClick = onConcierge)
+                Spacer(Modifier.height(18.dp))
+                WaitlistForm(kind = "YATRA", defaultCity = null)
             }
         }
     }
+}
+
+@Composable
+private fun WaitlistForm(kind: String, defaultCity: String?) {
+    val session = LocalSessionRepository.current
+    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val scope = rememberCoroutineScope()
+    val colors = HinvrTheme.colors
+    var city by remember(defaultCity, snap.city) { mutableStateOf(defaultCity ?: snap.city) }
+    var submitted by remember { mutableStateOf(false) }
+
+    if (submitted) {
+        Text(
+            "You’re on the ${kind.lowercase()} desk list. We’ll contact you before this opens.",
+            style = HinvrTypography.bodyLarge,
+            color = colors.gold,
+        )
+        return
+    }
+    Text(
+        if (kind == "POOJA") "Bring verified pandits to my city" else "Tell me when the club desk opens",
+        style = HinvrTypography.titleMedium,
+        color = colors.ink,
+    )
+    Spacer(Modifier.height(10.dp))
+    SabhaSearchField(city, { city = it }, "Your city")
+    Spacer(Modifier.height(12.dp))
+    HinvrPrimaryButton(
+        text = "Join waitlist",
+        onClick = {
+            scope.launch {
+                session.addLocalRequest(kind, city.ifBlank { "City to confirm" })
+                submitted = true
+            }
+        },
+    )
 }

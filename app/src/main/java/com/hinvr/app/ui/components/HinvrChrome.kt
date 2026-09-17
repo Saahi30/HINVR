@@ -1,6 +1,13 @@
 package com.hinvr.app.ui.components
 
 import android.os.Build
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +68,24 @@ import com.hinvr.app.ui.theme.HinvrPillRadius
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import com.hinvr.app.ui.theme.LocalAtmosphere
+import com.hinvr.app.ui.motion.HinvrMotion
+
+private data class PressMotion(
+    val interactionSource: MutableInteractionSource,
+    val scale: Float,
+)
+
+@Composable
+private fun rememberPressMotion(): PressMotion {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.965f else 1f,
+        animationSpec = tween(HinvrMotion.Quick, easing = HinvrMotion.EnterEasing),
+        label = "card press",
+    )
+    return PressMotion(interactionSource, scale)
+}
 
 @Composable
 fun CircleIconButton(
@@ -71,12 +96,21 @@ fun CircleIconButton(
     tint: Color = Color.White,
     background: Color = HinvrTheme.colors.dusk.copy(alpha = 0.55f),
 ) {
+    val press = rememberPressMotion()
     Box(
         modifier = modifier
             .size(42.dp)
+            .graphicsLayer {
+                scaleX = press.scale
+                scaleY = press.scale
+            }
             .clip(CircleShape)
             .background(background)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription, tint = tint, modifier = Modifier.size(20.dp))
@@ -103,6 +137,16 @@ fun PhotoScrim(modifier: Modifier = Modifier) {
 @Composable
 fun LivePill(modifier: Modifier = Modifier, label: String = "LIVE") {
     val colors = HinvrTheme.colors
+    val pulse = rememberInfiniteTransition(label = "live pulse")
+    val pulseScale by pulse.animateFloat(
+        initialValue = 0.82f,
+        targetValue = 1.22f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = HinvrMotion.EnterEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "live dot",
+    )
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(HinvrPillRadius))
@@ -114,6 +158,11 @@ fun LivePill(modifier: Modifier = Modifier, label: String = "LIVE") {
         Box(
             Modifier
                 .size(6.dp)
+                .graphicsLayer {
+                    scaleX = pulseScale
+                    scaleY = pulseScale
+                    alpha = 1.45f - pulseScale * 0.45f
+                }
                 .clip(CircleShape)
                 .background(colors.vermillion),
         )
@@ -130,13 +179,22 @@ fun StatusCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = HinvrTheme.colors
+    val press = rememberPressMotion()
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = press.scale
+                scaleY = press.scale
+            }
             .shadow(16.dp, RoundedCornerShape(HinvrCardRadius), ambientColor = Color.Black.copy(alpha = 0.08f))
             .clip(RoundedCornerShape(HinvrCardRadius))
             .background(colors.ivory)
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -195,10 +253,15 @@ fun BentoTile(
     photoUrl: String = "",
 ) {
     val colors = HinvrTheme.colors
+    val press = rememberPressMotion()
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .graphicsLayer {
+                scaleX = press.scale
+                scaleY = press.scale
+            }
             .shadow(
                 12.dp,
                 RoundedCornerShape(HinvrCardRadius),
@@ -207,7 +270,11 @@ fun BentoTile(
             )
             .clip(RoundedCornerShape(HinvrCardRadius))
             .background(colors.ivory)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         CatalogPhoto(
             photoUrl = photoUrl,
@@ -271,15 +338,26 @@ fun PortraitPhotoCard(
     width: Dp? = 168.dp,
     height: Dp = 220.dp,
     photoUrl: String = "",
+    vr: Boolean = false,
+    passAccepted: Boolean = false,
 ) {
     val colors = HinvrTheme.colors
+    val press = rememberPressMotion()
     Box(
         modifier = modifier
             .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
             .height(height)
+            .graphicsLayer {
+                scaleX = press.scale
+                scaleY = press.scale
+            }
             .shadow(8.dp, RoundedCornerShape(HinvrCardRadius), ambientColor = Color.Black.copy(alpha = 0.06f))
             .clip(RoundedCornerShape(HinvrCardRadius))
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         CatalogPhoto(
             photoUrl = photoUrl,
@@ -287,8 +365,13 @@ fun PortraitPhotoCard(
             modifier = Modifier.fillMaxSize(),
         )
         PhotoScrim()
-        if (live) {
-            LivePill(Modifier.padding(12.dp).align(Alignment.TopStart))
+        Row(
+            modifier = Modifier.padding(12.dp).align(Alignment.TopStart),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (live) LivePill()
+            if (vr) PhotoBadge("VR")
+            if (passAccepted) PhotoBadge("PASS")
         }
         Column(
             Modifier
@@ -299,6 +382,20 @@ fun PortraitPhotoCard(
             Text(title, style = CardTitleOnPhoto, color = colors.cream)
         }
     }
+}
+
+@Composable
+private fun PhotoBadge(label: String) {
+    val colors = HinvrTheme.colors
+    Text(
+        label,
+        style = HinvrTypography.labelSmall.copy(letterSpacing = 1.sp),
+        color = colors.cream,
+        modifier = Modifier
+            .clip(RoundedCornerShape(HinvrPillRadius))
+            .background(colors.dusk.copy(alpha = 0.82f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+    )
 }
 
 @Composable
@@ -316,9 +413,14 @@ fun MandirHeroCard(
     photoUrl: String = "",
 ) {
     val colors = HinvrTheme.colors
+    val press = rememberPressMotion()
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = press.scale
+                scaleY = press.scale
+            }
             .shadow(12.dp, RoundedCornerShape(HinvrCardRadius), ambientColor = Color.Black.copy(alpha = 0.07f))
             .clip(RoundedCornerShape(HinvrCardRadius)),
     ) {
@@ -326,7 +428,11 @@ fun MandirHeroCard(
             Modifier
                 .fillMaxWidth()
                 .height(240.dp)
-                .clickable(onClick = onPhoto),
+                .clickable(
+                    interactionSource = press.interactionSource,
+                    indication = null,
+                    onClick = onPhoto,
+                ),
         ) {
             CatalogPhoto(
                 photoUrl = photoUrl,
@@ -401,21 +507,45 @@ fun PassSeal(
     val colors = HinvrTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val selectedScale by animateFloatAsState(
+        targetValue = if (selected) 1.08f else 1f,
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "pass selection",
+    )
+    val sealTop by animateColorAsState(
+        targetValue = if (selected) colors.saffron else colors.ivory,
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "pass seal top",
+    )
+    val sealBottom by animateColorAsState(
+        targetValue = if (selected) Color(0xFF7B2E20) else Color(0xFFF0DFCB),
+        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
+        label = "pass seal bottom",
+    )
     Box(
         modifier = modifier
             .size(size)
-            .graphicsLayer { scaleX = if (pressed) 0.96f else 1f; scaleY = if (pressed) 0.96f else 1f }
+            .graphicsLayer {
+                val scale = if (pressed) selectedScale * 0.96f else selectedScale
+                scaleX = scale
+                scaleY = scale
+            }
             .shadow(
-                elevation = if (selected) 12.dp else 4.dp,
+                elevation = if (selected) 11.dp else 2.dp,
                 shape = CircleShape,
-                ambientColor = colors.gold.copy(alpha = 0.4f),
+                ambientColor = if (selected) colors.saffron.copy(alpha = 0.28f) else Color.Black.copy(alpha = 0.08f),
             )
             .clip(CircleShape)
+            .border(
+                1.dp,
+                colors.gold.copy(alpha = if (selected) 0.75f else 0.42f),
+                CircleShape,
+            )
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        if (selected) Color(0xFFC45C26) else Color(0xFF3D2E22),
-                        if (selected) Color(0xFF6F1D16) else Color(0xFF1A120C),
+                        sealTop,
+                        sealBottom,
                     ),
                 ),
             )
@@ -427,16 +557,16 @@ fun PassSeal(
                 "HI",
                 fontFamily = Figtree,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                color = colors.cream,
+                fontSize = 10.sp,
+                color = if (selected) colors.cream else colors.ink,
                 lineHeight = 12.sp,
             )
             Text(
                 "NV",
                 fontFamily = Figtree,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                color = colors.gold,
+                fontSize = 10.sp,
+                color = if (selected) colors.gold else colors.goldDim,
                 lineHeight = 12.sp,
             )
         }
@@ -508,6 +638,7 @@ fun FilterChip(
 fun IvoryCard(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    containerColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = HinvrTheme.colors
@@ -516,7 +647,7 @@ fun IvoryCard(
             .fillMaxWidth()
             .shadow(8.dp, RoundedCornerShape(HinvrCardRadius), ambientColor = Color.Black.copy(alpha = 0.05f))
             .clip(RoundedCornerShape(HinvrCardRadius))
-            .background(colors.ivory)
+            .background(containerColor ?: colors.ivory)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(18.dp),
         content = content,
@@ -559,13 +690,22 @@ fun SabhaTopBar(
 @Composable
 fun CustomRequestPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = HinvrTheme.colors
+    val press = rememberPressMotion()
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = press.scale
+                scaleY = press.scale
+            }
             .shadow(8.dp, RoundedCornerShape(HinvrPillRadius), ambientColor = Color.Black.copy(alpha = 0.05f))
             .clip(RoundedCornerShape(HinvrPillRadius))
             .background(colors.ivory)
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(horizontal = 22.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,

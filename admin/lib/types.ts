@@ -21,6 +21,18 @@ export type Mandir = {
   updated_label: string;
   live_url: string;
   vr_url: string;
+  deity: string;
+  summary: string;
+  history: string;
+  significance: string;
+  architecture: string;
+  dress_code: string;
+  best_time: string;
+  visitor_notes: string;
+  facilities: string;
+  address: string;
+  official_website: string;
+  contact_phone: string;
   sort_order: number;
   published: boolean;
   updated_at?: string;
@@ -94,6 +106,18 @@ export const emptyMandir = (sortOrder = 100): Mandir => ({
   updated_label: "Updated just now",
   live_url: "",
   vr_url: "",
+  deity: "",
+  summary: "",
+  history: "",
+  significance: "",
+  architecture: "",
+  dress_code: "",
+  best_time: "",
+  visitor_notes: "",
+  facilities: "",
+  address: "",
+  official_website: "",
+  contact_phone: "",
   sort_order: sortOrder,
   published: true,
 });
