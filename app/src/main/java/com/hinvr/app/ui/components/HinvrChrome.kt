@@ -338,11 +338,14 @@ fun PortraitPhotoCard(
     width: Dp? = 168.dp,
     height: Dp = 220.dp,
     photoUrl: String = "",
+    mandirId: String = "",
     vr: Boolean = false,
     passAccepted: Boolean = false,
 ) {
     val colors = HinvrTheme.colors
     val press = rememberPressMotion()
+    val fallback = mandirPhotoDrawable(mandirId, scene)
+    val sourceUrl = if (hasMandirPhotoDrawable(mandirId)) "" else photoUrl
     Box(
         modifier = modifier
             .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
@@ -360,8 +363,8 @@ fun PortraitPhotoCard(
             ),
     ) {
         CatalogPhoto(
-            photoUrl = photoUrl,
-            fallback = scene.homeTempleDrawable(),
+            photoUrl = sourceUrl,
+            fallback = fallback,
             modifier = Modifier.fillMaxSize(),
         )
         PhotoScrim()
@@ -411,9 +414,12 @@ fun MandirHeroCard(
     onAssist: () -> Unit,
     modifier: Modifier = Modifier,
     photoUrl: String = "",
+    mandirId: String = "",
 ) {
     val colors = HinvrTheme.colors
     val press = rememberPressMotion()
+    val fallback = mandirPhotoDrawable(mandirId, scene)
+    val sourceUrl = if (hasMandirPhotoDrawable(mandirId)) "" else photoUrl
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -435,8 +441,8 @@ fun MandirHeroCard(
                 ),
         ) {
             CatalogPhoto(
-                photoUrl = photoUrl,
-                fallback = scene.homeTempleDrawable(),
+                photoUrl = sourceUrl,
+                fallback = fallback,
                 modifier = Modifier.fillMaxSize(),
             )
             PhotoScrim()
@@ -452,14 +458,62 @@ fun MandirHeroCard(
     }
 }
 
-private fun TileScene.homeTempleDrawable(): Int = when (this) {
-    TileScene.Tirupati -> R.drawable.temple_tirupati
-    TileScene.Kashi -> R.drawable.temple_kashi
-    TileScene.Shirdi -> R.drawable.temple_shirdi
-    TileScene.Kedarnath -> R.drawable.temple_kedarnath
-    TileScene.Somnath -> R.drawable.temple_somnath
-    else -> R.drawable.temple_tirupati
+fun hasMandirPhotoDrawable(mandirId: String?): Boolean = when (mandirId.orEmpty().lowercase()) {
+    "mahakal",
+    "siddhivinayak",
+    "mahalakshmi",
+    "jagannath",
+    "jagannath-ahmedabad",
+    "dwarkadhish",
+    "mohankheda",
+    "shirdi",
+    "somnath",
+    "ashapura-mata",
+    "kashi",
+    "sarangpur",
+    "vadtal",
+    "khatu-shyam",
+    "narnarayan-bhuj",
+    "narnarayan-kalupur",
+    "gopinathji-gadhada",
+    "ranchhodraiji-dakor",
+    "radha-govinda-hyderabad",
+    "ram-lalla",
+    -> true
+    else -> false
 }
+
+fun mandirPhotoDrawable(mandirId: String?, scene: TileScene?): Int = when (mandirId.orEmpty().lowercase()) {
+    "mahakal" -> R.drawable.temple_mahakal
+    "siddhivinayak" -> R.drawable.temple_siddhivinayak
+    "mahalakshmi" -> R.drawable.temple_mahalakshmi
+    "jagannath" -> R.drawable.temple_jagannath_puri
+    "jagannath-ahmedabad" -> R.drawable.temple_jagannath_ahmedabad
+    "dwarkadhish" -> R.drawable.temple_dwarkadhish
+    "mohankheda" -> R.drawable.temple_mohankheda
+    "shirdi" -> R.drawable.temple_shirdi_sai
+    "somnath" -> R.drawable.temple_somnath
+    "ashapura-mata" -> R.drawable.temple_ashapura_mata
+    "kashi" -> R.drawable.temple_kashi_vishwanath
+    "sarangpur" -> R.drawable.temple_sarangpur
+    "vadtal" -> R.drawable.temple_vadtal
+    "khatu-shyam" -> R.drawable.temple_khatu_shyam
+    "narnarayan-bhuj" -> R.drawable.temple_narnarayan_bhuj
+    "narnarayan-kalupur" -> R.drawable.temple_narnarayan_kalupur
+    "gopinathji-gadhada" -> R.drawable.temple_gopinathji_gadhada
+    "ranchhodraiji-dakor" -> R.drawable.temple_ranchhodraiji_dakor
+    "radha-govinda-hyderabad" -> R.drawable.temple_radha_govinda_hyderabad
+    "ram-lalla" -> R.drawable.temple_ram_lalla_ayodhya
+    else -> when (scene) {
+        TileScene.Kashi -> R.drawable.temple_kashi
+        TileScene.Shirdi -> R.drawable.temple_shirdi
+        TileScene.Kedarnath -> R.drawable.temple_kedarnath
+        TileScene.Somnath -> R.drawable.temple_somnath
+        else -> R.drawable.temple_tirupati
+    }
+}
+
+private fun TileScene.homeTempleDrawable(): Int = mandirPhotoDrawable(null, this)
 
 @Composable
 fun GlassDock(

@@ -49,14 +49,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.Destinations
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.ServiceTile
-import com.hinvr.app.ui.catalog.TileScene
 import com.hinvr.app.ui.components.BentoTile
 import com.hinvr.app.ui.components.CatalogPhoto
 import com.hinvr.app.ui.components.CircleIconButton
@@ -67,6 +65,8 @@ import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.components.StatusCard
 import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.components.hasMandirPhotoDrawable
+import com.hinvr.app.ui.components.mandirPhotoDrawable
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -119,8 +119,8 @@ fun HomeScreen(
         ) {
             Box(Modifier.fillMaxWidth().height(372.dp)) {
                 CatalogPhoto(
-                    photoUrl = hero?.photoUrl.orEmpty(),
-                    fallback = heroDrawable(hero?.scene),
+                    photoUrl = if (hasMandirPhotoDrawable(hero?.id)) "" else hero?.photoUrl.orEmpty(),
+                    fallback = mandirPhotoDrawable(hero?.id, hero?.scene),
                     contentDescription = hero?.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
@@ -250,6 +250,7 @@ fun HomeScreen(
                             scene = mandir.scene,
                             live = mandir.live,
                             photoUrl = mandir.photoUrl,
+                            mandirId = mandir.id,
                             onClick = { onOpenRoute(Destinations.mandir(mandir.id)) },
                         )
                     }
@@ -268,6 +269,7 @@ fun HomeScreen(
                             scene = hero.scene,
                             live = hero.live,
                             photoUrl = hero.photoUrl,
+                            mandirId = hero.id,
                             onPhoto = { onOpenRoute(Destinations.mandir(hero.id)) },
                             onLive = { onOpenRoute(Destinations.livePlayer(hero.id)) },
                             onVr = { onOpenRoute(Destinations.vrPlayer(hero.id)) },
@@ -356,14 +358,6 @@ private fun HostRail() {
             }
         }
     }
-}
-
-private fun heroDrawable(scene: TileScene?): Int = when (scene) {
-    TileScene.Kashi -> R.drawable.temple_kashi
-    TileScene.Shirdi -> R.drawable.temple_shirdi
-    TileScene.Kedarnath -> R.drawable.temple_kedarnath
-    TileScene.Somnath -> R.drawable.temple_somnath
-    else -> R.drawable.temple_tirupati
 }
 
 @Composable
