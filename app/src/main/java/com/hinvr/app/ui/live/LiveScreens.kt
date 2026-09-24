@@ -77,7 +77,6 @@ fun LiveListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
                         scene = row.scene,
                         live = true,
                         photoUrl = row.photoUrl,
-                        mandirId = row.id,
                         onClick = { onOpenPlayer(row.id) },
                         width = null,
                         height = 200.dp,

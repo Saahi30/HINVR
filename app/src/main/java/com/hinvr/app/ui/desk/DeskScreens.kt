@@ -62,7 +62,6 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                         place = "Waitlist",
                         scene = TileScene.PanditDoor,
                         live = false,
-                        mandirId = row.id,
                         onClick = onConcierge,
                     )
                 }
@@ -103,7 +102,6 @@ fun YatraScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                         place = row.city,
                         scene = if (row.id == "kedarnath") TileScene.YatraRoad else row.scene,
                         live = false,
-                        mandirId = row.id,
                         onClick = onConcierge,
                     )
                 }

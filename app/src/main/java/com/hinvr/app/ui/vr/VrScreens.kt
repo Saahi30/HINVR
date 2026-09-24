@@ -73,7 +73,6 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
                         scene = row.scene,
                         live = false,
                         photoUrl = row.photoUrl,
-                        mandirId = row.id,
                         onClick = {
                             if (hasVr) onOpenPlayer(row.id) else showGate = true
                         },
