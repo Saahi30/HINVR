@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,7 +40,9 @@ import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.illustrations.TempleScene
+import com.hinvr.app.ui.media.NamasteLandscapePrompt
 import com.hinvr.app.ui.media.StreamPane
+import com.hinvr.app.ui.media.isViewerPortrait
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -102,22 +106,40 @@ fun LivePlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
     val isMember = snap.tier != MembershipTier.None
     val colors = HinvrTheme.colors
     val stream = mandir.liveUrl
+    val portrait = isViewerPortrait()
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         Box(Modifier.fillMaxSize()) {
             if (stream.isNotBlank()) {
-                Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+                StreamPane(url = stream, modifier = Modifier.fillMaxSize())
+                NamasteLandscapePrompt()
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xCC100B08), Color.Transparent),
+                            ),
+                        )
+                        .statusBarsPadding(),
+                ) {
                     SabhaTopBar(onBack = onBack, onPhoto = true)
-                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "OFFICIAL STREAM")
-                    Spacer(Modifier.height(12.dp))
-                    StreamPane(
-                        url = stream,
-                        modifier = Modifier
-                            .padding(horizontal = HinvrSideInset)
+                }
+                if (!portrait) {
+                    Column(
+                        Modifier
+                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .weight(1f)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp)),
-                    )
-                    Column(Modifier.padding(HinvrSideInset)) {
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color(0xE6100B08)),
+                                ),
+                            )
+                            .navigationBarsPadding()
+                            .padding(horizontal = HinvrSideInset, vertical = 16.dp),
+                    ) {
+                        LivePill(label = "LIVE DARSHAN")
+                        Spacer(Modifier.height(10.dp))
                         Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
                         Text(
                             "The feed is the temple’s, not ours.",
@@ -126,22 +148,8 @@ fun LivePlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
                         )
                         if (!isMember) {
                             Spacer(Modifier.height(12.dp))
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
-                                    .background(colors.ivory)
-                                    .padding(14.dp),
-                            ) {
-                                Column {
-                                    Text("Darshan stays open.", style = HinvrTypography.titleMedium, color = colors.ink)
-                                    Text("Join for the pass and visit desk.", style = HinvrTypography.bodyMedium, color = colors.inkMuted)
-                                    Spacer(Modifier.height(10.dp))
-                                    HinvrPrimaryButton("Join the club", onPlans)
-                                }
-                            }
+                            HinvrPrimaryButton("Join the club", onPlans)
                         }
-                        Spacer(Modifier.height(16.dp))
                     }
                 }
             } else {

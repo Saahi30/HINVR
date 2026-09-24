@@ -1,0 +1,229 @@
+{
+  "source": "https://livebhagwan.com",
+  "scraped_at": "2026-09-23",
+  "api": "https://api.livebhagwan.com/public/sacred-entity-darshan?sacred_entity_id=01K8YXG0HZ8805SRERVF40Q8EG&published=true",
+  "catalog_api": "https://api.livebhagwan.com/public/darshan",
+  "channel": "https://www.youtube.com/@livebhagwan",
+  "channel_id": "UCaEtfv3IzW_1vMWo2ftboMw",
+  "note": "URLs are what LiveBhagwan embeds today. Video IDs can change. These are their feeds, not temple-board official streams unless they coincide. HINVR StreamPane can take the embed or watch URL.",
+  "homepage_live": [
+    {
+      "title": "Mahakal",
+      "temple": "Shree Mahakaleshwar Temple",
+      "place": "Ujjain, Madhya Pradesh",
+      "slug": "Mahakal_live",
+      "page": "https://livebhagwan.com/?darshan_name=Mahakal_live",
+      "video_id": "vOIx1wXmc7I",
+      "watch": "https://www.youtube.com/watch?v=vOIx1wXmc7I",
+      "embed": "https://www.youtube.com/embed/vOIx1wXmc7I"
+    },
+    {
+      "title": "Dwarkadish",
+      "temple": "Shree Dwarkadhish Temple",
+      "place": "Dwarka, Gujarat",
+      "slug": "Dwarkadish_live",
+      "page": "https://livebhagwan.com/?darshan_name=Dwarkadish_live",
+      "video_id": "hT6FO4Qgz0c",
+      "watch": "https://www.youtube.com/watch?v=hT6FO4Qgz0c",
+      "embed": "https://www.youtube.com/embed/hT6FO4Qgz0c"
+    },
+    {
+      "title": "Mohankheda",
+      "temple": "Mohankheda Jain Temple",
+      "place": "Dhar, Madhya Pradesh",
+      "slug": "Mohankheda_live",
+      "page": "https://livebhagwan.com/?darshan_name=Mohankheda_live",
+      "video_id": "gMln5rnVe6w",
+      "watch": "https://www.youtube.com/watch?v=gMln5rnVe6w",
+      "embed": "https://www.youtube.com/embed/gMln5rnVe6w"
+    },
+    {
+      "title": "Shirdi Sai Baba",
+      "temple": "Shree Saibaba Shirdi",
+      "place": "Shirdi, Maharashtra",
+      "slug": "Shirdi Sai Baba_live",
+      "page": "https://livebhagwan.com/?darshan_name=Shirdi%20Sai%20Baba_live",
+      "video_id": "6Uf3aMujHa8",
+      "watch": "https://www.youtube.com/watch?v=6Uf3aMujHa8",
+      "embed": "https://www.youtube.com/embed/6Uf3aMujHa8"
+    },
+    {
+      "title": "Somnath",
+      "temple": "Somnath Jyotirlinga",
+      "place": "Veraval, Gujarat",
+      "slug": "Somnath_live",
+      "page": "https://livebhagwan.com/?darshan_name=Somnath_live",
+      "video_id": "J4z7CIrvsuw",
+      "watch": "https://www.youtube.com/watch?v=J4z7CIrvsuw",
+      "embed": "https://www.youtube.com/embed/J4z7CIrvsuw"
+    },
+    {
+      "title": "Ashapura Mata",
+      "temple": "Ashapura Mata",
+      "place": "Lakhpat, Gujarat",
+      "slug": "Ashapura Mata_live",
+      "page": "https://livebhagwan.com/?darshan_name=Ashapura%20Mata_live",
+      "video_id": "SEQ3p6hELo8",
+      "watch": "https://www.youtube.com/watch?v=SEQ3p6hELo8",
+      "embed": "https://www.youtube.com/embed/SEQ3p6hELo8"
+    },
+    {
+      "title": "Kashi Vishwanath",
+      "temple": "Kashi Vishwanath",
+      "place": "Varanasi, Uttar Pradesh",
+      "slug": "Kashi Vishwanath_live",
+      "page": "https://livebhagwan.com/?darshan_name=Kashi%20Vishwanath_live",
+      "video_id": "J0nRdUOQps8",
+      "watch": "https://www.youtube.com/watch?v=J0nRdUOQps8",
+      "embed": "https://www.youtube.com/embed/J0nRdUOQps8"
+    },
+    {
+      "title": "Sarangpur",
+      "temple": "Shree Kashtbhanjan Dev Mandir",
+      "place": "Sarangpur, Madhya Pradesh",
+      "slug": "Sarangpur_live",
+      "page": "https://livebhagwan.com/?darshan_name=Sarangpur_live",
+      "video_id": "KomUNKwJu6c",
+      "watch": "https://www.youtube.com/watch?v=KomUNKwJu6c",
+      "embed": "https://www.youtube.com/embed/KomUNKwJu6c"
+    },
+    {
+      "title": "Shri Laxmi Narayan Dev",
+      "temple": "",
+      "place": "",
+      "slug": "LaxmiNarayan_live",
+      "page": "https://livebhagwan.com/?darshan_name=LaxmiNarayan_live",
+      "video_id": "IIuk2Y9dqHc",
+      "watch": "https://www.youtube.com/watch?v=IIuk2Y9dqHc",
+      "embed": "https://www.youtube.com/embed/IIuk2Y9dqHc"
+    },
+    {
+      "title": "Lord Khatu Shyam",
+      "temple": "Lord Khatu Shyam",
+      "place": "Sikar, Rajasthan",
+      "slug": "KhatuShyam_Live",
+      "page": "https://livebhagwan.com/?darshan_name=KhatuShyam_Live",
+      "video_id": "dke2IQtIfUM",
+      "watch": "https://www.youtube.com/watch?v=dke2IQtIfUM",
+      "embed": "https://www.youtube.com/embed/dke2IQtIfUM"
+    },
+    {
+      "title": "Shri NarNarayan Dev-Bhuj",
+      "temple": "Shri Swaminarayan Mandir",
+      "place": "Bhuj, Gujarat",
+      "slug": "NarNarayanDevbhuj_Live",
+      "page": "https://livebhagwan.com/?darshan_name=NarNarayanDevbhuj_Live",
+      "video_id": "oJ8nu5DDRoc",
+      "watch": "https://www.youtube.com/watch?v=oJ8nu5DDRoc",
+      "embed": "https://www.youtube.com/embed/oJ8nu5DDRoc"
+    },
+    {
+      "title": "Shree NarNarayan Dev-Kalupur",
+      "temple": "Shree Swaminarayan Mandir Kalupur",
+      "place": "Ahmedabad, Gujarat",
+      "slug": "NarNarayanDevKalupur_live",
+      "page": "https://livebhagwan.com/?darshan_name=NarNarayanDevKalupur_live",
+      "video_id": "5ppU7BqHdvs",
+      "watch": "https://www.youtube.com/watch?v=5ppU7BqHdvs",
+      "embed": "https://www.youtube.com/embed/5ppU7BqHdvs"
+    },
+    {
+      "title": "Gopinathji Maharaj",
+      "temple": "Gopinathji Maharaj",
+      "place": "Gadhada, Gujarat",
+      "slug": "Gopinathji_live",
+      "page": "https://livebhagwan.com/?darshan_name=Gopinathji_live",
+      "video_id": "xWi4BUuDb7k",
+      "watch": "https://www.youtube.com/watch?v=xWi4BUuDb7k",
+      "embed": "https://www.youtube.com/embed/xWi4BUuDb7k"
+    },
+    {
+      "title": "Shri Ranchhodraiji",
+      "temple": "Shri Ranchhodraiji",
+      "place": "Dakor, Gujarat",
+      "slug": "ShriRanchhodraiji-live",
+      "page": "https://livebhagwan.com/?darshan_name=ShriRanchhodraiji-live",
+      "video_id": "sylr5qU9uoU",
+      "watch": "https://www.youtube.com/watch?v=sylr5qU9uoU",
+      "embed": "https://www.youtube.com/embed/sylr5qU9uoU"
+    },
+    {
+      "title": "Sri Sri Radha-Govinda",
+      "temple": "Sri Sri Radha-Govinda",
+      "place": "Hyderabad, Telangana",
+      "slug": "SriSriRadha-Govinda-live",
+      "page": "https://livebhagwan.com/?darshan_name=SriSriRadha-Govinda-live",
+      "video_id": "TP7KeclRHcc",
+      "watch": "https://www.youtube.com/watch?v=TP7KeclRHcc",
+      "embed": "https://www.youtube.com/embed/TP7KeclRHcc"
+    },
+    {
+      "title": "Ram Lalla",
+      "temple": "Ram Lalla",
+      "place": "Ayodhya, Uttar Pradesh",
+      "slug": "RamLalla-live",
+      "page": "https://livebhagwan.com/?darshan_name=RamLalla-live",
+      "video_id": "xThGBtk3E_A",
+      "watch": "https://www.youtube.com/watch?v=xThGBtk3E_A",
+      "embed": "https://www.youtube.com/embed/xThGBtk3E_A"
+    }
+  ],
+  "more_live_named": [
+    {
+      "title": "Ambaji",
+      "slug": "Ambaji_live",
+      "video_id": "GQJytXfwUj0",
+      "watch": "https://www.youtube.com/watch?v=GQJytXfwUj0",
+      "embed": "https://www.youtube.com/embed/GQJytXfwUj0"
+    },
+    {
+      "title": "Shri Mahalaxmi",
+      "slug": "Shri Mahalaxmi_live",
+      "video_id": "DHRoHpI_rcI",
+      "watch": "https://www.youtube.com/watch?v=DHRoHpI_rcI",
+      "embed": "https://www.youtube.com/embed/DHRoHpI_rcI"
+    },
+    {
+      "title": "Shree Siddhivinayak",
+      "slug": "Shree Siddhivinayak_live",
+      "video_id": "1vGVGya72bQ",
+      "watch": "https://www.youtube.com/watch?v=1vGVGya72bQ",
+      "embed": "https://www.youtube.com/embed/1vGVGya72bQ"
+    },
+    {
+      "title": "Vitthal",
+      "slug": "Vitthal_live",
+      "video_id": "k5T1w4Nd-e8",
+      "watch": "https://www.youtube.com/watch?v=k5T1w4Nd-e8",
+      "embed": "https://www.youtube.com/embed/k5T1w4Nd-e8"
+    },
+    {
+      "title": "Salasar Balaji",
+      "slug": "Salasar Balaji_live",
+      "video_id": "QWVlSo719SE",
+      "watch": "https://www.youtube.com/watch?v=QWVlSo719SE",
+      "embed": "https://www.youtube.com/embed/QWVlSo719SE"
+    },
+    {
+      "title": "Pashupatinath",
+      "slug": "Pashupatinath_live",
+      "video_id": "eKc3whu62Hs",
+      "watch": "https://www.youtube.com/watch?v=eKc3whu62Hs",
+      "embed": "https://www.youtube.com/embed/eKc3whu62Hs"
+    },
+    {
+      "title": "Jagannath Rath Yatra – Ahmedabad",
+      "slug": "Jagannath_live_ahemdabad",
+      "video_id": "2qsfeM6lInw",
+      "watch": "https://www.youtube.com/watch?v=2qsfeM6lInw",
+      "embed": "https://www.youtube.com/embed/2qsfeM6lInw"
+    },
+    {
+      "title": "Jagannath Rath Yatra – Puri",
+      "slug": "Jagannath_live_puri",
+      "video_id": "oX0HEkwdWqo",
+      "watch": "https://www.youtube.com/watch?v=oX0HEkwdWqo",
+      "embed": "https://www.youtube.com/embed/oX0HEkwdWqo"
+    }
+  ]
+}

@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,7 +33,9 @@ import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.illustrations.TempleScene
+import com.hinvr.app.ui.media.NamasteLandscapePrompt
 import com.hinvr.app.ui.media.StreamPane
+import com.hinvr.app.ui.media.isViewerPortrait
 import com.hinvr.app.ui.plans.MembershipGateSheet
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
@@ -105,26 +104,23 @@ fun VrPlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
     var showGate by remember(hasVr) { mutableStateOf(!hasVr) }
     val colors = HinvrTheme.colors
     val stream = mandir.vrUrl
+    val portrait = isViewerPortrait()
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         Box(Modifier.fillMaxSize()) {
             if (stream.isNotBlank()) {
+                StreamPane(url = stream, modifier = Modifier.fillMaxSize())
+                NamasteLandscapePrompt()
                 Column(Modifier.fillMaxSize().navigationBarsPadding()) {
                     SabhaTopBar(onBack = onBack, onPhoto = true)
-                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
-                    Spacer(Modifier.height(12.dp))
-                    StreamPane(
-                        url = stream,
-                        modifier = Modifier
-                            .padding(horizontal = HinvrSideInset)
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .clip(RoundedCornerShape(24.dp)),
-                    )
-                    Column(Modifier.padding(HinvrSideInset)) {
-                        Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
-                        Text("Move your phone — gyroscope comes next.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
-                        Spacer(Modifier.height(16.dp))
-                        HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+                    if (!portrait) {
+                        LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
+                        Spacer(Modifier.weight(1f))
+                        Column(Modifier.padding(HinvrSideInset)) {
+                            Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
+                            Text("Move your phone — gyroscope comes next.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+                            Spacer(Modifier.height(16.dp))
+                            HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+                        }
                     }
                 }
             } else {
