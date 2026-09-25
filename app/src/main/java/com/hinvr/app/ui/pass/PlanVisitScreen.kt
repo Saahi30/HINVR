@@ -49,16 +49,22 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.Mandir
+import com.hinvr.app.ui.components.CatalogPhoto
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.components.PhotoScrim
+import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.components.SabhaTopBar
+import com.hinvr.app.ui.components.templeDrawable
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -78,6 +84,8 @@ private data class DeskHelp(
     val detail: String,
 )
 
+private val PopularTempleIds = listOf("tirupati", "kashi", "shirdi", "somnath")
+
 private val DeskHelpOptions = listOf(
     DeskHelp("Wheelchair", "Someone in the group cannot walk the distance"),
     DeskHelp("Buggy", "A cart inside the temple, where the temple has one"),
@@ -96,6 +104,7 @@ fun PlanVisitScreen(onBack: () -> Unit) {
     val colors = HinvrTheme.colors
     val temples = mandirs.filter { it.passAccepted }
     var mandirId by remember { mutableStateOf("") }
+    var templeQuery by remember { mutableStateOf("") }
     var visitDate by remember { mutableStateOf<LocalDate?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var partySize by remember { mutableIntStateOf(2) }
@@ -103,6 +112,10 @@ fun PlanVisitScreen(onBack: () -> Unit) {
     var assist by remember { mutableStateOf(setOf<String>()) }
     var submitted by remember { mutableStateOf(false) }
     val selected = temples.find { it.id == mandirId }
+    val searching = templeQuery.isNotBlank()
+    val popular = popularTemples(temples)
+    val shown = if (searching) temples.filter { it.matchesTempleQuery(templeQuery) } else popular
+    val pinned = selected?.takeIf { !searching && shown.none { temple -> temple.id == it.id } }
     val ready = selected != null && visitDate != null
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
@@ -144,24 +157,94 @@ fun PlanVisitScreen(onBack: () -> Unit) {
                 SectionHeading("Which temple")
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Tap one. Every temple here accepts the pass.",
+                    "Search by name, or tap a popular temple.",
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
                 Spacer(Modifier.height(12.dp))
-                temples.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        row.forEach { mandir ->
+                SabhaSearchField(
+                    value = templeQuery,
+                    onValueChange = { templeQuery = it },
+                    placeholder = "Tirupati, Kashi, Vaishno Devi…",
+                )
+                Spacer(Modifier.height(16.dp))
+                if (pinned != null) {
+                    Text(
+                        "YOUR CHOICE",
+                        style = HinvrTypography.labelSmall,
+                        color = colors.gold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    if (pinned.hasOwnTemplePhoto()) {
+                        TemplePhotoChoice(
+                            mandir = pinned,
+                            selected = true,
+                            onClick = { mandirId = pinned.id },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        TempleChoice(
+                            mandir = pinned,
+                            selected = true,
+                            onClick = { mandirId = pinned.id },
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+                if (!searching) {
+                    Text(
+                        "POPULAR NOW",
+                        style = HinvrTypography.labelSmall,
+                        color = colors.gold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    shown.chunked(2).forEach { row ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            row.forEach { mandir ->
+                                TemplePhotoChoice(
+                                    mandir = mandir,
+                                    selected = mandir.id == mandirId,
+                                    onClick = { mandirId = mandir.id },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
+                } else if (shown.isEmpty()) {
+                    Text(
+                        "No temple by that name.",
+                        style = HinvrTypography.titleMedium,
+                        color = colors.ink,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Every temple here accepts the pass. Try another name.",
+                        style = HinvrTypography.bodyMedium,
+                        color = colors.inkMuted,
+                    )
+                } else {
+                    shown.forEach { mandir ->
+                        if (mandir.hasOwnTemplePhoto()) {
+                            TemplePhotoChoice(
+                                mandir = mandir,
+                                selected = mandir.id == mandirId,
+                                onClick = { mandirId = mandir.id },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
                             TempleChoice(
                                 mandir = mandir,
                                 selected = mandir.id == mandirId,
                                 onClick = { mandirId = mandir.id },
-                                modifier = Modifier.weight(1f),
                             )
                         }
-                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                        Spacer(Modifier.height(8.dp))
                     }
-                    Spacer(Modifier.height(10.dp))
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -255,6 +338,7 @@ fun PlanVisitScreen(onBack: () -> Unit) {
                             session.addLocalRequest(
                                 "VISIT",
                                 "${templeHeadline(mandir)}, ${mandir.place} · ${date.format(VisitDateFormat)} · $partySize people · $help · ${snap.displayName.ifBlank { snap.city }} · $note",
+                                mandir.id,
                             )
                             submitted = true
                         }
@@ -323,7 +407,8 @@ private fun TempleChoice(
     val headline = templeHeadline(mandir)
     Column(
         modifier
-            .heightIn(min = 78.dp)
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
             .clip(shape)
             .background(if (selected) colors.ink else colors.ivory)
             .border(1.dp, colors.gold.copy(alpha = if (selected) 0.2f else 0.28f), shape)
@@ -360,6 +445,82 @@ private fun TempleChoice(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+@Composable
+private fun TemplePhotoChoice(
+    mandir: Mandir,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 156.dp,
+) {
+    val colors = HinvrTheme.colors
+    val shape = RoundedCornerShape(20.dp)
+    val headline = templeHeadline(mandir)
+    val subline = templeSubline(mandir)
+    Box(
+        modifier
+            .height(height)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) colors.gold else colors.gold.copy(alpha = 0.28f),
+                shape = shape,
+            )
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .semantics {
+                role = Role.RadioButton
+                contentDescription = "$headline, $subline"
+            },
+    ) {
+        CatalogPhoto(
+            photoUrl = mandir.photoUrl,
+            fallback = mandir.scene.templeDrawable(),
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            contentDescription = null,
+        )
+        PhotoScrim()
+        if (selected) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(colors.ink.copy(alpha = 0.78f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Check,
+                    contentDescription = null,
+                    tint = colors.gold,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+        Column(
+            Modifier
+                .align(Alignment.BottomStart)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Text(
+                headline,
+                style = HinvrTypography.titleMedium,
+                color = colors.cream,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                subline,
+                style = HinvrTypography.bodyMedium,
+                color = colors.creamMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -628,6 +789,32 @@ private fun VisitDateDialog(
             showModeToggle = true,
         )
     }
+}
+
+private fun popularTemples(temples: List<Mandir>): List<Mandir> {
+    val byId = temples.associateBy { it.id }
+    val picked = PopularTempleIds.mapNotNull { byId[it] }.toMutableList()
+    if (picked.size < 4) {
+        for (mandir in temples) {
+            if (picked.size >= 4) break
+            if (picked.none { it.id == mandir.id }) picked += mandir
+        }
+    }
+    return picked.take(4)
+}
+
+private fun Mandir.hasOwnTemplePhoto(): Boolean =
+    photoUrl.isNotBlank() || id in PopularTempleIds
+
+private fun Mandir.matchesTempleQuery(query: String): Boolean {
+    val q = query.trim()
+    if (q.isEmpty()) return true
+    return name.contains(q, true) ||
+        place.contains(q, true) ||
+        city.contains(q, true) ||
+        deity.contains(q, true) ||
+        templeHeadline(this).contains(q, true) ||
+        templeSubline(this).contains(q, true)
 }
 
 private fun templeHeadline(mandir: Mandir): String = when (mandir.id) {

@@ -30,6 +30,21 @@ data class ProfileRow(
     val tier: String = "None",
     @SerialName("member_id") val memberId: String = "",
     @SerialName("valid_until") val validUntil: String = "",
+    @SerialName("phone_e164") val phoneE164: String = "",
+)
+
+@Serializable
+private data class PhonePatch(
+    @SerialName("phone_e164") val phoneE164: String,
+)
+
+@Serializable
+private data class DeskRequestInsert(
+    @SerialName("user_id") val userId: String,
+    val kind: String,
+    val summary: String,
+    val city: String = "",
+    @SerialName("mandir_id") val mandirId: String? = null,
 )
 
 data class RemoteUser(
@@ -185,6 +200,8 @@ class SupabaseBackend {
                 filter { eq("id", userId) }
             }.decodeSingleOrNull<ProfileRow>()
         }.getOrNull()
+        val phone = sb.auth.currentUserOrNull()?.phone.orEmpty()
+            .ifBlank { existing?.phoneE164.orEmpty() }
         try {
             sb.from("profiles").upsert(
                 ProfileRow(
@@ -197,6 +214,7 @@ class SupabaseBackend {
                     tier = existing?.tier ?: MembershipTier.None.name,
                     memberId = existing?.memberId.orEmpty(),
                     validUntil = existing?.validUntil.orEmpty(),
+                    phoneE164 = phone,
                 ),
             )
         } catch (e: Exception) {
@@ -230,10 +248,52 @@ class SupabaseBackend {
                     tier = tier.name,
                     memberId = memberId,
                     validUntil = validUntilLabel,
+                    phoneE164 = existing?.phoneE164.orEmpty(),
                 ),
             )
         } catch (e: Exception) {
             throw AuthException(humanize(e), e)
+        }
+    }
+
+    suspend fun savePhone(phoneE164: String) = io {
+        if (!hasCloud || phoneE164.isBlank()) return@io
+        val sb = client ?: return@io
+        val userId = sb.auth.currentUserOrNull()?.id ?: return@io
+        runCatching {
+            sb.from("profiles").update(PhonePatch(phoneE164)) {
+                filter { eq("id", userId) }
+            }
+        }
+    }
+
+    /** Best-effort. Keeps the local desk card even if Cloud is off or the insert fails. */
+    suspend fun createDeskRequest(
+        kind: String,
+        summary: String,
+        city: String,
+        mandirId: String? = null,
+    ): Boolean = io {
+        if (!hasCloud) return@io false
+        val sb = client ?: return@io false
+        val userId = try {
+            sb.auth.currentUserOrNull()?.id
+        } catch (_: Exception) {
+            null
+        } ?: return@io false
+        try {
+            sb.from("desk_requests").insert(
+                DeskRequestInsert(
+                    userId = userId,
+                    kind = kind,
+                    summary = summary,
+                    city = city,
+                    mandirId = mandirId?.ifBlank { null },
+                ),
+            )
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 

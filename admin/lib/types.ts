@@ -63,6 +63,34 @@ export type MemberRow = {
   member_id: string;
   valid_until: string;
   audience: string;
+  profile_complete: boolean;
+  phone_e164: string;
+  updated_at?: string;
+};
+
+export const DESK_KINDS = ["VISIT", "CONCIERGE", "POOJA", "YATRA"] as const;
+export type DeskRequestKind = (typeof DESK_KINDS)[number];
+
+export const DESK_STATUSES = ["new", "open", "done"] as const;
+export type DeskRequestStatus = (typeof DESK_STATUSES)[number];
+
+export type DeskRequest = {
+  id: string;
+  user_id: string;
+  kind: DeskRequestKind;
+  summary: string;
+  city: string;
+  mandir_id: string | null;
+  status: DeskRequestStatus;
+  staff_note: string;
+  created_at: string;
+  updated_at?: string;
+};
+
+export type DeskRequestRow = DeskRequest & {
+  display_name: string;
+  phone_e164: string;
+  tier: string;
 };
 
 export const MANDIR_SCENES = [

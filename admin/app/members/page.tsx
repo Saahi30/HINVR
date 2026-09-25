@@ -12,18 +12,31 @@ export default async function MembersPage() {
     return <GateMessage title="No access." body="This admin already has an owner." />;
   }
 
-  const { data } = await desk.supabase
+  const full = await desk.supabase
     .from("profiles")
-    .select("id, display_name, city, tier, member_id, valid_until, audience")
+    .select("id, display_name, city, tier, member_id, valid_until, audience, profile_complete, phone_e164, updated_at")
     .order("display_name");
+
+  let rows = (full.data ?? []) as MemberRow[];
+  if (full.error) {
+    const fallback = await desk.supabase
+      .from("profiles")
+      .select("id, display_name, city, tier, member_id, valid_until, audience")
+      .order("display_name");
+    rows = ((fallback.data ?? []) as Omit<MemberRow, "profile_complete" | "phone_e164">[]).map((row) => ({
+      ...row,
+      profile_complete: false,
+      phone_e164: "",
+    }));
+  }
 
   return (
     <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
       <PageHeader
         title="Members"
-        description="Set tier and pass dates. People appear after they finish profile setup on the phone."
+        description="Funnel first: who finished setup, who is still on None, then set tier and pass dates."
       />
-      <MembersTable initial={(data ?? []) as MemberRow[]} />
+      <MembersTable initial={rows} />
     </DeskShell>
   );
 }

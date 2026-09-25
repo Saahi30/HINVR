@@ -54,6 +54,8 @@ class SessionRepository(
 
     val configured: Boolean get() = supabase.configured
 
+    val hasCloud: Boolean get() = supabase.hasCloud
+
     val snapshot: Flow<SessionSnapshot> = store.data.map { prefs ->
         SessionSnapshot(
             hasOnboarded = prefs[Keys.hasOnboarded] == true,
@@ -145,14 +147,16 @@ class SessionRepository(
         }
     }
 
-    suspend fun addLocalRequest(kind: String, summary: String) {
+    suspend fun addLocalRequest(kind: String, summary: String, mandirId: String? = null) {
         val sanitized = summary.replace("\n", " ").trim()
         if (sanitized.isBlank()) return
+        val city = snapshot.first().city
         store.edit { prefs ->
             val existing = prefs[Keys.localRequests].orEmpty()
             prefs[Keys.localRequests] = (existing.lines().filter { it.isNotBlank() } +
                 "$kind · $sanitized").takeLast(20).joinToString("\n")
         }
+        runCatching { supabase.createDeskRequest(kind, sanitized, city, mandirId) }
     }
 
     suspend fun signOut() {
@@ -204,6 +208,7 @@ class SessionRepository(
             it[Keys.memberId] = profile?.memberId.orEmpty()
             it[Keys.validUntil] = profile?.validUntil.orEmpty()
         }
+        if (phoneE164.isNotBlank()) runCatching { supabase.savePhone(phoneE164) }
     }
 
     private object Keys {

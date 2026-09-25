@@ -61,3 +61,21 @@ export function IconClose({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function IconInbox({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M2.5 4.5h11v8H2.5v-8Z" stroke="currentColor" />
+      <path d="M2.5 9h3.2l.8 1.5h3l.8-1.5h3.2" stroke="currentColor" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconLive({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <circle cx="8" cy="8" r="2" stroke="currentColor" />
+      <path d="M4.2 4.2a5.4 5.4 0 0 0 0 7.6M11.8 4.2a5.4 5.4 0 0 1 0 7.6" stroke="currentColor" />
+    </svg>
+  );
+}

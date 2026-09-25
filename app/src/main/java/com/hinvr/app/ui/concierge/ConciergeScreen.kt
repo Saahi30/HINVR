@@ -160,7 +160,11 @@ fun ConciergeScreen(onOpenFaq: (String) -> Unit, onBack: (() -> Unit)? = null) {
                         Text(request.substringAfter(" · "), style = HinvrTypography.bodyLarge, color = colors.inkMuted)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Saved locally · ${snap.city.ifBlank { "City to confirm" }}",
+                            if (session.configured) {
+                                "Sent to the desk · ${snap.city.ifBlank { "City to confirm" }}"
+                            } else {
+                                "Saved locally · ${snap.city.ifBlank { "City to confirm" }}"
+                            },
                             style = HinvrTypography.labelSmall,
                             color = colors.gold,
                         )

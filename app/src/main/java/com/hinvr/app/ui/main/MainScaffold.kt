@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -97,11 +98,8 @@ fun MainScaffold(
                 currentRoute = currentRoute,
                 sanctum = onPass,
                 onSelect = { route ->
-                    tabNav.navigate(route) {
-                        popUpTo(tabNav.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    if (route == currentRoute) return@HinvrTabDock
+                    tabNav.navigateToTab(route)
                 },
             )
         },
@@ -156,12 +154,8 @@ fun MainScaffold(
                     onOpenProfile = onOpenProfile,
                     onOpenNotifications = onOpenNotifications,
                     onOpenPlans = onOpenPlans,
-                    onOpenPass = {
-                        tabNav.navigate(Destinations.Pass) { launchSingleTop = true }
-                    },
-                    onOpenConcierge = {
-                        tabNav.navigate(Destinations.Concierge) { launchSingleTop = true }
-                    },
+                    onOpenPass = { tabNav.navigateToTab(Destinations.Pass) },
+                    onOpenConcierge = { tabNav.navigateToTab(Destinations.Concierge) },
                     onOpenRoute = onOpenRoute,
                 )
             }
@@ -297,6 +291,26 @@ private fun HinvrTabDock(
                 }
             }
         }
+    }
+}
+
+private fun NavController.navigateToTab(route: String) {
+    val startId = graph.findStartDestination().id
+    if (route == Destinations.Home) {
+        // launchSingleTop plus popUpTo(start) is a no-op when Home is already
+        // the root under the current tab, so the Home button never leaves Pass.
+        if (!popBackStack(startId, inclusive = false)) {
+            navigate(Destinations.Home) {
+                popUpTo(startId) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        return
+    }
+    navigate(route) {
+        popUpTo(startId) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 

@@ -9,7 +9,7 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   title: "HINVR Admin",
-  description: "Catalog, media, and membership admin for the HINVR app.",
+  description: "Ops desk for the HINVR app: catalog, requests, live, and members.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

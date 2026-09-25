@@ -361,7 +361,7 @@ fun PortraitPhotoCard(
     ) {
         CatalogPhoto(
             photoUrl = photoUrl,
-            fallback = scene.homeTempleDrawable(),
+            fallback = scene.templeDrawable(),
             modifier = Modifier.fillMaxSize(),
         )
         PhotoScrim()
@@ -436,7 +436,7 @@ fun MandirHeroCard(
         ) {
             CatalogPhoto(
                 photoUrl = photoUrl,
-                fallback = scene.homeTempleDrawable(),
+                fallback = scene.templeDrawable(),
                 modifier = Modifier.fillMaxSize(),
             )
             PhotoScrim()
@@ -452,7 +452,7 @@ fun MandirHeroCard(
     }
 }
 
-private fun TileScene.homeTempleDrawable(): Int = when (this) {
+internal fun TileScene.templeDrawable(): Int = when (this) {
     TileScene.Tirupati -> R.drawable.temple_tirupati
     TileScene.Kashi -> R.drawable.temple_kashi
     TileScene.Shirdi -> R.drawable.temple_shirdi

@@ -3,13 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { IconClose, IconGrid, IconHome, IconMenu, IconShield, IconTemple, IconUsers } from "@/components/icons";
+import { IconClose, IconGrid, IconHome, IconInbox, IconLive, IconMenu, IconShield, IconTemple, IconUsers } from "@/components/icons";
 import { cx } from "@/components/ui";
 
 const catalog = [
   { href: "/", label: "Overview", icon: IconGrid, exact: true },
   { href: "/mandirs", label: "Mandirs", icon: IconTemple },
   { href: "/home", label: "Home screen", icon: IconHome },
+];
+
+const ops = [
+  { href: "/requests", label: "Requests", icon: IconInbox },
+  { href: "/live", label: "Live", icon: IconLive },
 ];
 
 const audience = [{ href: "/members", label: "Members", icon: IconUsers }];
@@ -21,6 +26,8 @@ function crumbs(pathname: string) {
   if (pathname.startsWith("/mandirs/")) return ["Catalog", "Mandirs", "Edit"];
   if (pathname.startsWith("/mandirs")) return ["Catalog", "Mandirs"];
   if (pathname.startsWith("/home")) return ["Catalog", "Home screen"];
+  if (pathname.startsWith("/requests")) return ["Ops", "Requests"];
+  if (pathname.startsWith("/live")) return ["Ops", "Live"];
   if (pathname.startsWith("/members")) return ["Audience", "Members"];
   if (pathname.startsWith("/staff")) return ["Workspace", "Team"];
   if (pathname.startsWith("/setup")) return ["Workspace", "Setup"];
@@ -86,6 +93,10 @@ function Sidebar({
         <div>
           <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Catalog</p>
           <NavList pathname={pathname} items={catalog} onNavigate={onNavigate} />
+        </div>
+        <div>
+          <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Ops</p>
+          <NavList pathname={pathname} items={ops} onNavigate={onNavigate} />
         </div>
         <div>
           <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Audience</p>
