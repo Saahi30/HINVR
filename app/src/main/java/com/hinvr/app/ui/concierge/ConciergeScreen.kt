@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,9 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.data.SessionSnapshot
@@ -42,6 +45,7 @@ import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.components.SabhaTopBar
@@ -58,6 +62,9 @@ fun ConciergeScreen(onOpenFaq: (String) -> Unit, onBack: (() -> Unit)? = null) {
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val scope = rememberCoroutineScope()
     var draft by remember { mutableStateOf("") }
+    // The keyboard already covers the dock, so only clear it while the keyboard is down.
+    val imeOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val dockClearance = if (imeOpen) 0.dp else LocalDockClearance.current
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(
             Modifier
@@ -175,7 +182,8 @@ fun ConciergeScreen(onOpenFaq: (String) -> Unit, onBack: (() -> Unit)? = null) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = HinvrSideInset, vertical = 10.dp),
+                    .padding(horizontal = HinvrSideInset, vertical = 10.dp)
+                    .padding(bottom = dockClearance),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(

@@ -99,6 +99,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network)
     implementation(libs.zxing.core)
+    implementation(libs.haze)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

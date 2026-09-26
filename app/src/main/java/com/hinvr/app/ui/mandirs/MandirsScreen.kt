@@ -1,5 +1,6 @@
 package com.hinvr.app.ui.mandirs
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -28,14 +28,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
-import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.ui.components.FilterChip
 import com.hinvr.app.ui.components.HinvrBackground
-import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.HinvrGoldOutlineButton
+import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.MandirHeroCard
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaSearchField
@@ -105,7 +106,7 @@ fun MandirsScreen(onOpenTemple: (String) -> Unit) {
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp + LocalDockClearance.current),
                 ) {
                     items(filtered, key = { it.id }) { row ->
                         PortraitPhotoCard(

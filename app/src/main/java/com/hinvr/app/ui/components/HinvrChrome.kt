@@ -43,11 +43,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -503,51 +508,88 @@ fun PassSeal(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 54.dp,
+    halo: Boolean = true,
 ) {
     val colors = HinvrTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val selectedScale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
+        targetValue = if (selected) 1.06f else 1f,
         animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
         label = "pass selection",
     )
-    val sealTop by animateColorAsState(
-        targetValue = if (selected) colors.saffron else colors.ivory,
+    val glow by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
         animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
-        label = "pass seal top",
+        label = "pass glow",
     )
-    val sealBottom by animateColorAsState(
-        targetValue = if (selected) Color(0xFF7B2E20) else Color(0xFFF0DFCB),
-        animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
-        label = "pass seal bottom",
-    )
+    // A lacquered vermillion orb with a gold ring: the Crew orb, in temple colors.
     Box(
         modifier = modifier
             .size(size)
             .graphicsLayer {
-                val scale = if (pressed) selectedScale * 0.96f else selectedScale
+                val scale = if (pressed) selectedScale * 0.95f else selectedScale
                 scaleX = scale
                 scaleY = scale
             }
+            .drawBehind {
+                if (halo && glow > 0f) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            listOf(colors.amber.copy(alpha = 0.34f * glow), Color.Transparent),
+                            center = center,
+                            radius = this.size.minDimension * 0.95f,
+                        ),
+                        radius = this.size.minDimension * 0.95f,
+                    )
+                }
+            }
             .shadow(
-                elevation = if (selected) 11.dp else 2.dp,
+                elevation = if (selected) 12.dp else 7.dp,
                 shape = CircleShape,
-                ambientColor = if (selected) colors.saffron.copy(alpha = 0.28f) else Color.Black.copy(alpha = 0.08f),
+                ambientColor = colors.vermillion.copy(alpha = 0.35f),
+                spotColor = Color(0xFF4A1A12).copy(alpha = 0.5f),
             )
             .clip(CircleShape)
-            .border(
-                1.dp,
-                colors.gold.copy(alpha = if (selected) 0.75f else 0.42f),
-                CircleShape,
-            )
             .background(
+                Brush.radialGradient(
+                    0f to Color(0xFFC94C37),
+                    0.45f to colors.vermillion,
+                    0.8f to Color(0xFF7B2E20),
+                    1f to Color(0xFF4A1A12),
+                    center = Offset.Unspecified,
+                ),
+            )
+            .drawWithContent {
+                drawContent()
+                val d = this.size.minDimension
+                // Specular sheen across the upper dome.
+                drawOval(
+                    brush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.42f), Color.White.copy(alpha = 0f)),
+                        startY = d * 0.06f,
+                        endY = d * 0.5f,
+                    ),
+                    topLeft = Offset(d * 0.2f, d * 0.06f),
+                    size = Size(d * 0.6f, d * 0.4f),
+                )
+                // Stamped inner ring, like a wax seal.
+                drawCircle(
+                    color = colors.gold.copy(alpha = 0.28f + 0.2f * glow),
+                    radius = d / 2f - 5.dp.toPx(),
+                    style = Stroke(width = 0.8.dp.toPx()),
+                )
+            }
+            .border(
+                1.5.dp,
                 Brush.verticalGradient(
                     listOf(
-                        sealTop,
-                        sealBottom,
+                        colors.flame.copy(alpha = 0.55f + 0.35f * glow),
+                        colors.gold.copy(alpha = 0.7f + 0.3f * glow),
+                        colors.goldDim.copy(alpha = 0.8f),
                     ),
                 ),
+                CircleShape,
             )
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -555,19 +597,21 @@ fun PassSeal(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 "HI",
-                fontFamily = Figtree,
+                fontFamily = Fraunces,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 10.sp,
-                color = if (selected) colors.cream else colors.ink,
-                lineHeight = 12.sp,
+                fontSize = (size.value * 0.2f).sp,
+                letterSpacing = 1.5.sp,
+                color = colors.cream,
+                lineHeight = (size.value * 0.22f).sp,
             )
             Text(
                 "NV",
-                fontFamily = Figtree,
+                fontFamily = Fraunces,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 10.sp,
-                color = if (selected) colors.gold else colors.goldDim,
-                lineHeight = 12.sp,
+                fontSize = (size.value * 0.2f).sp,
+                letterSpacing = 1.5.sp,
+                color = colors.flame.copy(alpha = 0.92f),
+                lineHeight = (size.value * 0.22f).sp,
             )
         }
     }

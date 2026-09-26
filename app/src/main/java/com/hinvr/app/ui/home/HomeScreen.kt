@@ -2,10 +2,10 @@ package com.hinvr.app.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,11 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Assignment
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,7 +48,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
@@ -62,16 +62,17 @@ import com.hinvr.app.ui.components.CatalogPhoto
 import com.hinvr.app.ui.components.CircleIconButton
 import com.hinvr.app.ui.components.CustomRequestPill
 import com.hinvr.app.ui.components.HinvrBackground
+import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.MandirHeroCard
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.components.StatusCard
-import com.hinvr.app.ui.components.IvoryCard
+import com.hinvr.app.ui.motion.HinvrMotion
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
-import com.hinvr.app.ui.motion.HinvrMotion
 import kotlinx.coroutines.delay
 
 @Composable
@@ -283,7 +284,7 @@ fun HomeScreen(
             AnimatedVisibility(visible = revealContent, enter = homeReveal(420)) {
                 HostRail()
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(28.dp + LocalDockClearance.current))
         }
     }
 }
