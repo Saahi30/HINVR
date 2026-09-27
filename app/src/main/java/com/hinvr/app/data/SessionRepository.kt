@@ -15,6 +15,11 @@ private val Context.sessionStore: DataStore<Preferences> by preferencesDataStore
 
 enum class MembershipTier { None, Darshan, Gold, Platinum, Nri }
 
+val MembershipTier.hasDeskPass: Boolean
+    get() = this == MembershipTier.Gold ||
+        this == MembershipTier.Platinum ||
+        this == MembershipTier.Nri
+
 enum class Audience { Me, Parents, Family }
 
 data class SessionSnapshot(

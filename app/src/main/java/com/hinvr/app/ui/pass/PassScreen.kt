@@ -70,9 +70,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
-import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.PassCheckIn
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.hasDeskPass
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
@@ -99,7 +99,7 @@ fun PassScreen(
 ) {
     val session = LocalSessionRepository.current
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
-    val hasCredential = snap.tier in setOf(MembershipTier.Gold, MembershipTier.Platinum, MembershipTier.Nri)
+    val hasCredential = snap.tier.hasDeskPass
     val colors = HinvrTheme.colors
     var passRevealed by rememberSaveable { mutableStateOf(false) }
     KeepScreenBright(enabled = hasCredential)

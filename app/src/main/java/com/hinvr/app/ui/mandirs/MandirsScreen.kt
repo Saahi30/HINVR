@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.hasDeskPass
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.FilterChip
@@ -42,6 +43,7 @@ import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
+import com.hinvr.app.ui.plans.MembershipGateSheet
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -136,6 +138,8 @@ fun TempleDetailScreen(
     onVr: () -> Unit,
     onPass: () -> Unit = {},
     onAssist: () -> Unit = {},
+    onPlans: () -> Unit = {},
+    onConcierge: () -> Unit = {},
 ) {
     val catalog = LocalCatalogRepository.current
     val session = LocalSessionRepository.current
@@ -148,6 +152,7 @@ fun TempleDetailScreen(
     val facilities = remember(mandir.facilities) {
         mandir.facilities.lines().map { it.trim() }.filter { it.isNotBlank() }
     }
+    var assistPrompt by remember { mutableStateOf<MandirAssistPrompt?>(null) }
     HinvrBackground(atmosphere = Atmosphere.Sabha, darkIcons = false) {
         Column(
             Modifier
@@ -170,7 +175,13 @@ fun TempleDetailScreen(
                     onLive = onLive,
                     onVr = onVr,
                     onPass = onPass,
-                    onAssist = onAssist,
+                    onAssist = {
+                        when {
+                            !mandir.passAccepted -> assistPrompt = MandirAssistPrompt.Desk
+                            !snap.tier.hasDeskPass -> assistPrompt = MandirAssistPrompt.Gate
+                            else -> onAssist()
+                        }
+                    },
                 )
                 Spacer(Modifier.height(20.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -281,8 +292,32 @@ fun TempleDetailScreen(
                 Spacer(Modifier.height(32.dp))
             }
         }
+        when (assistPrompt) {
+            MandirAssistPrompt.Gate -> MembershipGateSheet(
+                reason = "Visit assist is included in Gold.",
+                onDismiss = { assistPrompt = null },
+                onSeePlans = {
+                    assistPrompt = null
+                    onPlans()
+                },
+            )
+            MandirAssistPrompt.Desk -> MembershipGateSheet(
+                reason = "This mandir does not accept the pass yet.",
+                onDismiss = { assistPrompt = null },
+                onSeePlans = {
+                    assistPrompt = null
+                    onConcierge()
+                },
+                eyebrow = "DESK",
+                body = "Ask Concierge — we will handle the visit by hand.",
+                actionLabel = "Ask Concierge",
+            )
+            null -> Unit
+        }
     }
 }
+
+private enum class MandirAssistPrompt { Gate, Desk }
 
 @Composable
 private fun TempleFactCard(eyebrow: String, value: String, modifier: Modifier = Modifier) {

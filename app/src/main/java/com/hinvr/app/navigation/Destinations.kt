@@ -28,8 +28,9 @@ object Destinations {
     const val VrPlayer = "vr/{id}"
     const val Pass = "pass"
     const val PassHow = "pass/how"
-    const val PassVisit = "pass/visit"
+    const val PassVisit = "pass/visit?mandir={mandir}"
     const val Concierge = "concierge"
+    const val MainTabKey = "main_tab"
     const val Faq = "concierge/faq/{id}"
     const val Plans = "plans"
     const val Profile = "profile"
@@ -43,6 +44,7 @@ object Destinations {
     fun livePlayer(id: String) = "live/$id"
     fun vrPlayer(id: String) = "vr/$id"
     fun faq(id: String) = "concierge/faq/$id"
+    fun passVisit(mandirId: String = "") = "pass/visit?mandir=${android.net.Uri.encode(mandirId)}"
 }
 
 fun SessionSnapshot.startRoute(): String = when {

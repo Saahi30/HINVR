@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.hasDeskPass
 import com.hinvr.app.navigation.Destinations
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
@@ -69,6 +70,7 @@ import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.components.StatusCard
 import com.hinvr.app.ui.motion.HinvrMotion
+import com.hinvr.app.ui.plans.MembershipGateSheet
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -95,6 +97,7 @@ fun HomeScreen(
     val hero = live ?: mandirs.firstOrNull()
     val member = snap.tier != MembershipTier.None
     var revealContent by remember { mutableStateOf(false) }
+    var assistPrompt by remember { mutableStateOf<MandirAssistPrompt?>(null) }
 
     LaunchedEffect(Unit) { catalog.refresh() }
     LaunchedEffect(Unit) {
@@ -273,7 +276,13 @@ fun HomeScreen(
                             onLive = { onOpenRoute(Destinations.livePlayer(hero.id)) },
                             onVr = { onOpenRoute(Destinations.vrPlayer(hero.id)) },
                             onPass = onOpenPass,
-                            onAssist = onOpenConcierge,
+                            onAssist = {
+                                when {
+                                    !hero.passAccepted -> assistPrompt = MandirAssistPrompt.Desk
+                                    !snap.tier.hasDeskPass -> assistPrompt = MandirAssistPrompt.Gate
+                                    else -> onOpenRoute(Destinations.passVisit(hero.id))
+                                }
+                            },
                         )
                         Spacer(Modifier.height(28.dp))
                     }
@@ -286,8 +295,32 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(28.dp + LocalDockClearance.current))
         }
+        when (assistPrompt) {
+            MandirAssistPrompt.Gate -> MembershipGateSheet(
+                reason = "Visit assist is included in Gold.",
+                onDismiss = { assistPrompt = null },
+                onSeePlans = {
+                    assistPrompt = null
+                    onOpenPlans()
+                },
+            )
+            MandirAssistPrompt.Desk -> MembershipGateSheet(
+                reason = "This mandir does not accept the pass yet.",
+                onDismiss = { assistPrompt = null },
+                onSeePlans = {
+                    assistPrompt = null
+                    onOpenConcierge()
+                },
+                eyebrow = "DESK",
+                body = "Ask Concierge — we will handle the visit by hand.",
+                actionLabel = "Ask Concierge",
+            )
+            null -> Unit
+        }
     }
 }
+
+private enum class MandirAssistPrompt { Gate, Desk }
 
 private fun homeReveal(delayMs: Int): EnterTransition =
     fadeIn(

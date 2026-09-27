@@ -21,6 +21,9 @@ fun MembershipGateSheet(
     reason: String,
     onDismiss: () -> Unit,
     onSeePlans: () -> Unit,
+    eyebrow: String = "MEMBERSHIP",
+    body: String = "Gold includes the digital pass, visit assist, and recorded VR darshan.",
+    actionLabel: String = "See membership",
 ) {
     val colors = HinvrTheme.colors
     ModalBottomSheet(
@@ -33,17 +36,13 @@ fun MembershipGateSheet(
                 .padding(horizontal = 22.dp)
                 .navigationBarsPadding(),
         ) {
-            Text("MEMBERSHIP", style = HinvrTypography.labelSmall, color = colors.gold)
+            Text(eyebrow, style = HinvrTypography.labelSmall, color = colors.gold)
             Spacer(Modifier.height(8.dp))
             Text(reason, style = HinvrTypography.headlineMedium, color = colors.ink)
             Spacer(Modifier.height(10.dp))
-            Text(
-                "Gold includes the digital pass, visit assist, and recorded VR darshan.",
-                style = HinvrTypography.bodyLarge,
-                color = colors.inkMuted,
-            )
+            Text(body, style = HinvrTypography.bodyLarge, color = colors.inkMuted)
             Spacer(Modifier.height(20.dp))
-            HinvrPrimaryButton("See membership", onSeePlans)
+            HinvrPrimaryButton(actionLabel, onSeePlans)
             Spacer(Modifier.height(18.dp))
         }
     }

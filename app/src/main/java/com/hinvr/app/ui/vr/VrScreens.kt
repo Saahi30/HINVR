@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
-import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.hasDeskPass
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.LivePill
@@ -48,7 +48,7 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
     val catalog = LocalCatalogRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val snap by LocalSessionRepository.current.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
-    val hasVr = snap.tier in setOf(MembershipTier.Gold, MembershipTier.Platinum, MembershipTier.Nri)
+    val hasVr = snap.tier.hasDeskPass
     var showGate by remember { mutableStateOf(false) }
     val rows = mandirs.filter { it.vr }
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
@@ -99,7 +99,7 @@ fun VrPlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val mandir = remember(id, mandirs) { catalog.mandir(id) }
     val snap by LocalSessionRepository.current.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
-    val hasVr = snap.tier in setOf(MembershipTier.Gold, MembershipTier.Platinum, MembershipTier.Nri)
+    val hasVr = snap.tier.hasDeskPass
     var showGate by remember(hasVr) { mutableStateOf(!hasVr) }
     val colors = HinvrTheme.colors
     val stream = mandir.vrUrl

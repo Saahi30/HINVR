@@ -41,6 +41,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -100,6 +101,8 @@ fun MainScaffold(
     onOpenNotifications: () -> Unit,
     onOpenPlans: () -> Unit,
     onOpenRoute: (String) -> Unit,
+    pendingTab: String = "",
+    onPendingTabConsumed: () -> Unit = {},
 ) {
     val tabs = listOf(
         TabSpec(Destinations.Home, R.string.nav_home, Icons.Outlined.Home, Icons.Rounded.Home),
@@ -113,6 +116,11 @@ fun MainScaffold(
     val colors = HinvrTheme.colors
     val onPass = currentRoute == Destinations.Pass
     val hazeState = rememberHazeState()
+    LaunchedEffect(pendingTab) {
+        if (pendingTab.isBlank()) return@LaunchedEffect
+        tabNav.navigateToTab(pendingTab)
+        onPendingTabConsumed()
+    }
     val scaffoldColor by animateColorAsState(
         targetValue = if (onPass) colors.duskDeep else colors.linen,
         animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
@@ -196,7 +204,7 @@ fun MainScaffold(
                     PassScreen(
                         onOpenPlans = onOpenPlans,
                         onOpenHow = { onOpenRoute(Destinations.PassHow) },
-                        onPlanVisit = { onOpenRoute(Destinations.PassVisit) },
+                        onPlanVisit = { onOpenRoute(Destinations.passVisit()) },
                     )
                 }
                 composable(Destinations.Concierge) {

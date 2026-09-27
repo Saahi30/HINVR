@@ -97,7 +97,7 @@ private val DeskHelpOptions = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlanVisitScreen(onBack: () -> Unit) {
+fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     val catalog = LocalCatalogRepository.current
     val session = LocalSessionRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
@@ -105,7 +105,7 @@ fun PlanVisitScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
     val temples = mandirs.filter { it.passAccepted }
-    var mandirId by remember { mutableStateOf("") }
+    var mandirId by remember(initialMandirId) { mutableStateOf(initialMandirId) }
     var templeQuery by remember { mutableStateOf("") }
     var visitDate by remember { mutableStateOf<LocalDate?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }

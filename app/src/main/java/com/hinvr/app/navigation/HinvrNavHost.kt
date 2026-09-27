@@ -13,6 +13,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -152,8 +154,15 @@ fun HinvrNavHost() {
                 }
             }
         }
-        composable(Destinations.Main) {
+        composable(Destinations.Main) { entry ->
+            val pendingTab by entry.savedStateHandle
+                .getStateFlow(Destinations.MainTabKey, "")
+                .collectAsStateWithLifecycle()
             MainScaffold(
+                pendingTab = pendingTab,
+                onPendingTabConsumed = {
+                    entry.savedStateHandle[Destinations.MainTabKey] = ""
+                },
                 onOpenProfile = { go(Destinations.Profile) },
                 onOpenNotifications = { go(Destinations.Notifications) },
                 onOpenPlans = { go(Destinations.Plans) },
@@ -170,8 +179,16 @@ fun HinvrNavHost() {
                 onBack = { nav.popBackStack() },
                 onLive = { go(Destinations.livePlayer(id)) },
                 onVr = { go(Destinations.vrPlayer(id)) },
-                onPass = { go(Destinations.Plans) },
-                onAssist = { go(Destinations.Concierge) },
+                onPass = {
+                    runCatching {
+                        nav.getBackStackEntry(Destinations.Main)
+                            .savedStateHandle[Destinations.MainTabKey] = Destinations.Pass
+                    }
+                    nav.popBackStack()
+                },
+                onAssist = { go(Destinations.passVisit(id)) },
+                onPlans = { go(Destinations.Plans) },
+                onConcierge = { go(Destinations.Concierge) },
             )
         }
         composable(Destinations.Live) {
@@ -216,8 +233,19 @@ fun HinvrNavHost() {
         composable(Destinations.PassHow) {
             HowPassWorksScreen(onBack = { nav.popBackStack() })
         }
-        composable(Destinations.PassVisit) {
-            PlanVisitScreen(onBack = { nav.popBackStack() })
+        composable(
+            Destinations.PassVisit,
+            arguments = listOf(
+                navArgument("mandir") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
+            PlanVisitScreen(
+                onBack = { nav.popBackStack() },
+                initialMandirId = entry.arguments?.getString("mandir").orEmpty(),
+            )
         }
         composable(
             Destinations.Faq,
