@@ -10,8 +10,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 private val Context.sessionStore: DataStore<Preferences> by preferencesDataStore("hinvr_session")
 
@@ -24,8 +22,10 @@ data class SessionSnapshot(
     val isLoggedIn: Boolean = false,
     val profileComplete: Boolean = false,
     val displayName: String = "",
+    val email: String = "",
     val phoneE164: String = "",
     val city: String = "",
+    val places: List<MemberPlace> = emptyList(),
     val languageTag: String = "en",
     val audience: Audience = Audience.Me,
     val tier: MembershipTier = MembershipTier.None,
@@ -36,21 +36,12 @@ data class SessionSnapshot(
     val localRequests: List<String> = emptyList(),
 )
 
-data class PendingOtp(
-    val userId: String,
-    val phoneE164: String,
-)
-
 class SessionRepository(
     context: Context,
     private val supabase: SupabaseBackend,
 ) {
 
     private val store = context.applicationContext.sessionStore
-    private val otpLock = Mutex()
-    @Volatile
-    var pendingOtp: PendingOtp? = null
-        private set
 
     val configured: Boolean get() = supabase.configured
 
@@ -62,8 +53,12 @@ class SessionRepository(
             isLoggedIn = prefs[Keys.isLoggedIn] == true,
             profileComplete = prefs[Keys.profileComplete] == true,
             displayName = prefs[Keys.displayName].orEmpty(),
+            email = prefs[Keys.email].orEmpty(),
             phoneE164 = prefs[Keys.phoneE164].orEmpty(),
             city = prefs[Keys.city].orEmpty(),
+            places = decodePlaces(prefs[Keys.places].orEmpty()).ifEmpty {
+                decodePlaces(prefs[Keys.address].orEmpty())
+            },
             languageTag = prefs[Keys.languageTag] ?: "en",
             audience = runCatching {
                 Audience.valueOf(prefs[Keys.audience] ?: Audience.Me.name)
@@ -90,24 +85,21 @@ class SessionRepository(
         store.edit { it[Keys.hasOnboarded] = true }
     }
 
-    suspend fun sendPhoneOtp(phoneE164: String) {
-        val userId = supabase.sendPhoneOtp(phoneE164)
-        otpLock.withLock {
-            pendingOtp = PendingOtp(userId = userId, phoneE164 = phoneE164)
-        }
+    /**
+     * Creates a live Supabase account.
+     * @return true if profile is already complete (skip setup).
+     */
+    suspend fun createAccount(email: String, password: String): Boolean {
+        supabase.signUp(email.trim(), password)
+        return adoptCurrentUser()
     }
 
     /**
      * @return true if profile is already complete (skip setup).
      */
-    suspend fun verifyOtp(secret: String): Boolean {
-        val pending = otpLock.withLock { pendingOtp }
-            ?: throw AuthException("Start again from your number.")
-        supabase.verifyOtp(pending.phoneE164, secret)
-        val user = supabase.currentUser()
-        applyUser(user, pending.phoneE164, pending.userId)
-        otpLock.withLock { pendingOtp = null }
-        return snapshot.first().profileComplete
+    suspend fun signIn(email: String, password: String): Boolean {
+        supabase.signIn(email.trim(), password)
+        return adoptCurrentUser()
     }
 
     suspend fun completeProfile(
@@ -115,16 +107,34 @@ class SessionRepository(
         city: String,
         languageTag: String,
         audience: Audience,
+        phoneE164: String,
+        places: List<MemberPlace>,
     ) {
-        supabase.saveProfile(name, city, languageTag, audience)
+        supabase.saveProfile(name, city, languageTag, audience, phoneE164, places)
         store.edit {
             it[Keys.profileComplete] = true
             it[Keys.displayName] = name
             it[Keys.city] = city
+            it[Keys.places] = encodePlaces(places)
             it[Keys.languageTag] = languageTag
             it[Keys.audience] = audience.name
+            it[Keys.phoneE164] = phoneE164
         }
     }
+
+    suspend fun addPlace(place: MemberPlace) {
+        val current = snapshot.first()
+        completeProfile(
+            current.displayName,
+            current.city,
+            current.languageTag,
+            current.audience,
+            current.phoneE164,
+            current.places + place,
+        )
+    }
+
+    suspend fun membershipPageUrl(): String = supabase.membershipPageUrl()
 
     suspend fun setTier(tier: MembershipTier, memberId: String, validUntilLabel: String) {
         supabase.saveTier(tier, memberId, validUntilLabel)
@@ -168,10 +178,14 @@ class SessionRepository(
         }
     }
 
-    /** Pull Supabase session into DataStore. Safe if Cloud is unset or offline. */
+    /** Pull Supabase session into DataStore. Keeps the local session if the network fails. */
     suspend fun syncRemote() {
         if (!supabase.configured) return
-        val user = runCatching { supabase.currentUser() }.getOrNull()
+        val user = try {
+            supabase.currentUser()
+        } catch (_: Exception) {
+            return
+        }
         if (user == null) {
             val local = snapshot.first()
             if (local.isLoggedIn) {
@@ -183,24 +197,28 @@ class SessionRepository(
             }
             return
         }
-        applyUser(user, user.phone.ifBlank { snapshot.first().phoneE164 }, user.id)
+        applyUser(user)
     }
 
-    private suspend fun applyUser(
-        user: RemoteUser?,
-        phoneE164: String,
-        userId: String,
-    ) {
-        val profile = user?.profile
+    private suspend fun adoptCurrentUser(): Boolean {
+        val user = supabase.currentUser() ?: throw AuthException("Sign in again.")
+        applyUser(user)
+        return snapshot.first().profileComplete
+    }
+
+    private suspend fun applyUser(user: RemoteUser) {
+        val profile = user.profile
         val profileComplete = profile?.profileComplete == true ||
-            (user?.displayName?.isNotBlank() == true && profile?.city?.isNotBlank() == true)
+            (user.displayName.isNotBlank() && profile?.city?.isNotBlank() == true)
         store.edit {
             it[Keys.isLoggedIn] = true
             it[Keys.hasOnboarded] = true
-            it[Keys.phoneE164] = phoneE164
-            it[Keys.userId] = user?.id ?: userId
-            it[Keys.displayName] = user?.displayName.orEmpty()
+            it[Keys.email] = user.email
+            it[Keys.phoneE164] = user.phone
+            it[Keys.userId] = user.id
+            it[Keys.displayName] = user.displayName
             it[Keys.city] = profile?.city.orEmpty()
+            it[Keys.places] = encodePlaces(profile?.addresses.orEmpty())
             it[Keys.languageTag] = profile?.languageTag ?: "en"
             it[Keys.audience] = profile?.audience ?: Audience.Me.name
             it[Keys.profileComplete] = profileComplete
@@ -208,7 +226,6 @@ class SessionRepository(
             it[Keys.memberId] = profile?.memberId.orEmpty()
             it[Keys.validUntil] = profile?.validUntil.orEmpty()
         }
-        if (phoneE164.isNotBlank()) runCatching { supabase.savePhone(phoneE164) }
     }
 
     private object Keys {
@@ -216,8 +233,11 @@ class SessionRepository(
         val isLoggedIn = booleanPreferencesKey("is_logged_in")
         val profileComplete = booleanPreferencesKey("profile_complete")
         val displayName = stringPreferencesKey("display_name")
+        val email = stringPreferencesKey("email")
         val phoneE164 = stringPreferencesKey("phone_e164")
         val city = stringPreferencesKey("city")
+        val address = stringPreferencesKey("address")
+        val places = stringPreferencesKey("places")
         val languageTag = stringPreferencesKey("language_tag")
         val audience = stringPreferencesKey("audience")
         val tier = stringPreferencesKey("tier")

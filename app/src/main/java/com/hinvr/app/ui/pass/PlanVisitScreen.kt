@@ -53,6 +53,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
@@ -64,6 +65,7 @@ import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.PhotoScrim
 import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.components.SabhaTopBar
+import com.hinvr.app.ui.components.ServicePlacePicker
 import com.hinvr.app.ui.components.templeDrawable
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
@@ -110,13 +112,16 @@ fun PlanVisitScreen(onBack: () -> Unit) {
     var partySize by remember { mutableIntStateOf(2) }
     var notes by remember { mutableStateOf("") }
     var assist by remember { mutableStateOf(setOf<String>()) }
+    var selectedPlace by remember { mutableStateOf<MemberPlace?>(null) }
+    var placeError by remember { mutableStateOf<String?>(null) }
     var submitted by remember { mutableStateOf(false) }
+    val place = selectedPlace ?: snap.places.firstOrNull()
     val selected = temples.find { it.id == mandirId }
     val searching = templeQuery.isNotBlank()
     val popular = popularTemples(temples)
     val shown = if (searching) temples.filter { it.matchesTempleQuery(templeQuery) } else popular
     val pinned = selected?.takeIf { !searching && shown.none { temple -> temple.id == it.id } }
-    val ready = selected != null && visitDate != null
+    val ready = selected != null && visitDate != null && place != null
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
@@ -127,6 +132,7 @@ fun PlanVisitScreen(onBack: () -> Unit) {
                     date = visitDate!!,
                     partySize = partySize,
                     assist = assist,
+                    place = place,
                     onBack = onBack,
                 )
                 return@Column
@@ -314,12 +320,34 @@ fun PlanVisitScreen(onBack: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(18.dp))
+                ServicePlacePicker(
+                    places = snap.places,
+                    selected = place,
+                    onSelect = { selectedPlace = it },
+                    onSaveNew = { newPlace ->
+                        scope.launch {
+                            placeError = null
+                            runCatching { session.addPlace(newPlace) }
+                                .onSuccess { selectedPlace = newPlace }
+                                .onFailure { placeError = it.message ?: "Couldn’t save that place." }
+                        }
+                    },
+                    onLocated = { },
+                    onError = { placeError = it },
+                )
+                if (placeError != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(placeError!!, style = HinvrTypography.bodyMedium, color = colors.vermillion)
+                }
+
+                Spacer(Modifier.height(18.dp))
                 if (!ready) {
                     Text(
                         when {
                             selected == null && visitDate == null -> "Choose a temple and a date to send."
                             selected == null -> "Choose a temple to send."
-                            else -> "Choose a date to send."
+                            visitDate == null -> "Choose a date to send."
+                            else -> "Choose a place to send."
                         },
                         style = HinvrTypography.bodyLarge,
                         color = colors.ink,
@@ -332,12 +360,13 @@ fun PlanVisitScreen(onBack: () -> Unit) {
                     onClick = {
                         val mandir = selected ?: return@HinvrPrimaryButton
                         val date = visitDate ?: return@HinvrPrimaryButton
+                        val chosen = place ?: return@HinvrPrimaryButton
                         val help = assist.ifEmpty { setOf("No extra help") }.joinToString()
                         val note = notes.trim().ifBlank { "No note" }
                         scope.launch {
                             session.addLocalRequest(
                                 "VISIT",
-                                "${templeHeadline(mandir)}, ${mandir.place} · ${date.format(VisitDateFormat)} · $partySize people · $help · ${snap.displayName.ifBlank { snap.city }} · $note",
+                                "${templeHeadline(mandir)}, ${mandir.place} · ${date.format(VisitDateFormat)} · $partySize people · $help · ${chosen.label}: ${chosen.address} · ${snap.displayName.ifBlank { snap.city }} · $note",
                                 mandir.id,
                             )
                             submitted = true
@@ -366,6 +395,7 @@ private fun VisitSent(
     date: LocalDate,
     partySize: Int,
     assist: Set<String>,
+    place: MemberPlace?,
     onBack: () -> Unit,
 ) {
     val colors = HinvrTheme.colors
@@ -385,6 +415,10 @@ private fun VisitSent(
         )
         Spacer(Modifier.height(22.dp))
         VisitRecap(mandir = mandir, date = date, partySize = partySize, assist = assist)
+        if (place != null) {
+            Spacer(Modifier.height(8.dp))
+            Text("${place.label} · ${place.address}", style = HinvrTypography.bodyLarge, color = colors.inkMuted)
+        }
         Spacer(Modifier.height(22.dp))
         HinvrPrimaryButton("Back to pass", onBack)
     }

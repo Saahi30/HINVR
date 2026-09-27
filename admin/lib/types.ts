@@ -55,6 +55,11 @@ export type HomeSettings = {
   eyebrow: string;
 };
 
+export type MemberPlace = {
+  label: string;
+  address: string;
+};
+
 export type MemberRow = {
   id: string;
   display_name: string;
@@ -65,7 +70,14 @@ export type MemberRow = {
   audience: string;
   profile_complete: boolean;
   phone_e164: string;
+  addresses: MemberPlace[];
   updated_at?: string;
+  purchase_id?: string;
+  invoice_number?: string;
+  amount_inr?: number | null;
+  purchased_on?: string;
+  valid_from?: string;
+  invoice_valid_until?: string;
 };
 
 export const DESK_KINDS = ["VISIT", "CONCIERGE", "POOJA", "YATRA"] as const;

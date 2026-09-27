@@ -51,7 +51,7 @@ private data class OnboardingPage(
 )
 
 @Composable
-fun OnboardingScreen(onContinue: () -> Unit) {
+fun OnboardingScreen(onContinue: (signIn: Boolean) -> Unit) {
     val session = LocalSessionRepository.current
     val scope = rememberCoroutineScope()
     val pages = listOf(
@@ -78,10 +78,10 @@ fun OnboardingScreen(onContinue: () -> Unit) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val colors = HinvrTheme.colors
 
-    fun finish() {
+    fun finish(signIn: Boolean = false) {
         scope.launch {
             session.completeOnboarding()
-            onContinue()
+            onContinue(signIn)
         }
     }
 
@@ -158,7 +158,7 @@ fun OnboardingScreen(onContinue: () -> Unit) {
                 }
                 HinvrPrimaryButton(text = stringResource(R.string.cta_continue_phone), onClick = { finish() })
                 Spacer(Modifier.height(8.dp))
-                HinvrGoldOutlineButton(text = stringResource(R.string.cta_have_account), onClick = { finish() })
+                HinvrGoldOutlineButton(text = stringResource(R.string.cta_have_account), onClick = { finish(signIn = true) })
                 Spacer(Modifier.height(16.dp))
             }
         }

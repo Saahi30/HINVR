@@ -38,9 +38,9 @@ android {
             "\"${localProp("SUPABASE_PUBLISHABLE_KEY")}\"",
         )
         buildConfigField(
-            "boolean",
-            "MOCK_PHONE_OTP",
-            localProp("MOCK_PHONE_OTP", "true").ifBlank { "true" },
+            "String",
+            "MEMBERSHIP_URL",
+            "\"${localProp("MEMBERSHIP_URL", "https://hinvr-membership.vercel.app")}\"",
         )
     }
 

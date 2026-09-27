@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
@@ -44,13 +45,11 @@ import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.SabhaTopBar
-import com.hinvr.app.ui.splash.DiyaFlame
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrCardRadius
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import com.hinvr.app.ui.motion.HinvrMotion
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private data class PlanCard(
@@ -63,10 +62,13 @@ private data class PlanCard(
 )
 
 @Composable
-fun PlansScreen(onBack: () -> Unit, onMockPay: () -> Unit) {
+fun PlansScreen(onBack: () -> Unit) {
     val session = LocalSessionRepository.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    var opening by remember { mutableStateOf(false) }
+    var browserError by remember { mutableStateOf<String?>(null) }
     val colors = HinvrTheme.colors
     val plans = listOf(
         PlanCard(
@@ -102,9 +104,6 @@ fun PlansScreen(onBack: () -> Unit, onMockPay: () -> Unit) {
             selectedTier = snap.tier
         }
     }
-    val selectedPlan = plans.first { it.tier == selectedTier }
-    val selectedIsCurrent = selectedTier == snap.tier
-
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(
             modifier = Modifier
@@ -157,32 +156,26 @@ fun PlansScreen(onBack: () -> Unit, onMockPay: () -> Unit) {
                     .navigationBarsPadding()
                     .padding(horizontal = 22.dp, vertical = 14.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            if (selectedIsCurrent) "CURRENT PLAN" else "YOUR CHOICE",
-                            style = HinvrTypography.labelSmall,
-                            color = colors.gold,
-                        )
-                        Text(
-                            "${selectedPlan.name} · ${selectedPlan.price} / year",
-                            style = HinvrTypography.titleMedium,
-                            color = colors.ink,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
                 HinvrPrimaryButton(
-                    text = if (selectedIsCurrent) "This is your current plan" else "Choose ${selectedPlan.name}",
-                    enabled = !selectedIsCurrent,
+                    text = if (opening) "Opening…" else "Manage subscription",
+                    enabled = !opening,
                     onClick = {
                         scope.launch {
-                            val current = session.snapshot.first()
-                            val suffix = current.userId.takeLast(5).uppercase().ifBlank { "48291" }
-                            session.setTier(selectedPlan.tier, "HNV-$suffix", "till Apr 2027")
-                            onMockPay()
+                            opening = true
+                            browserError = openMembershipInBrowser(context, session)
+                            opening = false
                         }
                     },
+                )
+                browserError?.let { message ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(message, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Membership updates after you return to the app.",
+                    style = HinvrTypography.bodyMedium,
+                    color = colors.inkMuted,
                 )
             }
         }
@@ -310,30 +303,6 @@ private fun SelectionMark(selected: Boolean) {
                     .clip(RoundedCornerShape(999.dp))
                     .background(colors.gold),
             )
-        }
-    }
-}
-
-@Composable
-fun PaySuccessScreen(onOpenPass: () -> Unit) {
-    val colors = HinvrTheme.colors
-    HinvrBackground(atmosphere = Atmosphere.Sanctum) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(Modifier.weight(1f))
-            DiyaFlame(lit = 1f, size = 96.dp)
-            Spacer(Modifier.height(20.dp))
-            Text("Your pass is ready.", style = HinvrTypography.headlineLarge, color = colors.cream)
-            Spacer(Modifier.height(8.dp))
-            Text("A quiet diya, not balloons.", style = HinvrTypography.bodyLarge, color = colors.creamMuted)
-            Spacer(Modifier.weight(1f))
-            HinvrPrimaryButton("Open the pass", onOpenPass)
-            Spacer(Modifier.height(16.dp))
         }
     }
 }

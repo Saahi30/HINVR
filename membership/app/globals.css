@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --ivory: #fff8f0;
+  --linen: #f4ede3;
+  --ink: #1a120c;
+  --muted: #6b5e4e;
+  --gold: #c9a227;
+  --saffron: #c45c26;
+  --dusk: #100b08;
+  --stone: #2c2118;
+  --cream: #f3e6d0;
+  --cream-muted: #d9c7a8;
+}
+
+@theme inline {
+  --color-ivory: var(--ivory);
+  --color-linen: var(--linen);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-saffron: var(--saffron);
+  --color-dusk: var(--dusk);
+  --color-stone: var(--stone);
+  --color-cream: var(--cream);
+  --color-cream-muted: var(--cream-muted);
+  --font-serif: var(--font-newsreader);
+  --font-sans: var(--font-outfit);
+}
+
+html,
+body {
+  background: var(--linen);
+  color: var(--ink);
+}
+
+button {
+  font: inherit;
+}

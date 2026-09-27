@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.HinvrCatalog
@@ -60,6 +61,7 @@ import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.SectionTitle
+import com.hinvr.app.ui.components.ServicePlacePicker
 import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
@@ -104,9 +106,12 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
     var timeOfDay by remember { mutableStateOf("Morning") }
     var specialRequest by remember { mutableStateOf("") }
+    var selectedPlace by remember { mutableStateOf<MemberPlace?>(null) }
+    var placeError by remember { mutableStateOf<String?>(null) }
     var submitted by remember { mutableStateOf(false) }
+    val place = selectedPlace ?: snap.places.firstOrNull()
     val pujaName = if (puja == "Custom") customPuja.trim() else puja.orEmpty()
-    val ready = pujaName.isNotBlank() && preferredDate != null
+    val ready = pujaName.isNotBlank() && preferredDate != null && place != null
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
@@ -117,6 +122,7 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                     date = preferredDate!!,
                     timeOfDay = timeOfDay,
                     specialRequest = specialRequest.trim(),
+                    place = place,
                     onBack = onBack,
                 )
             } else {
@@ -171,17 +177,39 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                     SabhaSearchField(specialRequest, { specialRequest = it }, "A special request, if any")
 
                     Spacer(Modifier.height(28.dp))
+                    ServicePlacePicker(
+                        places = snap.places,
+                        selected = place,
+                        onSelect = { selectedPlace = it },
+                        onSaveNew = { newPlace ->
+                            scope.launch {
+                                placeError = null
+                                runCatching { session.addPlace(newPlace) }
+                                    .onSuccess { selectedPlace = newPlace }
+                                    .onFailure { placeError = it.message ?: "Couldn’t save that place." }
+                            }
+                        },
+                        onLocated = { },
+                        onError = { placeError = it },
+                    )
+                    if (placeError != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(placeError!!, style = HinvrTypography.bodyMedium, color = colors.vermillion)
+                    }
+
+                    Spacer(Modifier.height(28.dp))
                     HinvrPrimaryButton(
                         text = "Send request",
                         enabled = ready,
                         onClick = {
                             val date = preferredDate ?: return@HinvrPrimaryButton
+                            val chosen = place ?: return@HinvrPrimaryButton
                             val note = specialRequest.trim().ifBlank { "No special request" }
                             val city = snap.city.trim().let { if (it.isBlank()) "" else " · $it" }
                             scope.launch {
                                 session.addLocalRequest(
                                     "POOJA",
-                                    "$pujaName · ${date.format(PujaDateFormat)} · $timeOfDay$city · $note",
+                                    "$pujaName · ${date.format(PujaDateFormat)} · $timeOfDay$city · ${chosen.label}: ${chosen.address} · $note",
                                 )
                                 submitted = true
                             }
@@ -250,6 +278,7 @@ private fun PujaSent(
     date: LocalDate,
     timeOfDay: String,
     specialRequest: String,
+    place: MemberPlace?,
     onBack: () -> Unit,
 ) {
     val colors = HinvrTheme.colors
@@ -276,6 +305,10 @@ private fun PujaSent(
                 style = HinvrTypography.bodyLarge,
                 color = colors.ink,
             )
+            if (place != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("${place.label} · ${place.address}", style = HinvrTypography.bodyLarge, color = colors.inkMuted)
+            }
             if (specialRequest.isNotBlank()) {
                 Text(specialRequest, style = HinvrTypography.bodyLarge, color = colors.inkMuted)
             }

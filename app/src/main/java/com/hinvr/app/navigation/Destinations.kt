@@ -16,8 +16,7 @@ val LocalCatalogRepository = staticCompositionLocalOf<CatalogRepository> {
 object Destinations {
     const val Splash = "splash"
     const val Onboarding = "onboarding"
-    const val Phone = "auth/phone"
-    const val Otp = "auth/otp/{phone}"
+    const val Phone = "auth/phone/{mode}"
     const val Setup = "auth/setup"
     const val Main = "main"
     const val Home = "home"
@@ -33,14 +32,13 @@ object Destinations {
     const val Concierge = "concierge"
     const val Faq = "concierge/faq/{id}"
     const val Plans = "plans"
-    const val PaySuccess = "plans/success"
     const val Profile = "profile"
     const val Legal = "profile/legal"
     const val Notifications = "notifications"
     const val Pooja = "pooja"
     const val Yatra = "yatra"
 
-    fun otp(phone: String) = "auth/otp/${android.net.Uri.encode(phone)}"
+    fun account(signIn: Boolean = false) = "auth/phone/${if (signIn) "signin" else "signup"}"
     fun mandir(id: String) = "mandirs/$id"
     fun livePlayer(id: String) = "live/$id"
     fun vrPlayer(id: String) = "vr/$id"
@@ -51,5 +49,5 @@ fun SessionSnapshot.startRoute(): String = when {
     isLoggedIn && profileComplete -> Destinations.Main
     isLoggedIn -> Destinations.Setup
     !hasOnboarded -> Destinations.Onboarding
-    else -> Destinations.Phone
+    else -> Destinations.account()
 }

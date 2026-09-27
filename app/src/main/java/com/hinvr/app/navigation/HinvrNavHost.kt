@@ -1,5 +1,10 @@
 package com.hinvr.app.navigation
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -13,8 +18,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.hinvr.app.ui.auth.OtpScreen
-import com.hinvr.app.ui.auth.PhoneLoginScreen
+import kotlinx.coroutines.launch
+import com.hinvr.app.ui.auth.AccountScreen
 import com.hinvr.app.ui.auth.ProfileSetupScreen
 import com.hinvr.app.ui.concierge.ConciergeScreen
 import com.hinvr.app.ui.concierge.FaqArticleScreen
@@ -28,7 +33,6 @@ import com.hinvr.app.ui.mandirs.TempleDetailScreen
 import com.hinvr.app.ui.onboarding.OnboardingScreen
 import com.hinvr.app.ui.pass.HowPassWorksScreen
 import com.hinvr.app.ui.pass.PlanVisitScreen
-import com.hinvr.app.ui.plans.PaySuccessScreen
 import com.hinvr.app.ui.plans.PlansScreen
 import com.hinvr.app.ui.profile.LegalScreen
 import com.hinvr.app.ui.profile.NotificationsScreen
@@ -40,6 +44,18 @@ import com.hinvr.app.ui.vr.VrPlayerScreen
 @Composable
 fun HinvrNavHost() {
     val nav = rememberNavController()
+    val session = LocalSessionRepository.current
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, session) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch { session.syncRemote() }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     fun go(route: String) = nav.navigate(route)
 
@@ -107,23 +123,18 @@ fun HinvrNavHost() {
             }
         }
         composable(Destinations.Onboarding) {
-            OnboardingScreen {
-                replace(Destinations.Phone, Destinations.Onboarding)
+            OnboardingScreen { signIn ->
+                replace(Destinations.account(signIn), Destinations.Onboarding)
             }
         }
-        composable(Destinations.Phone) {
-            PhoneLoginScreen(
-                onOtpSent = { phone -> go(Destinations.otp(phone)) },
-            )
-        }
         composable(
-            Destinations.Otp,
-            arguments = listOf(navArgument("phone") { type = NavType.StringType }),
+            Destinations.Phone,
+            arguments = listOf(navArgument("mode") { type = NavType.StringType }),
         ) { entry ->
-            val phone = entry.arguments?.getString("phone").orEmpty()
-            OtpScreen(
-                phone = phone,
-                onVerified = { profileComplete ->
+            val signIn = entry.arguments?.getString("mode") == "signin"
+            AccountScreen(
+                startInSignIn = signIn,
+                onAuthenticated = { profileComplete ->
                     if (profileComplete) {
                         nav.navigate(Destinations.Main) {
                             popUpTo(nav.graph.id) { inclusive = true }
@@ -132,7 +143,6 @@ fun HinvrNavHost() {
                         replace(Destinations.Setup, Destinations.Phone)
                     }
                 },
-                onChangeNumber = { nav.popBackStack() },
             )
         }
         composable(Destinations.Setup) {
@@ -219,17 +229,7 @@ fun HinvrNavHost() {
             )
         }
         composable(Destinations.Plans) {
-            PlansScreen(
-                onBack = { nav.popBackStack() },
-                onMockPay = { replace(Destinations.PaySuccess, Destinations.Plans) },
-            )
-        }
-        composable(Destinations.PaySuccess) {
-            PaySuccessScreen {
-                nav.navigate(Destinations.Main) {
-                    popUpTo(nav.graph.id) { inclusive = true }
-                }
-            }
+            PlansScreen(onBack = { nav.popBackStack() })
         }
         composable(Destinations.Profile) {
             ProfileScreen(
@@ -237,7 +237,7 @@ fun HinvrNavHost() {
                 onLegal = { go(Destinations.Legal) },
                 onPlans = { go(Destinations.Plans) },
                 onSignedOut = {
-                    nav.navigate(Destinations.Phone) {
+                    nav.navigate(Destinations.account(signIn = true)) {
                         popUpTo(nav.graph.id) { inclusive = true }
                     }
                 },
@@ -266,5 +266,4 @@ fun HinvrNavHost() {
 
 private fun isImmersiveRoute(route: String?): Boolean =
     route == Destinations.LivePlayer ||
-        route == Destinations.VrPlayer ||
-        route == Destinations.PaySuccess
+        route == Destinations.VrPlayer

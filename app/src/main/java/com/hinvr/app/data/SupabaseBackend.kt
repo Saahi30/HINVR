@@ -6,18 +6,23 @@ import com.hinvr.app.ui.catalog.ServiceTile
 import com.hinvr.app.ui.catalog.parseTileScene
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.OTP
+import io.github.jan.supabase.auth.exception.AuthRestException
+import io.github.jan.supabase.auth.exception.AuthWeakPasswordException
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.json.JSONObject
 
 @Serializable
 data class ProfileRow(
@@ -31,6 +36,7 @@ data class ProfileRow(
     @SerialName("member_id") val memberId: String = "",
     @SerialName("valid_until") val validUntil: String = "",
     @SerialName("phone_e164") val phoneE164: String = "",
+    val addresses: List<MemberPlace> = emptyList(),
 )
 
 @Serializable
@@ -50,6 +56,7 @@ private data class DeskRequestInsert(
 data class RemoteUser(
     val id: String,
     val phone: String,
+    val email: String,
     val displayName: String,
     val profile: ProfileRow?,
 )
@@ -114,20 +121,18 @@ data class RemoteCatalog(
 )
 
 /**
- * Supabase client for phone OTP, session, [profiles], and the public catalog.
+ * Supabase client for email accounts, session, [profiles], and the public catalog.
  *
- * Phone SMS stays mocked while [BuildConfig.MOCK_PHONE_OTP] is true
- * (default). Catalog still loads whenever URL + publishable key are set.
+ * Accounts are live whenever URL + publishable key are set. Phone SMS is not
+ * used: this project has the phone provider turned off.
  */
 class SupabaseBackend {
-
-    val mockPhoneOtp: Boolean = BuildConfig.MOCK_PHONE_OTP
 
     val hasCloud: Boolean =
         BuildConfig.SUPABASE_URL.isNotBlank() &&
             BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
 
-    val configured: Boolean = !mockPhoneOtp && hasCloud
+    val configured: Boolean = hasCloud
 
     private val client: SupabaseClient? = if (hasCloud) {
         createSupabaseClient(
@@ -141,24 +146,30 @@ class SupabaseBackend {
         null
     }
 
-    suspend fun sendPhoneOtp(phone: String): String = io {
-        if (mockPhoneOtp || !configured) return@io LOCAL_USER
+    suspend fun signUp(email: String, password: String) = io {
+        val sb = requireClient()
         try {
-            client!!.auth.signInWith(OTP) { this.phone = phone }
-            phone
+            sb.auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            if (sb.auth.currentUserOrNull() == null) {
+                throw AuthException("Check your email to finish creating the account.")
+            }
+        } catch (e: AuthException) {
+            throw e
         } catch (e: Exception) {
             throw AuthException(humanize(e), e)
         }
     }
 
-    suspend fun verifyOtp(phone: String, token: String) = io {
-        if (mockPhoneOtp || !configured) return@io
+    suspend fun signIn(email: String, password: String) = io {
+        val sb = requireClient()
         try {
-            client!!.auth.verifyPhoneOtp(
-                type = OtpType.Phone.SMS,
-                phone = phone,
-                token = token,
-            )
+            sb.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
         } catch (e: Exception) {
             throw AuthException(humanize(e), e)
         }
@@ -168,6 +179,7 @@ class SupabaseBackend {
         if (!configured) return@io null
         val sb = client ?: return@io null
         val user = try {
+            sb.auth.awaitInitialization()
             sb.auth.currentUserOrNull()
         } catch (e: Exception) {
             throw AuthException(humanize(e), e)
@@ -179,7 +191,8 @@ class SupabaseBackend {
         }.getOrNull()
         RemoteUser(
             id = user.id,
-            phone = user.phone.orEmpty(),
+            phone = profile?.phoneE164?.ifBlank { user.phone.orEmpty() }.orEmpty(),
+            email = user.email.orEmpty(),
             displayName = profile?.displayName.orEmpty(),
             profile = profile,
         )
@@ -190,18 +203,17 @@ class SupabaseBackend {
         city: String,
         languageTag: String,
         audience: Audience,
+        phoneE164: String,
+        addresses: List<MemberPlace>,
     ) = io {
-        if (!configured) return@io
-        val sb = client ?: return@io
+        val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id
-            ?: throw AuthException("Sign in again from your number.")
+            ?: throw AuthException("Sign in again.")
         val existing = runCatching {
             sb.from("profiles").select {
                 filter { eq("id", userId) }
             }.decodeSingleOrNull<ProfileRow>()
         }.getOrNull()
-        val phone = sb.auth.currentUserOrNull()?.phone.orEmpty()
-            .ifBlank { existing?.phoneE164.orEmpty() }
         try {
             sb.from("profiles").upsert(
                 ProfileRow(
@@ -214,7 +226,8 @@ class SupabaseBackend {
                     tier = existing?.tier ?: MembershipTier.None.name,
                     memberId = existing?.memberId.orEmpty(),
                     validUntil = existing?.validUntil.orEmpty(),
-                    phoneE164 = phone,
+                    phoneE164 = phoneE164.ifBlank { existing?.phoneE164.orEmpty() },
+                    addresses = addresses.ifEmpty { existing?.addresses.orEmpty() },
                 ),
             )
         } catch (e: Exception) {
@@ -227,10 +240,9 @@ class SupabaseBackend {
         memberId: String,
         validUntilLabel: String,
     ) = io {
-        if (!configured) return@io
-        val sb = client ?: return@io
+        val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id
-            ?: throw AuthException("Sign in again from your number.")
+            ?: throw AuthException("Sign in again.")
         val existing = runCatching {
             sb.from("profiles").select {
                 filter { eq("id", userId) }
@@ -249,6 +261,7 @@ class SupabaseBackend {
                     memberId = memberId,
                     validUntil = validUntilLabel,
                     phoneE164 = existing?.phoneE164.orEmpty(),
+                    addresses = existing?.addresses.orEmpty(),
                 ),
             )
         } catch (e: Exception) {
@@ -297,9 +310,54 @@ class SupabaseBackend {
         }
     }
 
+    /** One-time browser URL that signs this member into the membership site. */
+    suspend fun membershipPageUrl(): String = io {
+        val sb = requireClient()
+        sb.auth.awaitInitialization()
+        val access = sb.auth.currentAccessTokenOrNull()
+            ?: throw AuthException("Sign in again.")
+        val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/membership-handoff"
+        val connection = (URI(endpoint).toURL().openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            setRequestProperty("Authorization", "Bearer $access")
+            setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
+            setRequestProperty("Content-Type", "application/json")
+            doOutput = true
+            connectTimeout = 15_000
+            readTimeout = 15_000
+        }
+        connection.outputStream.use { it.write("{}".toByteArray()) }
+        val code = connection.responseCode
+        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()
+            ?.readText()
+            .orEmpty()
+        val body = runCatching { JSONObject(text) }.getOrNull()
+        val token = body?.optString("token_hash").orEmpty()
+        if (code !in 200..299 || token.isBlank()) {
+            throw AuthException(body?.optString("error").orEmpty().ifBlank {
+                if (code == 401) "Sign in again." else "Couldn't open membership."
+            })
+        }
+        val type = body?.optString("type").orEmpty().ifBlank { "magiclink" }
+        val base = BuildConfig.MEMBERSHIP_URL.trim()
+        val joiner = if ('?' in base) "&" else "?"
+        base + joiner +
+            "handoff=" + URLEncoder.encode(token, Charsets.UTF_8.name()) +
+            "&type=" + URLEncoder.encode(type, Charsets.UTF_8.name())
+    }
+
     suspend fun signOut() = io {
-        if (!configured) return@io
-        runCatching { client!!.auth.signOut() }
+        val sb = client ?: return@io
+        runCatching {
+            sb.auth.awaitInitialization()
+            sb.auth.signOut()
+        }
+    }
+
+    private fun requireClient(): SupabaseClient {
+        if (!configured) throw AuthException("HINVR isn’t connected. Try again.")
+        return client ?: throw AuthException("HINVR isn’t connected. Try again.")
     }
 
     suspend fun fetchCatalog(): RemoteCatalog? = io {
@@ -363,25 +421,35 @@ class SupabaseBackend {
         }
     }
 
-    companion object {
-        const val LOCAL_USER = "local"
-    }
 }
 
 class AuthException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 private fun humanize(e: Throwable): String {
+    if (e is AuthWeakPasswordException) {
+        return "Choose a stronger password. At least 6 characters."
+    }
     val rest = e as? RestException
+    val auth = e as? AuthRestException
     val message = rest?.message ?: e.message.orEmpty()
+    val code = auth?.error ?: ""
     val status = rest?.statusCode ?: 0
     return when {
+        code.contains("user_already_exists", ignoreCase = true) ||
+            message.contains("already registered", ignoreCase = true) ||
+            message.contains("already been registered", ignoreCase = true) ->
+            "That email already has an account. Sign in instead."
+        code.contains("invalid_credentials", ignoreCase = true) ||
+            message.contains("invalid login", ignoreCase = true) ||
+            message.contains("invalid credentials", ignoreCase = true) ->
+            "That email or password doesn’t match."
+        message.contains("email", ignoreCase = true) && message.contains("invalid", ignoreCase = true) ->
+            "That email doesn’t look right."
+        message.contains("password", ignoreCase = true) &&
+            (message.contains("least", ignoreCase = true) || message.contains("weak", ignoreCase = true)) ->
+            "Choose a stronger password. At least 6 characters."
         status == 429 || message.contains("rate", ignoreCase = true) ->
-            "Too many tries. Wait a minute, then send again."
-        status == 401 || message.contains("otp", ignoreCase = true) &&
-            message.contains("invalid", ignoreCase = true) ->
-            "That code didn’t match. Try again."
-        message.contains("phone", ignoreCase = true) && message.contains("invalid", ignoreCase = true) ->
-            "That number doesn’t look right."
+            "Too many tries. Wait a minute, then try again."
         message.contains("Unable to resolve host", ignoreCase = true) ||
             message.contains("timeout", ignoreCase = true) ||
             message.contains("failed to connect", ignoreCase = true) ||

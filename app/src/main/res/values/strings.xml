@@ -6,7 +6,8 @@
     <string name="nav_mandirs">Mandirs</string>
     <string name="nav_pass">Pass</string>
     <string name="nav_concierge">Concierge</string>
-    <string name="cta_continue_phone">Continue with phone</string>
+    <string name="cta_continue_phone">Create account</string>
+    <string name="cta_sign_in">Sign in</string>
     <string name="cta_have_account">I already have an account</string>
     <string name="cta_send_otp">Send OTP</string>
     <string name="cta_enter">Enter HINVR</string>
