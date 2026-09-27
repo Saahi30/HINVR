@@ -67,6 +67,12 @@ function payloadJson(claims: PassClaims): string {
   });
 }
 
+function exactBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
+}
+
 function signingKey(jwk: JsonWebKey, usage: "sign" | "verify"): JsonWebKey {
   const copy: JsonWebKey = {
     kty: jwk.kty,
@@ -126,7 +132,7 @@ export async function verifyPassToken(
   const ok = await crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    signature,
+    exactBytes(signature),
     new TextEncoder().encode(`${kid}.${parts[2]}`),
   );
   if (!ok) throw new PassTokenError("That signature does not match.");

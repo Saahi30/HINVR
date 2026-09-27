@@ -90,7 +90,6 @@ import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -121,15 +120,9 @@ fun PassScreen(
     } else {
         ""
     }
-    KeepScreenBright(enabled = hasCredential && livePayload.isNotBlank())
+    KeepScreenBright(enabled = livePayload.isNotBlank())
     LaunchedEffect(Unit) {
         session.syncRemote()
-    }
-    LaunchedEffect(snap.userId, snap.tier, snap.memberId, snap.validUntilLabel) {
-        if (!snap.isLoggedIn || !hasCredential) return@LaunchedEffect
-        val current = session.snapshot.collectAsStateWithLifecycle(initialValue = snap)
-        current
-        refreshPass(session, rotate = false, onError = { passError = it }, onBusy = { passBusy = it })
     }
     LaunchedEffect(snap.passExpiresAt) {
         val expiry = snap.passExpiresAt
@@ -137,8 +130,18 @@ fun PassScreen(
         val wait = expiry - System.currentTimeMillis()
         if (wait > 0) delay(wait)
         nowMs = System.currentTimeMillis()
-        if (!hasCredential) return@LaunchedEffect
-        refreshPass(session, rotate = false, onError = { passError = it }, onBusy = { passBusy = it })
+    }
+    LaunchedEffect(snap.userId, snap.tier, snap.memberId, snap.validUntilLabel, livePayload.isBlank()) {
+        if (!snap.isLoggedIn || !hasCredential || livePayload.isNotBlank()) return@LaunchedEffect
+        passBusy = true
+        try {
+            session.ensurePass(false)
+            passError = ""
+        } catch (error: Exception) {
+            passError = error.message ?: "Couldn't refresh the pass."
+        } finally {
+            passBusy = false
+        }
     }
 
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
@@ -183,14 +186,16 @@ fun PassScreen(
                     alreadyRevealed = passRevealed,
                     onFinished = { passRevealed = true },
                 ) {
-                    PassCredentialCard(snap = snap, hasCredential = hasCredential)
+                    PassCredentialCard(snap = snap, hasCredential = hasCredential, payload = livePayload)
                 }
             }
 
             Spacer(Modifier.height(18.dp))
             Text(
-                if (hasCredential) {
+                if (livePayload.isNotBlank()) {
                     "Hold this under the scanner."
+                } else if (hasCredential) {
+                    "A signed code, not a string anyone can copy."
                 } else {
                     "Your name on a temple pass."
                 },
@@ -198,9 +203,59 @@ fun PassScreen(
                 color = colors.cream,
                 textAlign = TextAlign.Center,
             )
+            if (hasCredential) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    when {
+                        passError.isNotBlank() -> passError
+                        livePayload.isNotBlank() -> "Expires ${formatPassClock(snap.passExpiresAt)}. It still shows without a signal until then."
+                        passBusy -> "Issuing a signed code…"
+                        snap.passToken.isNotBlank() -> "This code expired. Reconnect to issue a new one."
+                        else -> "Connect once to issue this pass."
+                    },
+                    style = HinvrTypography.bodyMedium,
+                    color = colors.creamMuted,
+                    textAlign = TextAlign.Center,
+                )
+            }
             Spacer(Modifier.height(22.dp))
             PassLedger(snap = snap, hasCredential = hasCredential)
             Spacer(Modifier.height(22.dp))
+            if (hasCredential) {
+                PassCredentialActions(
+                    busy = passBusy,
+                    cardStatus = snap.cardStatus,
+                    onNewCode = {
+                        scope.launch {
+                            passBusy = true
+                            passError = ""
+                            try {
+                                session.ensurePass(true)
+                            } catch (error: Exception) {
+                                passError = error.message ?: "Couldn't refresh the pass."
+                            } finally {
+                                passBusy = false
+                            }
+                        }
+                    },
+                    onWallet = {
+                        scope.launch {
+                            passBusy = true
+                            passError = ""
+                            try {
+                                val url = session.googleWalletUrl()
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            } catch (error: Exception) {
+                                passError = error.message ?: "Couldn't open Google Wallet."
+                            } finally {
+                                passBusy = false
+                            }
+                        }
+                    },
+                    onCard = { showCard = true },
+                )
+                Spacer(Modifier.height(8.dp))
+            }
             PassVaultButton(
                 text = if (hasCredential) "Plan a visit" else "Choose membership",
                 onClick = if (hasCredential) onPlanVisit else onOpenPlans,
@@ -224,6 +279,34 @@ fun PassScreen(
                 textAlign = TextAlign.Center,
             )
         }
+    }
+    if (showCard && hasCredential) {
+        PhysicalCardDialog(
+            initialName = snap.displayName,
+            initialAddress = snap.places.joinToString("\n") { place ->
+                listOf(place.label, place.address).filter { it.isNotBlank() }.joinToString(": ")
+            },
+            busy = passBusy,
+            error = passError,
+            onDismiss = {
+                showCard = false
+                passError = ""
+            },
+            onSubmit = { name, address ->
+                scope.launch {
+                    passBusy = true
+                    passError = ""
+                    try {
+                        session.requestPhysicalCard(name, address)
+                        showCard = false
+                    } catch (error: Exception) {
+                        passError = error.message ?: "Couldn't join the card list."
+                    } finally {
+                        passBusy = false
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -523,7 +606,7 @@ private fun PassDrawerReveal(
 }
 
 @Composable
-private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
+private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, payload: String) {
     val colors = HinvrTheme.colors
     var showExpandedQr by remember { mutableStateOf(false) }
     val sheen = rememberInfiniteTransition(label = "pass sheen")
@@ -643,14 +726,21 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
                         .clip(RoundedCornerShape(18.dp))
                         .background(colors.ivory)
                         .border(1.dp, colors.ink.copy(alpha = 0.14f), RoundedCornerShape(18.dp))
-                        .clickable(enabled = hasCredential) { showExpandedQr = true }
+                        .clickable(enabled = payload.isNotBlank()) { showExpandedQr = true }
                         .padding(9.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (hasCredential) {
+                    if (payload.isNotBlank()) {
                         PassQr(
-                            payload = passQrPayload(snap.memberId, snap.tier.name, snap.validUntilLabel, snap.userId),
+                            payload = payload,
                             modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (hasCredential) {
+                        Text(
+                            "CODE",
+                            style = HinvrTypography.labelSmall,
+                            color = colors.ink,
+                            textAlign = TextAlign.Center,
                         )
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -667,7 +757,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (hasCredential) "TAP TO ENLARGE" else "LOCKED",
+                    if (payload.isNotBlank()) "TAP TO ENLARGE" else if (hasCredential) "WAITING" else "LOCKED",
                     style = HinvrTypography.labelSmall,
                     color = colors.ink.copy(alpha = 0.65f),
                 )
@@ -675,7 +765,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
         }
     }
 
-    if (showExpandedQr && hasCredential) {
+    if (showExpandedQr && payload.isNotBlank()) {
         Dialog(onDismissRequest = { showExpandedQr = false }) {
             IvoryCard {
                 Text("DESK CREDENTIAL", style = HinvrTypography.labelSmall, color = colors.goldDim)
@@ -683,7 +773,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
                 Text("Hold this under the scanner", style = HinvrTypography.titleLarge, color = colors.ink)
                 Spacer(Modifier.height(16.dp))
                 PassQr(
-                    payload = passQrPayload(snap.memberId, snap.tier.name, snap.validUntilLabel, snap.userId),
+                    payload = payload,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp),
@@ -777,9 +867,9 @@ private fun formatVisit(raw: String): String {
 fun HowPassWorksScreen(onBack: () -> Unit) {
     val colors = HinvrTheme.colors
     val steps = listOf(
-        "Show the QR" to "Hold the bright card at a confirmed partner desk.",
-        "Host confirms you" to "They read the member, not a screenshot.",
-        "Official assist" to "Entry, buggy, or wheelchair — as booked.",
+        "Show the code" to "It is signed and expires in a few hours. A photo of the old string does not work.",
+        "Host confirms you" to "The desk checks the signature. A new code from your phone retires the old one.",
+        "Official assist" to "Entry, buggy, or wheelchair — as booked. Google Wallet and a posted card use the same check.",
     )
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {

@@ -124,6 +124,8 @@ export default async function RequestsPage() {
           <code className="rounded bg-zinc-100 px-1">supabase/migrations/20260928120000_pass_credentials.sql</code> in
           the HINVR SQL editor, then refresh.
         </p>
+      ) : cards.error ? (
+        <p className="mb-10 text-sm text-red-600">{cards.error.message}</p>
       ) : (
         <div className="mb-10">
           <CardWaitlist initial={(cards.data ?? []) as CardRequest[]} />

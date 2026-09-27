@@ -14,7 +14,9 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.serializer.KotlinXSerializer
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
@@ -22,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.json.JSONObject
 
 @Serializable
@@ -187,7 +190,9 @@ class SupabaseBackend {
             supabaseKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
         ) {
             install(Auth)
-            install(Postgrest)
+            install(Postgrest) {
+                serializer = KotlinXSerializer(Json { ignoreUnknownKeys = true })
+            }
         }
     } else {
         null
@@ -343,7 +348,7 @@ class SupabaseBackend {
                 )
             }
             val cardStatus = try {
-                val latest = sb.from("physical_card_requests").select {
+                val latest = sb.from("physical_card_requests").select(columns = Columns.list("status")) {
                     filter { eq("user_id", userId) }
                     order("created_at", Order.DESCENDING)
                     limit(1)
