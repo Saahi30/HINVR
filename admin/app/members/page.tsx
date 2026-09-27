@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { DeskShell, GateMessage } from "@/components/desk-shell";
 import { MembersTable } from "@/components/members-table";
-import { PageHeader } from "@/components/ui";
+import { ButtonLink, PageHeader } from "@/components/ui";
 import { requireDesk } from "@/lib/auth";
 import type { MemberRow } from "@/lib/types";
 
@@ -56,7 +56,8 @@ export default async function MembersPage() {
     <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
       <PageHeader
         title="Members"
-        description="Set the plan, then the invoice: when it was bought, the number, and the amount."
+        description="Plans are confirmed from buy requests. Use this table to correct a member ID, a date, or an invoice."
+        actions={<ButtonLink href="/requests" variant="secondary">Buy requests</ButtonLink>}
       />
       <MembersTable initial={rows} />
     </DeskShell>

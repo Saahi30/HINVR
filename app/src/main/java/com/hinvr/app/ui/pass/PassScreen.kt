@@ -71,6 +71,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
+import com.hinvr.app.data.PassCheckIn
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
@@ -85,6 +86,10 @@ import com.hinvr.app.ui.theme.HinvrTypography
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun PassScreen(
@@ -98,6 +103,9 @@ fun PassScreen(
     val colors = HinvrTheme.colors
     var passRevealed by rememberSaveable { mutableStateOf(false) }
     KeepScreenBright(enabled = hasCredential)
+    LaunchedEffect(Unit) {
+        session.syncRemote()
+    }
 
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         PassVaultAtmosphere()
@@ -171,6 +179,10 @@ fun PassScreen(
                     .clickable(onClick = onOpenHow)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             )
+            if (hasCredential || snap.checkIns.isNotEmpty()) {
+                VisitHistory(snap.checkIns)
+                Spacer(Modifier.height(8.dp))
+            }
             Text(
                 "Official entry and assist only.\nThis is not an unofficial queue-jump.",
                 style = HinvrTypography.bodyMedium,
@@ -603,7 +615,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
                 ) {
                     if (hasCredential) {
                         PassQr(
-                            payload = "HNV|${snap.memberId}|${snap.tier.name}|${snap.validUntilLabel}",
+                            payload = passQrPayload(snap.memberId, snap.tier.name, snap.validUntilLabel, snap.userId),
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
@@ -637,7 +649,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean) {
                 Text("Hold this under the scanner", style = HinvrTypography.titleLarge, color = colors.ink)
                 Spacer(Modifier.height(16.dp))
                 PassQr(
-                    payload = "HNV|${snap.memberId}|${snap.tier.name}|${snap.validUntilLabel}",
+                    payload = passQrPayload(snap.memberId, snap.tier.name, snap.validUntilLabel, snap.userId),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp),
@@ -686,6 +698,45 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+@Composable
+private fun VisitHistory(visits: List<PassCheckIn>) {
+    val colors = HinvrTheme.colors
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            "VISITS",
+            style = HinvrTypography.labelSmall.copy(letterSpacing = 2.sp),
+            color = colors.gold,
+        )
+        Spacer(Modifier.height(10.dp))
+        if (visits.isEmpty()) {
+            Text(
+                "Desk check-ins show up here.",
+                style = HinvrTypography.bodyMedium,
+                color = colors.creamMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            return@Column
+        }
+        visits.forEach { visit ->
+            Text(visit.place.ifBlank { "HINVR desk" }, style = HinvrTypography.titleMedium, color = colors.cream)
+            Text(formatVisit(visit.createdAt), style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+            if (visit.note.isNotBlank()) {
+                Text(visit.note, style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+    }
+}
+
+private val VisitFormat: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.ENGLISH)
+
+private fun formatVisit(raw: String): String {
+    val instant = runCatching { Instant.parse(raw) }.getOrNull() ?: return raw
+    return VisitFormat.format(instant.atZone(ZoneId.systemDefault()))
 }
 
 @Composable

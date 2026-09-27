@@ -1,13 +1,13 @@
-const ROWS: { label: string; cells: [string, string, string] }[] = [
-  { label: "Official live darshan", cells: ["Open", "Open", "Open"] },
-  { label: "Mandir directory", cells: ["Open", "Open", "Open"] },
-  { label: "Concierge", cells: ["Requests", "Priority chat", "Phone"] },
-  { label: "Digital QR pass", cells: ["—", "Included", "Included"] },
-  { label: "Visit and accessibility", cells: ["—", "Included", "Included"] },
-  { label: "Recorded VR darshan", cells: ["—", "Included", "Included"] },
-  { label: "Family on the profile", cells: ["—", "—", "Included"] },
-  { label: "Physical card request", cells: ["—", "—", "Included"] },
-  { label: "Partner assist", cells: ["—", "—", "Priority"] },
+const ROWS: { label: string; cells: [string, string, string, string] }[] = [
+  { label: "Official live darshan", cells: ["Open", "Open", "Open", "Open"] },
+  { label: "Mandir directory", cells: ["Open", "Open", "Open", "Open"] },
+  { label: "Concierge", cells: ["Requests", "Priority chat", "Phone", "Phone"] },
+  { label: "Digital QR pass", cells: ["—", "Included", "Included", "Included"] },
+  { label: "Visit and accessibility", cells: ["—", "Included", "Included", "Included"] },
+  { label: "Recorded VR darshan", cells: ["—", "Included", "Included", "Included"] },
+  { label: "Family on the profile", cells: ["—", "—", "Included", "Included"] },
+  { label: "Physical card request", cells: ["—", "—", "Included", "Included"] },
+  { label: "Partner assist", cells: ["—", "—", "Priority", "Priority"] },
 ];
 
 const STEPS = [
@@ -19,7 +19,7 @@ const STEPS = [
   {
     n: "02",
     title: "The year",
-    body: "The desk issues one plan for a year: member ID, dates, amount, and an invoice number.",
+    body: "Request a plan in the app. The desk confirms the year: member ID, dates, amount, and an invoice number.",
   },
   {
     n: "03",
@@ -39,7 +39,7 @@ const QUESTIONS = [
   },
   {
     q: "Where is the invoice?",
-    a: "On this page, once the desk has issued it. The app does not take the payment.",
+    a: "On this page, after the desk confirms the request you sent from the app.",
   },
   {
     q: "What is partner assist?",
@@ -54,13 +54,14 @@ export function ClubStory() {
         <p className="text-xs tracking-[0.18em] text-gold">WHAT OPENS</p>
         <h2 className="mt-2 font-serif text-3xl">Same temples. Different desk.</h2>
         <div className="mt-5 overflow-x-auto rounded-[28px] bg-ivory shadow-[0_16px_40px_rgba(26,18,12,0.06)]">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-gold/20 text-xs tracking-[0.16em] text-gold">
                 <th className="px-6 py-4 font-medium"> </th>
                 <th className="px-4 py-4 font-medium">Darshan</th>
                 <th className="px-4 py-4 font-medium">Gold</th>
-                <th className="px-6 py-4 font-medium">Platinum</th>
+                <th className="px-4 py-4 font-medium">Platinum</th>
+                <th className="px-6 py-4 font-medium">NRI</th>
               </tr>
             </thead>
             <tbody>
@@ -70,7 +71,7 @@ export function ClubStory() {
                   {row.cells.map((cell, index) => (
                     <td
                       key={`${row.label}-${index}`}
-                      className={`px-4 py-3.5 ${cell === "—" ? "text-muted/50" : "text-ink"} ${index === 2 ? "pr-6" : ""}`}
+                      className={`px-4 py-3.5 ${cell === "—" ? "text-muted/50" : "text-ink"} ${index === row.cells.length - 1 ? "pr-6" : ""}`}
                     >
                       {cell}
                     </td>

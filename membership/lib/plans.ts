@@ -32,4 +32,11 @@ export const PLANS = [
       "Partner assist priority",
     ],
   },
+  {
+    name: "NRI",
+    price: "$149",
+    amount: 12499,
+    audience: "For family abroad",
+    benefits: ["Everything in Platinum", "International support hours"],
+  },
 ] as const;

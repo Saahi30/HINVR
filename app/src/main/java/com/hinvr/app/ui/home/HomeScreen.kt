@@ -190,7 +190,7 @@ fun HomeScreen(
                             append("  ·  ")
                             append(
                                 if (member) {
-                                    "${snap.tier.name} member${snap.validUntilLabel.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()}"
+                                    "${if (snap.tier == MembershipTier.Nri) "NRI" else snap.tier.name} member${snap.validUntilLabel.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()}"
                                 } else {
                                     "Not a member yet"
                                 },

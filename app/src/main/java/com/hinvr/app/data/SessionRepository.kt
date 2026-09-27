@@ -32,6 +32,10 @@ data class SessionSnapshot(
     val memberId: String = "",
     val validUntilLabel: String = "",
     val userId: String = "",
+    val requestTier: String = "",
+    val requestStatus: String = "",
+    val requestNote: String = "",
+    val checkIns: List<PassCheckIn> = emptyList(),
     val favoriteMandirs: Set<String> = emptySet(),
     val localRequests: List<String> = emptyList(),
 )
@@ -69,6 +73,10 @@ class SessionRepository(
             memberId = prefs[Keys.memberId].orEmpty(),
             validUntilLabel = prefs[Keys.validUntil].orEmpty(),
             userId = prefs[Keys.userId].orEmpty(),
+            requestTier = prefs[Keys.requestTier].orEmpty(),
+            requestStatus = prefs[Keys.requestStatus].orEmpty(),
+            requestNote = prefs[Keys.requestNote].orEmpty(),
+            checkIns = decodeCheckIns(prefs[Keys.checkIns].orEmpty()),
             favoriteMandirs = prefs[Keys.favoriteMandirs]
                 .orEmpty()
                 .split(",")
@@ -136,12 +144,16 @@ class SessionRepository(
 
     suspend fun membershipPageUrl(): String = supabase.membershipPageUrl()
 
-    suspend fun setTier(tier: MembershipTier, memberId: String, validUntilLabel: String) {
-        supabase.saveTier(tier, memberId, validUntilLabel)
-        store.edit {
-            it[Keys.tier] = tier.name
-            it[Keys.memberId] = memberId
-            it[Keys.validUntil] = validUntilLabel
+    /** Asks the desk to issue this plan. The pass opens after they approve it. */
+    suspend fun requestPlan(tier: MembershipTier, amountInr: Int): String? {
+        return try {
+            supabase.requestMembership(tier, amountInr)
+            syncRemote()
+            null
+        } catch (e: AuthException) {
+            e.message ?: "Couldn't send the request."
+        } catch (e: Exception) {
+            e.message ?: "Couldn't send the request."
         }
     }
 
@@ -198,11 +210,23 @@ class SessionRepository(
             return
         }
         applyUser(user)
+        applyDesk(user.id)
+    }
+
+    private suspend fun applyDesk(userId: String) {
+        val desk = supabase.fetchMemberDesk(userId) ?: return
+        store.edit {
+            it[Keys.requestTier] = desk.request?.tier.orEmpty()
+            it[Keys.requestStatus] = desk.request?.status.orEmpty()
+            it[Keys.requestNote] = desk.request?.staffNote.orEmpty()
+            it[Keys.checkIns] = encodeCheckIns(desk.checkIns)
+        }
     }
 
     private suspend fun adoptCurrentUser(): Boolean {
         val user = supabase.currentUser() ?: throw AuthException("Sign in again.")
         applyUser(user)
+        applyDesk(user.id)
         return snapshot.first().profileComplete
     }
 
@@ -244,6 +268,10 @@ class SessionRepository(
         val memberId = stringPreferencesKey("member_id")
         val validUntil = stringPreferencesKey("valid_until")
         val userId = stringPreferencesKey("user_id")
+        val requestTier = stringPreferencesKey("request_tier")
+        val requestStatus = stringPreferencesKey("request_status")
+        val requestNote = stringPreferencesKey("request_note")
+        val checkIns = stringPreferencesKey("check_ins")
         val favoriteMandirs = stringPreferencesKey("favorite_mandirs")
         val localRequests = stringPreferencesKey("local_requests")
     }

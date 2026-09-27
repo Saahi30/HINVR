@@ -8,7 +8,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if private.is_staff() then
+  if private.is_staff() or auth.uid() is null then
     return new;
   end if;
   if tg_op = 'UPDATE' then
@@ -65,7 +65,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if private.is_staff() then
+  if private.is_staff() or auth.uid() is null then
     return new;
   end if;
   if tg_op = 'UPDATE' and old.status <> 'pending' then

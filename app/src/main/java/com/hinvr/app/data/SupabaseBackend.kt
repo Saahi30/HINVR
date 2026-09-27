@@ -53,6 +53,39 @@ private data class DeskRequestInsert(
     @SerialName("mandir_id") val mandirId: String? = null,
 )
 
+@Serializable
+private data class MembershipRequestInsert(
+    @SerialName("user_id") val userId: String,
+    val tier: String,
+    @SerialName("amount_inr") val amountInr: Int,
+)
+
+@Serializable
+private data class MembershipRequestPatch(
+    val tier: String,
+    @SerialName("amount_inr") val amountInr: Int,
+)
+
+@Serializable
+data class MembershipRequestRow(
+    val tier: String = "",
+    val status: String = "",
+    @SerialName("staff_note") val staffNote: String = "",
+)
+
+@Serializable
+private data class PassCheckInRow(
+    val id: String = "",
+    val place: String = "",
+    val note: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+data class MemberDeskState(
+    val request: MembershipRequestRow?,
+    val checkIns: List<PassCheckIn>,
+)
+
 data class RemoteUser(
     val id: String,
     val phone: String,
@@ -235,37 +268,69 @@ class SupabaseBackend {
         }
     }
 
-    suspend fun saveTier(
-        tier: MembershipTier,
-        memberId: String,
-        validUntilLabel: String,
-    ) = io {
+    suspend fun requestMembership(tier: MembershipTier, amountInr: Int) = io {
         val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id
             ?: throw AuthException("Sign in again.")
-        val existing = runCatching {
-            sb.from("profiles").select {
-                filter { eq("id", userId) }
-            }.decodeSingleOrNull<ProfileRow>()
-        }.getOrNull()
-        try {
-            sb.from("profiles").upsert(
-                ProfileRow(
-                    id = userId,
-                    displayName = existing?.displayName.orEmpty(),
-                    city = existing?.city.orEmpty(),
-                    languageTag = existing?.languageTag ?: "en",
-                    audience = existing?.audience ?: Audience.Me.name,
-                    profileComplete = existing?.profileComplete == true,
-                    tier = tier.name,
-                    memberId = memberId,
-                    validUntil = validUntilLabel,
-                    phoneE164 = existing?.phoneE164.orEmpty(),
-                    addresses = existing?.addresses.orEmpty(),
-                ),
-            )
+        val pending = try {
+            sb.from("membership_requests").select {
+                filter {
+                    eq("user_id", userId)
+                    eq("status", "pending")
+                }
+                limit(1)
+            }.decodeList<MembershipRequestRow>()
         } catch (e: Exception) {
             throw AuthException(humanize(e), e)
+        }
+        try {
+            if (pending.isNotEmpty()) {
+                sb.from("membership_requests").update(
+                    MembershipRequestPatch(tier = tier.name, amountInr = amountInr),
+                ) {
+                    filter {
+                        eq("user_id", userId)
+                        eq("status", "pending")
+                    }
+                }
+            } else {
+                sb.from("membership_requests").insert(
+                    MembershipRequestInsert(
+                        userId = userId,
+                        tier = tier.name,
+                        amountInr = amountInr,
+                    ),
+                )
+            }
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
+    }
+
+    suspend fun fetchMemberDesk(userId: String): MemberDeskState? = io {
+        val sb = client ?: return@io null
+        if (!hasCloud || userId.isBlank()) return@io null
+        try {
+            val request = sb.from("membership_requests").select {
+                filter { eq("user_id", userId) }
+                order("created_at", Order.DESCENDING)
+                limit(1)
+            }.decodeList<MembershipRequestRow>().firstOrNull()
+            val checkIns = sb.from("pass_checkins").select {
+                filter { eq("user_id", userId) }
+                order("created_at", Order.DESCENDING)
+                limit(30)
+            }.decodeList<PassCheckInRow>().map { row ->
+                PassCheckIn(
+                    id = row.id,
+                    place = row.place,
+                    note = row.note,
+                    createdAt = row.createdAt,
+                )
+            }
+            MemberDeskState(request = request, checkIns = checkIns)
+        } catch (_: Exception) {
+            null
         }
     }
 

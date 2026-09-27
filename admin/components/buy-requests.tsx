@@ -150,7 +150,7 @@ export function BuyRequests({
 
   return (
     <div className="space-y-3">
-      {message ? <Alert tone={ok ? "ok" : "err"}>{message}</Alert> : null}
+      {message ? <Alert tone={ok ? "ok" : "error"}>{message}</Alert> : null}
       {pending.length === 0 ? (
         <Card className="p-8 text-center text-sm text-zinc-500">No buy requests waiting.</Card>
       ) : (
@@ -204,13 +204,17 @@ export function BuyRequests({
                   <input
                     type="date"
                     value={draft.validUntilIso}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        validUntilIso: event.target.value,
-                        validUntilLabel: event.target.value,
-                      })
-                    }
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const label = value
+                        ? new Date(`${value}T00:00:00`).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "";
+                      setDraft({ ...draft, validUntilIso: value, validUntilLabel: label || value });
+                    }}
                     className={fieldClass}
                   />
                 </label>

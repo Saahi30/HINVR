@@ -43,6 +43,7 @@ import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
+import com.hinvr.app.ui.components.HinvrTextButton
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.theme.Atmosphere
@@ -56,8 +57,10 @@ private data class PlanCard(
     val tier: MembershipTier,
     val name: String,
     val price: String,
+    val amountInr: Int,
     val audience: String,
     val benefits: List<String>,
+    val invoiceNote: String? = null,
     val recommended: Boolean = false,
 )
 
@@ -68,13 +71,16 @@ fun PlansScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     var opening by remember { mutableStateOf(false) }
+    var sending by remember { mutableStateOf(false) }
     var browserError by remember { mutableStateOf<String?>(null) }
+    var requestError by remember { mutableStateOf<String?>(null) }
     val colors = HinvrTheme.colors
     val plans = listOf(
         PlanCard(
             MembershipTier.Darshan,
             "Darshan",
             "₹999",
+            999,
             "For watching and planning",
             listOf("Official live darshan", "Mandir directory and favourites", "Basic concierge requests"),
         ),
@@ -82,6 +88,7 @@ fun PlansScreen(onBack: () -> Unit) {
             MembershipTier.Gold,
             "Gold",
             "₹4,999",
+            4999,
             "For parents and regular visits",
             listOf("Everything in Darshan", "Digital QR temple pass", "Visit and accessibility requests", "Priority concierge chat"),
             recommended = true,
@@ -90,14 +97,27 @@ fun PlansScreen(onBack: () -> Unit) {
             MembershipTier.Platinum,
             "Platinum",
             "₹14,999",
+            14999,
             "For families needing a human desk",
             listOf("Everything in Gold", "Phone concierge", "Family profile support", "Physical card request", "Partner assist priority"),
+        ),
+        PlanCard(
+            MembershipTier.Nri,
+            "NRI",
+            "$149",
+            12499,
+            "For family abroad",
+            listOf("Everything in Platinum", "International support hours"),
+            invoiceNote = "Desk invoice ₹12,499",
         ),
     )
     var selectedTier by remember {
         mutableStateOf(
             snap.tier.takeIf { tier -> plans.any { it.tier == tier } } ?: MembershipTier.Gold,
         )
+    }
+    LaunchedEffect(Unit) {
+        session.syncRemote()
     }
     LaunchedEffect(snap.tier) {
         if (snap.tier != MembershipTier.None && plans.any { it.tier == snap.tier }) {
@@ -156,10 +176,47 @@ fun PlansScreen(onBack: () -> Unit) {
                     .navigationBarsPadding()
                     .padding(horizontal = 22.dp, vertical = 14.dp),
             ) {
+                val plan = plans.first { it.tier == selectedTier }
+                val pending = snap.requestStatus == "pending"
+                val samePending = pending && snap.requestTier == selectedTier.name
+                val button = when {
+                    sending -> "Sending…"
+                    samePending -> "Request sent"
+                    pending -> "Change request to ${plan.name}"
+                    snap.tier == selectedTier && snap.tier != MembershipTier.None -> "Request ${plan.name} again"
+                    else -> "Request ${plan.name}"
+                }
                 HinvrPrimaryButton(
-                    text = if (opening) "Opening…" else "Manage subscription",
-                    enabled = !opening,
+                    text = button,
+                    enabled = !sending && !samePending,
                     onClick = {
+                        scope.launch {
+                            sending = true
+                            requestError = null
+                            requestError = session.requestPlan(plan.tier, plan.amountInr)
+                            sending = false
+                        }
+                    },
+                )
+                requestError?.let { message ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(message, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    when {
+                        samePending -> "The desk has this request. The pass opens after they confirm."
+                        snap.requestStatus == "declined" && snap.requestTier == selectedTier.name ->
+                            "The desk declined this request.${snap.requestNote.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()}"
+                        else -> "No charge in the app. The desk confirms the plan, then the pass and invoice open."
+                    },
+                    style = HinvrTypography.bodyMedium,
+                    color = colors.inkMuted,
+                )
+                HinvrTextButton(
+                    text = if (opening) "Opening invoices…" else "View invoices",
+                    onClick = {
+                        if (opening) return@HinvrTextButton
                         scope.launch {
                             opening = true
                             browserError = openMembershipInBrowser(context, session)
@@ -168,15 +225,8 @@ fun PlansScreen(onBack: () -> Unit) {
                     },
                 )
                 browserError?.let { message ->
-                    Spacer(Modifier.height(8.dp))
                     Text(message, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Membership updates after you return to the app.",
-                    style = HinvrTypography.bodyMedium,
-                    color = colors.inkMuted,
-                )
             }
         }
     }
@@ -232,6 +282,10 @@ private fun PlanOptionCard(
         Row(verticalAlignment = Alignment.Bottom) {
             Text(plan.price, style = HinvrTypography.headlineLarge, color = if (selected) colors.gold else colors.ink)
             Text(" / year", style = HinvrTypography.bodyMedium, color = bodyColor, modifier = Modifier.padding(bottom = 5.dp))
+        }
+        plan.invoiceNote?.let { note ->
+            Spacer(Modifier.height(4.dp))
+            Text(note, style = HinvrTypography.bodyMedium, color = bodyColor)
         }
         Spacer(Modifier.height(12.dp))
         plan.benefits.take(2).forEach { BenefitRow(it, selected) }

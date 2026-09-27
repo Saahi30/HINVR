@@ -189,7 +189,7 @@ export default function MembershipPage() {
           ) : null}
           {!signedIn ? (
             <p className="mt-6 max-w-lg text-cream-muted">
-              Open the HINVR app and choose Manage subscription. Your invoice opens here.
+              Open the HINVR app and request a plan. The invoice appears here after the desk confirms it.
             </p>
           ) : null}
         </div>
@@ -197,7 +197,7 @@ export default function MembershipPage() {
 
       <main className="mx-auto -mt-14 max-w-5xl px-6 pb-20">
         <section>
-          <div className="grid items-stretch gap-4 md:grid-cols-3">
+          <div className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {PLANS.map((plan) => (
               <TierCard key={plan.name} plan={plan} current={signedIn ? current : ""} />
             ))}
@@ -306,6 +306,9 @@ function TierCard({
         {plan.price}
         <span className={`font-sans text-base ${active ? "text-cream-muted" : "text-muted"}`}> / year</span>
       </p>
+      {plan.name === "NRI" ? (
+        <p className={`mt-1 text-sm ${active ? "text-cream-muted" : "text-muted"}`}>Desk invoice ₹12,499</p>
+      ) : null}
       <ul className={`mt-6 space-y-2.5 ${active ? "text-cream" : "text-ink"}`}>
         {plan.benefits.map((benefit) => (
           <li key={benefit} className="flex gap-3">
