@@ -12,9 +12,6 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
-fun passQrPayload(memberId: String, tier: String, validUntil: String, userId: String): String =
-    listOf("HNV", memberId, tier, validUntil, userId).joinToString("|")
-
 @Composable
 fun PassQr(payload: String, modifier: Modifier = Modifier) {
     val bitmap = remember(payload) { createQrBitmap(payload) }

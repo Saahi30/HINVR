@@ -74,6 +74,19 @@ data class MembershipRequestRow(
 )
 
 @Serializable
+private data class PhysicalCardInsert(
+    @SerialName("user_id") val userId: String,
+    @SerialName("member_id") val memberId: String,
+    @SerialName("ship_name") val shipName: String,
+    @SerialName("ship_address") val shipAddress: String,
+)
+
+@Serializable
+private data class PhysicalCardRow(
+    val status: String = "",
+)
+
+@Serializable
 private data class PassCheckInRow(
     val id: String = "",
     val place: String = "",
@@ -84,6 +97,7 @@ private data class PassCheckInRow(
 data class MemberDeskState(
     val request: MembershipRequestRow?,
     val checkIns: List<PassCheckIn>,
+    val cardStatus: String? = null,
 )
 
 data class RemoteUser(
@@ -328,7 +342,17 @@ class SupabaseBackend {
                     createdAt = row.createdAt,
                 )
             }
-            MemberDeskState(request = request, checkIns = checkIns)
+            val cardStatus = try {
+                val latest = sb.from("physical_card_requests").select {
+                    filter { eq("user_id", userId) }
+                    order("created_at", Order.DESCENDING)
+                    limit(1)
+                }.decodeList<PhysicalCardRow>().firstOrNull()
+                if (latest == null || latest.status == "cancelled") "" else latest.status
+            } catch (_: Exception) {
+                null
+            }
+            MemberDeskState(request = request, checkIns = checkIns, cardStatus = cardStatus)
         } catch (_: Exception) {
             null
         }
@@ -410,6 +434,85 @@ class SupabaseBackend {
         base + joiner +
             "handoff=" + URLEncoder.encode(token, Charsets.UTF_8.name()) +
             "&type=" + URLEncoder.encode(type, Charsets.UTF_8.name())
+    }
+
+    data class IssuedPass(val token: String, val expiresAt: Long)
+
+    suspend fun issuePass(rotate: Boolean): IssuedPass = io {
+        val body = JSONObject().put("rotate", rotate).put("purpose", "desk")
+        val parsed = postFunction("pass-credential", body)
+        val token = parsed.optString("token")
+        val expires = parsed.optString("expires_at")
+        if (token.isBlank() || !token.startsWith("HNV1.") || expires.isBlank()) {
+            throw AuthException("Couldn't refresh the pass.")
+        }
+        IssuedPass(token, java.time.Instant.parse(expires).toEpochMilli())
+    }
+
+    suspend fun googleWalletUrl(): String = io {
+        val parsed = postFunction("pass-wallet", JSONObject())
+        val url = parsed.optString("url")
+        if (!url.startsWith("https://pay.google.com/")) {
+            throw AuthException(parsed.optString("error").ifBlank { "Couldn't open Google Wallet." })
+        }
+        url
+    }
+
+    suspend fun requestPhysicalCard(name: String, address: String) = io {
+        val sb = requireClient()
+        val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
+        val memberId = try {
+            sb.from("profiles").select {
+                filter { eq("id", userId) }
+            }.decodeSingleOrNull<ProfileRow>()?.memberId.orEmpty()
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
+        try {
+            sb.from("physical_card_requests").insert(
+                PhysicalCardInsert(
+                    userId = userId,
+                    memberId = memberId,
+                    shipName = name.trim(),
+                    shipAddress = address.trim(),
+                ),
+            )
+        } catch (e: Exception) {
+            val message = e.message.orEmpty()
+            if (message.contains("duplicate", ignoreCase = true) || message.contains("unique", ignoreCase = true)) {
+                throw AuthException("You're already on the physical card list.")
+            }
+            throw AuthException(humanize(e), e)
+        }
+    }
+
+    private suspend fun postFunction(name: String, body: JSONObject): JSONObject = io {
+        val sb = requireClient()
+        sb.auth.awaitInitialization()
+        val access = sb.auth.currentAccessTokenOrNull() ?: throw AuthException("Sign in again.")
+        val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/$name"
+        val connection = (URI(endpoint).toURL().openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            setRequestProperty("Authorization", "Bearer $access")
+            setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
+            setRequestProperty("Content-Type", "application/json")
+            doOutput = true
+            connectTimeout = 20_000
+            readTimeout = 20_000
+        }
+        connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+        val code = connection.responseCode
+        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
+            ?.bufferedReader()
+            ?.readText()
+            .orEmpty()
+        val parsed = runCatching { JSONObject(text) }.getOrNull()
+        if (code !in 200..299) {
+            throw AuthException(parsed?.optString("error").orEmpty().ifBlank {
+                if (code == 401) "Sign in again." else "Couldn't refresh the pass."
+            })
+        }
+        parsed ?: throw AuthException("Couldn't refresh the pass.")
     }
 
     suspend fun signOut() = io {

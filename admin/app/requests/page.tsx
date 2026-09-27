@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { BuyRequests } from "@/components/buy-requests";
+import { CardWaitlist, type CardRequest } from "@/components/card-waitlist";
 import { DeskShell, GateMessage } from "@/components/desk-shell";
 import { RequestsTable } from "@/components/requests-table";
 import { PageHeader } from "@/components/ui";
@@ -42,6 +43,11 @@ export default async function RequestsPage() {
     .limit(100);
   const memberIdRows = await desk.supabase.from("profiles").select("member_id");
   const invoiceRows = await desk.supabase.from("membership_purchases").select("invoice_number");
+  const cards = await desk.supabase
+    .from("physical_card_requests")
+    .select("id,user_id,member_id,ship_name,ship_address,status,created_at")
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   const requests = (data ?? []) as DeskRequest[];
   const ids = [...new Set(requests.map((row) => row.user_id))];
@@ -94,7 +100,7 @@ export default async function RequestsPage() {
     <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
       <PageHeader
         title="Requests"
-        description="Buy requests wait here for a yes. Visit, concierge, pooja, and yatra notes sit underneath."
+        description="Buy requests wait here for a yes. Physical cards are a waitlist. Visit, concierge, pooja, and yatra notes sit underneath."
       />
       <h2 className="mb-3 text-sm font-semibold text-zinc-900">Buy requests</h2>
       {isMissingRelation(buys.error) ? (
@@ -109,6 +115,18 @@ export default async function RequestsPage() {
             memberIds={(memberIdRows.data ?? []).map((row) => row.member_id).filter(Boolean)}
             invoiceNumbers={(invoiceRows.data ?? []).map((row) => row.invoice_number).filter(Boolean)}
           />
+        </div>
+      )}
+      <h2 className="mb-3 text-sm font-semibold text-zinc-900">Physical cards</h2>
+      {isMissingRelation(cards.error) ? (
+        <p className="mb-10 rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-500">
+          Apply{" "}
+          <code className="rounded bg-zinc-100 px-1">supabase/migrations/20260928120000_pass_credentials.sql</code> in
+          the HINVR SQL editor, then refresh.
+        </p>
+      ) : (
+        <div className="mb-10">
+          <CardWaitlist initial={(cards.data ?? []) as CardRequest[]} />
         </div>
       )}
       <h2 className="mb-3 text-sm font-semibold text-zinc-900">Desk notes</h2>

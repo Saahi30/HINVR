@@ -37,6 +37,9 @@ data class SessionSnapshot(
     val memberId: String = "",
     val validUntilLabel: String = "",
     val userId: String = "",
+    val passToken: String = "",
+    val passExpiresAt: Long = 0L,
+    val cardStatus: String = "",
     val requestTier: String = "",
     val requestStatus: String = "",
     val requestNote: String = "",
@@ -78,6 +81,9 @@ class SessionRepository(
             memberId = prefs[Keys.memberId].orEmpty(),
             validUntilLabel = prefs[Keys.validUntil].orEmpty(),
             userId = prefs[Keys.userId].orEmpty(),
+            passToken = prefs[Keys.passToken].orEmpty(),
+            passExpiresAt = prefs[Keys.passExpiresAt]?.toLongOrNull() ?: 0L,
+            cardStatus = prefs[Keys.cardStatus].orEmpty(),
             requestTier = prefs[Keys.requestTier].orEmpty(),
             requestStatus = prefs[Keys.requestStatus].orEmpty(),
             requestNote = prefs[Keys.requestNote].orEmpty(),
@@ -225,7 +231,34 @@ class SessionRepository(
             it[Keys.requestStatus] = desk.request?.status.orEmpty()
             it[Keys.requestNote] = desk.request?.staffNote.orEmpty()
             it[Keys.checkIns] = encodeCheckIns(desk.checkIns)
+            if (desk.cardStatus != null) it[Keys.cardStatus] = desk.cardStatus
         }
+    }
+
+    suspend fun ensurePass(rotate: Boolean = false) {
+        val current = snapshot.first()
+        if (!current.isLoggedIn || !current.tier.hasDeskPass) {
+            store.edit {
+                it.remove(Keys.passToken)
+                it.remove(Keys.passExpiresAt)
+            }
+            return
+        }
+        val stillValid = current.passToken.startsWith("HNV1.") &&
+            current.passExpiresAt > System.currentTimeMillis()
+        if (!rotate && stillValid) return
+        val issued = supabase.issuePass(rotate)
+        store.edit {
+            it[Keys.passToken] = issued.token
+            it[Keys.passExpiresAt] = issued.expiresAt.toString()
+        }
+    }
+
+    suspend fun googleWalletUrl(): String = supabase.googleWalletUrl()
+
+    suspend fun requestPhysicalCard(name: String, address: String) {
+        supabase.requestPhysicalCard(name, address)
+        store.edit { it[Keys.cardStatus] = "waitlist" }
     }
 
     private suspend fun adoptCurrentUser(): Boolean {
@@ -239,7 +272,13 @@ class SessionRepository(
         val profile = user.profile
         val profileComplete = profile?.profileComplete == true ||
             (user.displayName.isNotBlank() && profile?.city?.isNotBlank() == true)
+        val tier = profile?.tier ?: MembershipTier.None.name
+        val memberId = profile?.memberId.orEmpty()
+        val validUntil = profile?.validUntil.orEmpty()
         store.edit {
+            val membershipChanged = it[Keys.tier] != tier ||
+                it[Keys.memberId] != memberId ||
+                it[Keys.validUntil] != validUntil
             it[Keys.isLoggedIn] = true
             it[Keys.hasOnboarded] = true
             it[Keys.email] = user.email
@@ -251,9 +290,14 @@ class SessionRepository(
             it[Keys.languageTag] = profile?.languageTag ?: "en"
             it[Keys.audience] = profile?.audience ?: Audience.Me.name
             it[Keys.profileComplete] = profileComplete
-            it[Keys.tier] = profile?.tier ?: MembershipTier.None.name
-            it[Keys.memberId] = profile?.memberId.orEmpty()
-            it[Keys.validUntil] = profile?.validUntil.orEmpty()
+            it[Keys.tier] = tier
+            it[Keys.memberId] = memberId
+            it[Keys.validUntil] = validUntil
+            val keepsPass = runCatching { MembershipTier.valueOf(tier).hasDeskPass }.getOrDefault(false)
+            if (!keepsPass || membershipChanged) {
+                it.remove(Keys.passToken)
+                it.remove(Keys.passExpiresAt)
+            }
         }
     }
 
@@ -273,6 +317,9 @@ class SessionRepository(
         val memberId = stringPreferencesKey("member_id")
         val validUntil = stringPreferencesKey("valid_until")
         val userId = stringPreferencesKey("user_id")
+        val passToken = stringPreferencesKey("pass_token")
+        val passExpiresAt = stringPreferencesKey("pass_expires_at")
+        val cardStatus = stringPreferencesKey("card_status")
         val requestTier = stringPreferencesKey("request_tier")
         val requestStatus = stringPreferencesKey("request_status")
         val requestNote = stringPreferencesKey("request_note")

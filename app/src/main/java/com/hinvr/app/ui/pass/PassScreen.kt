@@ -3,6 +3,8 @@ package com.hinvr.app.ui.pass
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
 import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -47,8 +49,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +64,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -85,6 +90,7 @@ import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -102,9 +108,37 @@ fun PassScreen(
     val hasCredential = snap.tier.hasDeskPass
     val colors = HinvrTheme.colors
     var passRevealed by rememberSaveable { mutableStateOf(false) }
-    KeepScreenBright(enabled = hasCredential)
+    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var passError by remember { mutableStateOf("") }
+    var passBusy by remember { mutableStateOf(false) }
+    var showCard by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val livePayload = if (
+        hasCredential && snap.passToken.startsWith("HNV1.") && snap.passExpiresAt > nowMs
+    ) {
+        snap.passToken
+    } else {
+        ""
+    }
+    KeepScreenBright(enabled = hasCredential && livePayload.isNotBlank())
     LaunchedEffect(Unit) {
         session.syncRemote()
+    }
+    LaunchedEffect(snap.userId, snap.tier, snap.memberId, snap.validUntilLabel) {
+        if (!snap.isLoggedIn || !hasCredential) return@LaunchedEffect
+        val current = session.snapshot.collectAsStateWithLifecycle(initialValue = snap)
+        current
+        refreshPass(session, rotate = false, onError = { passError = it }, onBusy = { passBusy = it })
+    }
+    LaunchedEffect(snap.passExpiresAt) {
+        val expiry = snap.passExpiresAt
+        if (expiry == 0L) return@LaunchedEffect
+        val wait = expiry - System.currentTimeMillis()
+        if (wait > 0) delay(wait)
+        nowMs = System.currentTimeMillis()
+        if (!hasCredential) return@LaunchedEffect
+        refreshPass(session, rotate = false, onError = { passError = it }, onBusy = { passBusy = it })
     }
 
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {

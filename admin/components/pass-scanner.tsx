@@ -5,7 +5,9 @@ import { Alert, Badge, Button, Card, fieldClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { formatWhen } from "@/lib/ops";
 import { tierLabel } from "@/lib/membership";
-import { parsePassCode } from "@/lib/pass-code";
+import { classifyScan } from "@/lib/pass-code";
+import { loadPassPublicKeys } from "@/lib/pass-keys";
+import { PassTokenError, verifyPassToken } from "@/lib/pass-token";
 
 type Member = {
   id: string;
@@ -45,11 +47,13 @@ export function PassScanner() {
   const [message, setMessage] = useState("");
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [proof, setProof] = useState("");
+  const [credentialId, setCredentialId] = useState("");
   const scanned = useRef("");
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
-  const lookupRef = useRef<(raw: string) => void>(() => {});
-  lookupRef.current = (raw) => {
-    void lookup(raw);
+  const lookupRef = useRef<(raw: string, fromCamera?: boolean) => void>(() => {});
+  lookupRef.current = (raw, fromCamera) => {
+    void lookup(raw, fromCamera === true);
   };
 
   useEffect(() => {
@@ -85,7 +89,7 @@ export function PassScanner() {
             scanned.current = decoded;
             setCode(decoded);
             setCameraOn(false);
-            lookupRef.current(decoded);
+            lookupRef.current(decoded, true);
           },
           () => {},
         );
@@ -122,22 +126,41 @@ export function PassScanner() {
     setRecent(rows.map((row) => ({ ...row, display_name: names.get(row.user_id || "") || row.member_id || "Member" })));
   }
 
-  async function lookup(raw: string) {
-    const parsed = parsePassCode(raw);
-    if (!parsed.userId && !parsed.memberId) {
+  async function lookup(raw: string, fromCamera = false) {
+    const parsed = classifyScan(raw, fromCamera);
+    setCredentialId("");
+    setProof("");
+    setVisits([]);
+    if (parsed.kind === "rejected") {
       setMember(null);
       setOk(false);
-      setMessage("That code is empty.");
+      setMessage(parsed.reason);
       return;
     }
+    if (parsed.kind === "signed") {
+      await lookupSigned(parsed.token);
+      return;
+    }
+    await lookupManual(parsed.memberId, parsed.userId);
+  }
+
+  async function showHistory(supabase: ReturnType<typeof createClient>, userId: string) {
+    const history = await supabase
+      .from("pass_checkins")
+      .select("id,place,note,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(8);
+    setVisits((history.data ?? []) as Visit[]);
+  }
+
+  async function lookupManual(memberId: string, userId: string) {
     setBusy(true);
     setMessage("");
     setOk(false);
     const supabase = createClient();
     const query = supabase.from("profiles").select(memberColumns);
-    const result = parsed.userId
-      ? await query.eq("id", parsed.userId).maybeSingle()
-      : await query.eq("member_id", parsed.memberId).maybeSingle();
+    const result = userId ? await query.eq("id", userId).maybeSingle() : await query.eq("member_id", memberId).maybeSingle();
     setBusy(false);
     if (result.error) {
       setMember(null);
@@ -146,20 +169,73 @@ export function PassScanner() {
     }
     if (!result.data) {
       setMember(null);
-      setMessage("No member on that code.");
+      setMessage("No member on that ID.");
       return;
     }
     const found = result.data as Member;
     setMember(found);
     setOk(true);
+    setProof("Manual lookup. This was not a signed pass.");
     setMessage(`${found.display_name || "Member"} · ${tierLabel(found.tier)}`);
-    const history = await supabase
-      .from("pass_checkins")
-      .select("id,place,note,created_at")
-      .eq("user_id", found.id)
-      .order("created_at", { ascending: false })
-      .limit(8);
-    setVisits((history.data ?? []) as Visit[]);
+    await showHistory(supabase, found.id);
+  }
+
+  async function lookupSigned(token: string) {
+    setBusy(true);
+    setMessage("");
+    setOk(false);
+    setMember(null);
+    const supabase = createClient();
+    const loaded = await loadPassPublicKeys(supabase);
+    if (loaded.missing && loaded.keys.size === 0) {
+      setBusy(false);
+      setMessage("Apply supabase/migrations/20260928120000_pass_credentials.sql, then refresh.");
+      return;
+    }
+    let verified;
+    try {
+      verified = await verifyPassToken(token, loaded.keys);
+    } catch (error) {
+      setBusy(false);
+      setMessage(error instanceof PassTokenError ? error.message : "That code is not a signed pass.");
+      return;
+    }
+    const [cred, result] = await Promise.all([
+      supabase
+        .from("pass_credentials")
+        .select("id,generation,revoked_at,expires_at,member_id,tier")
+        .eq("id", verified.j)
+        .maybeSingle(),
+      supabase.from("profiles").select(`${memberColumns},pass_generation`).eq("id", verified.u).maybeSingle(),
+    ]);
+    setBusy(false);
+    const expires = new Date(verified.e * 1000).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+    if (cred.error || result.error) {
+      setMessage(
+        `${verified.m} · signature and expiry passed (${expires}). Rotation was not confirmed, so check-in was not saved.`,
+      );
+      return;
+    }
+    if (!cred.data || cred.data.revoked_at) {
+      setMessage("This code was replaced. Ask them to open the pass again.");
+      return;
+    }
+    const generation = Number((result.data as { pass_generation?: number } | null)?.pass_generation);
+    if (!result.data || Number(cred.data.generation) !== verified.g || generation !== verified.g) {
+      setMessage("This code was rotated. Ask them to open the pass again.");
+      return;
+    }
+    if (cred.data.member_id !== verified.m || result.data.member_id !== verified.m) {
+      setMessage("This code does not match the account.");
+      return;
+    }
+    const found = result.data as Member;
+    setMember(found);
+    setCredentialId(verified.j);
+    setProof(`Signed · expires ${expires}`);
+    setOk(true);
+    setMessage(`${found.display_name || "Member"} · ${tierLabel(found.tier)}`);
+    await showHistory(supabase, found.id);
   }
 
   async function checkIn() {
@@ -174,6 +250,7 @@ export function PassScanner() {
       member_id: member.member_id,
       place: where,
       note: note.trim(),
+      ...(credentialId ? { credential_id: credentialId } : {}),
     });
     setBusy(false);
     if (error) {
@@ -223,7 +300,7 @@ export function PassScanner() {
         </Card>
         <Card className="space-y-3 p-4">
           <label className="block text-sm">
-            <span className="mb-1.5 block font-medium text-zinc-700">Member ID or QR text</span>
+            <span className="mb-1.5 block font-medium text-zinc-700">Member ID or signed pass</span>
             <input
               value={code}
               onChange={(event) => setCode(event.target.value)}
@@ -248,7 +325,10 @@ export function PassScanner() {
                   {[member.member_id, member.phone_e164, member.city].filter(Boolean).join(" · ") || "No member ID yet"}
                 </p>
               </div>
-              <Badge tone={passOpen ? "green" : "amber"}>{tierLabel(member.tier)}</Badge>
+              <div className="text-right">
+                <Badge tone={passOpen ? "green" : "amber"}>{tierLabel(member.tier)}</Badge>
+                {proof ? <p className="mt-2 max-w-48 text-xs text-zinc-500">{proof}</p> : null}
+              </div>
             </div>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div>

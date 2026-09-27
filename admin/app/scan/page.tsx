@@ -15,7 +15,7 @@ export default async function ScanPage() {
     <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
       <PageHeader
         title="Scan pass"
-        description="Read a member QR, confirm who they are, and check them in. The visit appears on their phone under Pass."
+        description="Scan a signed pass. A copied string is refused. The code expires on its own, and a new code from the phone retires the old one."
       />
       <PassScanner />
     </DeskShell>
