@@ -71,6 +71,15 @@ export function IconInbox({ className }: { className?: string }) {
   );
 }
 
+export function IconScan({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M2.5 5.5V3.5h2M13.5 5.5V3.5h-2M2.5 10.5v2h2M13.5 10.5v2h-2" stroke="currentColor" strokeLinecap="round" />
+      <path d="M3.5 8h9" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconLive({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>

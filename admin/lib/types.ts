@@ -105,6 +105,23 @@ export type DeskRequestRow = DeskRequest & {
   tier: string;
 };
 
+export type BuyRequestStatus = "pending" | "approved" | "declined";
+
+export type BuyRequestRow = {
+  id: string;
+  user_id: string;
+  tier: string;
+  amount_inr: number;
+  status: BuyRequestStatus;
+  staff_note: string;
+  created_at: string;
+  display_name: string;
+  city: string;
+  phone_e164: string;
+  member_id: string;
+  current_tier: string;
+};
+
 export const MANDIR_SCENES = [
   "Tirupati",
   "Kashi",
