@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="ring_stream" type="id" />
+    <item name="ring_opening" type="id" />
+    <item name="ring_hall" type="id" />
+    <item name="ring_environment" type="id" />
+    <item name="ring_sphere" type="id" />
+    <item name="ring_tour_end" type="id" />
+    <item name="ring_slot_0" type="id" />
+    <item name="ring_slot_1" type="id" />
+    <item name="ring_slot_2" type="id" />
+    <item name="ring_slot_3" type="id" />
+    <item name="ring_slot_4" type="id" />
+    <item name="ring_namaste" type="id" />
+    <item name="ring_tirupati" type="id" />
+    <item name="ring_kashi" type="id" />
+    <item name="ring_shirdi" type="id" />
+    <item name="ring_kedarnath" type="id" />
+    <item name="ring_somnath" type="id" />
+    <item name="ring_vaishno_devi" type="id" />
+    <item name="ring_meenakshi" type="id" />
+    <item name="ring_jagannath" type="id" />
+    <item name="ring_dwarkadhish" type="id" />
+    <item name="ring_badrinath" type="id" />
+    <item name="ring_golden_temple" type="id" />
+    <item name="ring_siddhivinayak" type="id" />
+    <item name="ring_iskcon" type="id" />
+    <item name="ring_mahakal" type="id" />
+    <item name="ring_mohankheda" type="id" />
+    <item name="ring_ashapura" type="id" />
+    <item name="ring_sarangpur" type="id" />
+    <item name="ring_laxmi_narayan" type="id" />
+    <item name="ring_khatu_shyam" type="id" />
+    <item name="ring_narnarayan_bhuj" type="id" />
+    <item name="ring_narnarayan_kalupur" type="id" />
+    <item name="ring_gopinathji" type="id" />
+    <item name="ring_ranchhodraiji" type="id" />
+    <item name="ring_radha_govinda" type="id" />
+    <item name="ring_ram_lalla" type="id" />
+    <item name="ring_ambaji" type="id" />
+    <item name="ring_mahalaxmi" type="id" />
+    <item name="ring_vitthal" type="id" />
+    <item name="ring_salasar" type="id" />
+    <item name="ring_pashupatinath" type="id" />
+</resources>
