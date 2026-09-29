@@ -458,4 +458,17 @@
     <string name="mandir_generic_best">Weekday mornings are usually calmer.</string>
     <string name="mandir_generic_best_aarti">Arrive before the next scheduled aarti at %1$s.</string>
     <string name="mandir_generic_notes">Confirm official timings, closures, and entry rules before travelling.</string>
+    <string name="vr_headsets">VR headsets</string>
+    <string name="vr_headsets_body">Pair your Meta Quest to open HINVR on it. A headset can be linked to one account at a time.</string>
+    <string name="vr_pair_button">Pair a headset</string>
+    <string name="vr_pair_steps">Put on the headset and open HINVR. When it asks to pair, hold your phone about an arm’s length away and look at this code.</string>
+    <string name="vr_pair_refresh">New code in %1$d s</string>
+    <string name="vr_paired_now">Headset paired. Namaste!</string>
+    <string name="vr_linked">Linked headsets</string>
+    <string name="vr_no_headsets">No headsets paired yet.</string>
+    <string name="vr_paired_on">Paired %1$s</string>
+    <string name="vr_unlink">Unlink</string>
+    <string name="vr_unlink_confirm">Tap again to unlink</string>
+    <string name="vr_unlinking">Unlinking…</string>
+    <string name="vr_unlink_body">The headset goes back to the pairing screen until it is paired again.</string>
 </resources>

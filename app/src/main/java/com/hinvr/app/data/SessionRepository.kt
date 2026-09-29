@@ -282,6 +282,12 @@ class SessionRepository(
         return runCatching { supabase.fetchNotifications() }.getOrDefault(emptyList())
     }
 
+    suspend fun startVrPairing(): VrPairingCode = supabase.startVrPairing()
+
+    suspend fun vrDevices(): List<VrDeviceRow> = supabase.fetchVrDevices()
+
+    suspend fun unlinkVrDevice(deviceId: String) = supabase.unlinkVrDevice(deviceId)
+
     private suspend fun forgetPush() {
         val value = PushTokens.current()
         if (value != null) runCatching { supabase.forgetDeviceToken(value) }

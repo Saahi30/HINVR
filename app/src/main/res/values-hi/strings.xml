@@ -531,4 +531,17 @@
     <string name="mandir_siddhivinayak_timings">बुधवार–सोमवार 5:30 AM–9:50 PM · मंगलवार 3:15 AM से</string>
     <string name="mandir_iskcon_bengaluru_deity">राधा कृष्णचंद्र</string>
     <string name="mandir_iskcon_bengaluru_timings">सुबह 4:15–5:00 AM · शाम तक दर्शन</string>
+    <string name="vr_headsets">वीआर हेडसेट</string>
+    <string name="vr_headsets_body">अपने Meta Quest को जोड़ें ताकि उस पर HINVR खुले। एक हेडसेट एक समय में एक ही खाते से जुड़ सकता है।</string>
+    <string name="vr_pair_button">हेडसेट जोड़ें</string>
+    <string name="vr_pair_steps">हेडसेट पहनें और HINVR खोलें। जब वह जोड़ने के लिए कहे, फ़ोन को हाथ भर की दूरी पर रखकर इस कोड को देखें।</string>
+    <string name="vr_pair_refresh">नया कोड %1$d सेकंड में</string>
+    <string name="vr_paired_now">हेडसेट जुड़ गया। नमस्ते!</string>
+    <string name="vr_linked">जुड़े हुए हेडसेट</string>
+    <string name="vr_no_headsets">अभी कोई हेडसेट नहीं जुड़ा है।</string>
+    <string name="vr_paired_on">%1$s को जोड़ा गया</string>
+    <string name="vr_unlink">हटाएँ</string>
+    <string name="vr_unlink_confirm">हटाने के लिए फिर टैप करें</string>
+    <string name="vr_unlinking">हटाया जा रहा है…</string>
+    <string name="vr_unlink_body">हेडसेट फिर से जोड़े जाने तक जोड़ने वाली स्क्रीन पर लौट जाएगा।</string>
 </resources>

@@ -17,7 +17,7 @@ data class RingCard(
     val liveUrl: String = "",
 )
 
-enum class Stage { Splash, Menu, Live, Tour }
+enum class Stage { Splash, Pair, Menu, Live, Tour, Profile }
 
 enum class ChoiceBadge { Live, Vr360 }
 
@@ -239,20 +239,20 @@ object Ring {
 
     val deckSize: Int
         get() = when (stage) {
-            Stage.Splash -> 1
+            Stage.Splash, Stage.Pair, Stage.Profile -> 1
             Stage.Menu -> MenuChoices.size
             Stage.Live -> cards.size
             Stage.Tour -> TourChoices.size
         }
 
     fun scroll(delta: Int) {
-        if (delta == 0 || isWatching || stage == Stage.Splash) return
+        if (delta == 0 || isWatching || !showsCards) return
         index = (index + delta).floorMod(deckSize)
         selectedId = null
     }
 
     fun focus(cardIndex: Int) {
-        if (isWatching) return
+        if (isWatching || !showsCards) return
         val wrapped = cardIndex.floorMod(deckSize)
         if (stage == Stage.Splash || stage == Stage.Menu || stage == Stage.Tour) {
             index = wrapped
@@ -271,6 +271,7 @@ object Ring {
         if (isWatching) return
         when (stage) {
             Stage.Splash -> openMenu()
+            Stage.Pair, Stage.Profile -> Unit
             Stage.Menu -> if (index == 0) openLive() else openTour()
             Stage.Live -> {
                 val card = cards[index]
@@ -291,7 +292,15 @@ object Ring {
         }
     }
 
+    /** Past the greeting only once this headset is paired with a member. */
     fun openMenu() {
+        if (!QuestAccount.isPaired) {
+            stage = Stage.Pair
+            index = 0
+            selectedId = null
+            if (flame < 0.85f) flame = 1f
+            return
+        }
         stage = Stage.Menu
         index = 0
         selectedId = null
@@ -309,9 +318,33 @@ object Ring {
         }
         when (stage) {
             Stage.Splash -> openMenu()
-            Stage.Menu -> Unit
-            Stage.Live, Stage.Tour -> openMenu()
+            Stage.Pair, Stage.Menu -> Unit
+            Stage.Live, Stage.Tour, Stage.Profile -> openMenu()
         }
+    }
+
+    val showsCards: Boolean
+        get() = stage == Stage.Menu || stage == Stage.Live || stage == Stage.Tour
+
+    fun openProfile() {
+        if (!QuestAccount.isPaired || isWatching || inSphere) return
+        stage = Stage.Profile
+        index = 0
+        selectedId = null
+    }
+
+    /** The link is gone: stop whatever is playing and wait for a new pairing. */
+    fun requirePairing() {
+        if (inSphere) {
+            SpherePlayer.stop()
+            sphereTour = null
+            tourEnded = false
+        }
+        if (isWatching) finishLeave()
+        if (stage == Stage.Splash) return
+        stage = Stage.Pair
+        index = 0
+        selectedId = null
     }
 
     fun leaveStream() {

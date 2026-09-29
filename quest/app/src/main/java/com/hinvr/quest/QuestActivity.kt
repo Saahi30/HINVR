@@ -3,6 +3,7 @@ package com.hinvr.quest
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.ComposeView
 import com.meta.spatial.compose.ComposeFeature
 import com.meta.spatial.core.Color4
@@ -41,6 +42,8 @@ class QuestActivity : AppSystemActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        QuestAccount.attach(this)
+        PairScanner.attach(this)
         SanctumSound.attach(this)
         Tour360.attach(this)
         SpherePlayer.attach(this)
@@ -57,6 +60,8 @@ class QuestActivity : AppSystemActivity() {
 
     override fun onPause() {
         pausedAtMs = SystemClock.elapsedRealtime()
+        PairScanner.onPause()
+        QuestAccount.onPause()
         SanctumSound.hold()
         SpherePlayer.pauseForApp()
         super.onPause()
@@ -72,11 +77,23 @@ class QuestActivity : AppSystemActivity() {
             Ring.greetAgain()
         }
         pausedAtMs = 0L
+        PairScanner.onResume()
+        QuestAccount.onResume()
         SanctumSound.releaseHold()
         SpherePlayer.resumeForApp()
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PairScanner.PermissionRequest) PairScanner.onPermissionResult()
+    }
+
     override fun onDestroy() {
+        PairScanner.detach()
         SanctumSound.release()
         SpherePlayer.stop()
         super.onDestroy()
@@ -134,6 +151,18 @@ class QuestActivity : AppSystemActivity() {
         }
         RingWorld.tourEnd = Entity.createPanelEntity(
             R.id.ring_tour_end,
+            Transform(Pose()),
+        ).also { it.setComponent(Visible(false)) }
+        RingWorld.pair = Entity.createPanelEntity(
+            R.id.ring_pair,
+            Transform(Pose()),
+        ).also { it.setComponent(Visible(false)) }
+        RingWorld.profile = Entity.createPanelEntity(
+            R.id.ring_profile,
+            Transform(Pose()),
+        ).also { it.setComponent(Visible(false)) }
+        RingWorld.chip = Entity.createPanelEntity(
+            R.id.ring_profile_chip,
             Transform(Pose()),
         ).also { it.setComponent(Visible(false)) }
     }
@@ -247,6 +276,29 @@ class QuestActivity : AppSystemActivity() {
                 )
             },
         )
-        return cards + stream + opening + hall + environment + sphere + tourEnd
+        val pair = composePanel(R.id.ring_pair, width = 1.05f, height = 0.62f) { PairPanel() }
+        val profile = composePanel(R.id.ring_profile, width = 1.20f, height = 0.86f) { ProfilePanel() }
+        val chip = composePanel(R.id.ring_profile_chip, width = 0.46f, height = 0.09f) { ProfileChip() }
+        return cards + stream + opening + hall + environment + sphere + tourEnd + pair + profile + chip
     }
+
+    private fun composePanel(
+        panelId: Int,
+        width: Float,
+        height: Float,
+        content: @Composable () -> Unit,
+    ): PanelRegistration =
+        ComposeViewPanelRegistration(
+            panelId,
+            composeViewCreator = { _, context ->
+                ComposeView(context).apply { setContent { content() } }
+            },
+            settingsCreator = {
+                UIPanelSettings(
+                    shape = QuadShapeOptions(width = width, height = height),
+                    style = PanelStyleOptions(themeResourceId = R.style.PanelAppThemeTransparent),
+                    display = DpPerMeterDisplayOptions(),
+                )
+            },
+        )
 }

@@ -46,6 +46,7 @@ import com.hinvr.app.ui.plans.PlansScreen
 import com.hinvr.app.ui.notifications.NotificationsScreen
 import com.hinvr.app.ui.profile.LegalScreen
 import com.hinvr.app.ui.profile.ProfileScreen
+import com.hinvr.app.ui.vr.VrHeadsetsScreen
 import com.hinvr.app.ui.splash.SplashScreen
 import com.hinvr.app.ui.vr.VrListScreen
 import com.hinvr.app.ui.vr.VrPlayerScreen
@@ -307,6 +308,7 @@ fun HinvrNavHost() {
             ProfileScreen(
                 onBack = { nav.popBackStack() },
                 onLegal = { go(Destinations.Legal) },
+                onHeadsets = { go(Destinations.Headsets) },
                 onPlans = { go(Destinations.Plans) },
                 onSignedOut = {
                     nav.navigate(Destinations.account(signIn = true)) {
@@ -317,6 +319,9 @@ fun HinvrNavHost() {
         }
         composable(Destinations.Legal) {
             LegalScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Destinations.Headsets) {
+            VrHeadsetsScreen(onBack = { nav.popBackStack() })
         }
         composable(Destinations.Notifications) {
             NotificationsScreen(onBack = { nav.popBackStack() })

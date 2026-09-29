@@ -55,8 +55,12 @@ class RingInputSystem : SystemBase() {
                 controller.isPressed(ButtonBits.ButtonTriggerR) ||
                 controller.isPressed(ButtonBits.ButtonTriggerL)
             ) {
-                // The toggle handles its own click; don't also open the centered card.
-                if (!aimsAtToggle(controllerEntity)) select = true
+                // The toggle and profile chip handle their own clicks; don't also open the centered card.
+                if (!aimsAt(togglePose, controllerEntity, 0.28f, 0.09f) &&
+                    !aimsAt(chipPose, controllerEntity, 0.26f, 0.07f)
+                ) {
+                    select = true
+                }
             }
             if (
                 Ring.stage == Stage.Menu && !Ring.isWatching &&
@@ -81,6 +85,7 @@ class RingInputSystem : SystemBase() {
             if (select || now >= splashUntilMs) Ring.openMenu()
             return
         }
+        if (!Ring.showsCards) return
         if (scroll != 0) {
             Ring.scroll(scroll.coerceIn(-1, 1))
             nextScrollAtMs = now + 420L
@@ -111,9 +116,12 @@ class RingInputSystem : SystemBase() {
 
         val ringPresence = 1f - streamPresence
         val splash = Ring.stage == Stage.Splash
+        val pairing = Ring.stage == Stage.Pair
         val sphere = Ring.inSphere
-        val passthrough = !sphere && (splash || Ring.usePassthrough)
+        // While pairing the member has to see their phone.
+        val passthrough = !sphere && (splash || pairing || Ring.usePassthrough)
         applyPassthrough(passthrough)
+        PairScanner.sync(pairing && QuestAccount.wantsCamera)
         lightTheHall()
         SanctumSound.onFrame(Ring.stage, Ring.isWatching || sphere, Ring.diyaLit)
         val viewer = getScene().getViewerPose().removePitchAndRoll()
@@ -125,8 +133,11 @@ class RingInputSystem : SystemBase() {
         }
         hideSphereTour()
         placeOpening(head, splash)
-        placeHall(head, viewer, show = !splash && !Ring.usePassthrough)
+        placeHall(head, viewer, show = !splash && !pairing && !Ring.usePassthrough)
         placeEnvironment(head, show = Ring.stage == Stage.Menu && !Ring.isWatching)
+        placePair(head, show = pairing)
+        placeProfile(head, show = Ring.stage == Stage.Profile)
+        placeChip(head, show = Ring.stage == Stage.Menu && !Ring.isWatching && QuestAccount.isPaired)
         RingWorld.stream?.let { stream ->
             val showing = streamPresence > 0.02f
             stream.setComponent(Visible(showing))
@@ -142,7 +153,7 @@ class RingInputSystem : SystemBase() {
         assignSlots(count)
         RingWorld.slots.forEachIndexed { slot, entity ->
             if (entity == null) return@forEachIndexed
-            if (splash) {
+            if (!Ring.showsCards) {
                 entity.setComponent(Visible(false))
                 return@forEachIndexed
             }
@@ -153,7 +164,7 @@ class RingInputSystem : SystemBase() {
             }
             val menu = Ring.stage == Stage.Menu || Ring.stage == Stage.Tour
             val delta = when (Ring.stage) {
-                Stage.Splash -> 0f
+                Stage.Splash, Stage.Pair, Stage.Profile -> 0f
                 Stage.Menu -> if (cardIndex == 0) -1.05f else 1.05f
                 Stage.Tour -> (cardIndex - 1) * 1.15f
                 Stage.Live -> wrapDelta(cardIndex - displayedCenter, count.toFloat())
@@ -237,11 +248,16 @@ class RingInputSystem : SystemBase() {
     private var endPose: Pose? = null
 
     private fun showSphereTour(head: Pose, viewer: Pose) {
+        togglePose = null
+        chipPose = null
         listOfNotNull(
             RingWorld.opening,
             RingWorld.hall,
             RingWorld.environment,
             RingWorld.stream,
+            RingWorld.pair,
+            RingWorld.profile,
+            RingWorld.chip,
         ).forEach {
             it.setComponent(Visible(false))
         }
@@ -329,17 +345,46 @@ class RingInputSystem : SystemBase() {
         environment.setComponent(Transform(pose))
     }
 
-    private fun aimsAtToggle(controllerEntity: Entity): Boolean {
-        val toggle = togglePose ?: return false
+    private fun placePair(head: Pose, show: Boolean) {
+        val pair = RingWorld.pair ?: return
+        pair.setComponent(Visible(show))
+        if (!show) return
+        // Above the eye line, so the phone held out in front stays in view.
+        pair.setComponent(Transform(placeInFront(head, 0f, 1.5f, 0.30f)))
+    }
+
+    private fun placeProfile(head: Pose, show: Boolean) {
+        val profile = RingWorld.profile ?: return
+        profile.setComponent(Visible(show))
+        if (!show) return
+        profile.setComponent(Transform(placeInFront(head, 0f, 1.45f, -0.06f)))
+    }
+
+    private var chipPose: Pose? = null
+
+    private fun placeChip(head: Pose, show: Boolean) {
+        val chip = RingWorld.chip ?: return
+        chip.setComponent(Visible(show))
+        if (!show) {
+            chipPose = null
+            return
+        }
+        val pose = placeInFront(head, 0f, 1.6f, 0.36f)
+        chipPose = pose
+        chip.setComponent(Transform(pose))
+    }
+
+    private fun aimsAt(target: Pose?, controllerEntity: Entity, halfWidth: Float, halfHeight: Float): Boolean {
+        val panel = target ?: return false
         val aim = controllerEntity.tryGetComponent<Transform>()?.transform ?: return false
-        val toLocal = toggle.inverse()
+        val toLocal = panel.inverse()
         val origin = toLocal.times(aim.t)
         val direction = toLocal.times(aim.t + aim.forward()) - origin
         if (abs(direction.z) < 1e-4f) return false
         val along = -origin.z / direction.z
         if (along <= 0f) return false
         val hit = origin + direction * along
-        return abs(hit.x) < 0.28f && abs(hit.y) < 0.09f
+        return abs(hit.x) < halfWidth && abs(hit.y) < halfHeight
     }
 
     private fun placeInFront(head: Pose, delta: Float, distance: Float, yOffset: Float): Pose {
@@ -401,4 +446,7 @@ object RingWorld {
     var environment: Entity? = null
     var sphere: Entity? = null
     var tourEnd: Entity? = null
+    var pair: Entity? = null
+    var profile: Entity? = null
+    var chip: Entity? = null
 }

@@ -36,6 +36,7 @@ object Destinations {
     const val Plans = "plans"
     const val Profile = "profile"
     const val Legal = "profile/legal"
+    const val Headsets = "profile/headsets"
     const val Notifications = "notifications"
     const val Pooja = "pooja"
     const val Yatra = "yatra"

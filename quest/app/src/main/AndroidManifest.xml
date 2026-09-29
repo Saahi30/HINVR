@@ -13,7 +13,13 @@
         android:name="com.oculus.feature.PASSTHROUGH"
         android:required="true" />
     <uses-feature android:glEsVersion="0x00030001" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Reads the pairing QR on the member's phone through the passthrough cameras. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="horizonos.permission.HEADSET_CAMERA" />
 
     <queries>
         <package android:name="com.google.android.apps.youtube.vr.oculus" />

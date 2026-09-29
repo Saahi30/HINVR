@@ -185,6 +185,25 @@ private data class DeviceTokenArg(
     @SerialName("p_token") val token: String,
 )
 
+@Serializable
+data class VrDeviceRow(
+    @SerialName("device_id") val deviceId: String,
+    val name: String = "",
+    @SerialName("paired_at") val pairedAt: String = "",
+    @SerialName("last_seen_at") val lastSeenAt: String = "",
+)
+
+@Serializable
+data class VrPairingCode(
+    val code: String,
+    @SerialName("expires_at") val expiresAt: String,
+)
+
+@Serializable
+private data class VrDeviceArg(
+    @SerialName("p_device_id") val deviceId: String,
+)
+
 data class RemoteCatalog(
     val mandirs: List<Mandir>,
     val services: List<ServiceTile>,
@@ -654,6 +673,36 @@ class SupabaseBackend {
             order("created_at", Order.DESCENDING)
             limit(40)
         }.decodeList()
+    }
+
+    /** A single-use code the headset scans. */
+    suspend fun startVrPairing(): VrPairingCode = io {
+        try {
+            requireClient().postgrest.rpc("start_vr_pairing").decodeAs<VrPairingCode>()
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
+    }
+
+    suspend fun fetchVrDevices(): List<VrDeviceRow> = io {
+        val sb = requireClient()
+        val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
+        try {
+            sb.from("vr_devices").select(Columns.list("device_id", "name", "paired_at", "last_seen_at")) {
+                filter { eq("user_id", userId) }
+                order("paired_at", Order.DESCENDING)
+            }.decodeList()
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
+    }
+
+    suspend fun unlinkVrDevice(deviceId: String) = io {
+        try {
+            requireClient().postgrest.rpc("unlink_vr_device", VrDeviceArg(deviceId))
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
     }
 
     suspend fun signOut() = io {

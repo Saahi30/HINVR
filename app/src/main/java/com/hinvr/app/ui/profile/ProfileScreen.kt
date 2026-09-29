@@ -79,6 +79,7 @@ private val AudienceOrder = listOf(Audience.Me, Audience.Parents, Audience.Famil
 fun ProfileScreen(
     onBack: () -> Unit,
     onLegal: () -> Unit,
+    onHeadsets: () -> Unit,
     onPlans: () -> Unit,
     onSignedOut: () -> Unit,
 ) {
@@ -326,6 +327,16 @@ fun ProfileScreen(
                                 if (editing) resetForm()
                                 editing = !editing
                             }
+                            .padding(vertical = 6.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.vr_headsets),
+                        style = HinvrTypography.titleMedium,
+                        color = colors.ink,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onHeadsets)
                             .padding(vertical = 6.dp),
                     )
                     Spacer(Modifier.height(8.dp))

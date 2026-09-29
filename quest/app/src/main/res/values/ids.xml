@@ -6,6 +6,9 @@
     <item name="ring_environment" type="id" />
     <item name="ring_sphere" type="id" />
     <item name="ring_tour_end" type="id" />
+    <item name="ring_pair" type="id" />
+    <item name="ring_profile" type="id" />
+    <item name="ring_profile_chip" type="id" />
     <item name="ring_slot_0" type="id" />
     <item name="ring_slot_1" type="id" />
     <item name="ring_slot_2" type="id" />

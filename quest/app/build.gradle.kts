@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
+
+// The headset talks to the same Supabase project as the phone app.
+// quest/local.properties overrides the phone app's local.properties.
+val cloudProperties = Properties().apply {
+    listOf(rootProject.file("../local.properties"), rootProject.file("local.properties"))
+        .filter { it.exists() }
+        .forEach { file -> file.inputStream().use { load(it) } }
+}
+
+fun cloudProp(key: String): String =
+    cloudProperties.getProperty(key, "").orEmpty().replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     namespace = "com.hinvr.quest"
@@ -14,6 +27,8 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "SUPABASE_URL", "\"${cloudProp("SUPABASE_URL")}\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"${cloudProp("SUPABASE_PUBLISHABLE_KEY")}\"")
     }
 
     signingConfigs {
@@ -44,6 +59,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -93,6 +109,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.zxing.core)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.meta.spatial.sdk)

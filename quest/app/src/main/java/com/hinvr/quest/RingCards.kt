@@ -40,7 +40,7 @@ fun SlotCard(slot: Int) {
     val index = RingSlots.shown[slot]
     if (index !in 0 until Ring.deckSize) return
     when (Ring.stage) {
-        Stage.Splash -> return
+        Stage.Splash, Stage.Pair, Stage.Profile -> return
         Stage.Menu -> ChoiceCard(MenuChoices[index], index)
         Stage.Live -> RingCardContent(Ring.cards[index], index)
         Stage.Tour -> ChoiceCard(TourChoices[index], index)
