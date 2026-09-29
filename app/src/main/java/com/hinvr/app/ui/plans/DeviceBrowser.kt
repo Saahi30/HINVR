@@ -4,8 +4,10 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
+import com.hinvr.app.R
 import com.hinvr.app.data.AuthException
 import com.hinvr.app.data.SessionRepository
+import com.hinvr.app.i18n.userMessage
 
 /** Opens the system browser. Membership is managed there, never in a WebView. */
 fun openDeviceBrowser(context: Context, url: String): Boolean {
@@ -26,9 +28,9 @@ suspend fun openMembershipInBrowser(context: Context, session: SessionRepository
     val url = try {
         session.membershipPageUrl()
     } catch (e: AuthException) {
-        return e.message ?: "Sign in again."
+        return context.userMessage(e.message, R.string.err_sign_in_again)
     } catch (_: Exception) {
-        return "Couldn't open membership."
+        return context.getString(R.string.err_membership)
     }
-    return if (openDeviceBrowser(context, url)) null else "Couldn't open the browser."
+    return if (openDeviceBrowser(context, url)) null else context.getString(R.string.err_browser)
 }

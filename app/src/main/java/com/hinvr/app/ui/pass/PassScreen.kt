@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +76,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
+import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.data.PassCheckIn
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.data.hasDeskPass
@@ -138,7 +140,7 @@ fun PassScreen(
             session.ensurePass(false)
             passError = ""
         } catch (error: Exception) {
-            passError = error.message ?: "Couldn't refresh the pass."
+            passError = context.userMessage(error.message, R.string.err_refresh_pass)
         } finally {
             passBusy = false
         }
@@ -158,7 +160,7 @@ fun PassScreen(
             PassVaultHeader(active = hasCredential)
             Spacer(Modifier.height(28.dp))
             Text(
-                if (hasCredential) "DESK CREDENTIAL" else "MEMBERSHIP PREVIEW",
+                if (hasCredential) stringResource(R.string.pass_desk_credential) else stringResource(R.string.pass_preview),
                 style = HinvrTypography.labelSmall.copy(letterSpacing = 2.sp),
                 color = colors.gold,
             )
@@ -193,11 +195,11 @@ fun PassScreen(
             Spacer(Modifier.height(18.dp))
             Text(
                 if (livePayload.isNotBlank()) {
-                    "Hold this under the scanner."
+                    stringResource(R.string.pass_hold)
                 } else if (hasCredential) {
-                    "A signed code, not a string anyone can copy."
+                    stringResource(R.string.pass_signed)
                 } else {
-                    "Your name on a temple pass."
+                    stringResource(R.string.pass_name)
                 },
                 style = HinvrTypography.titleLarge,
                 color = colors.cream,
@@ -208,10 +210,10 @@ fun PassScreen(
                 Text(
                     when {
                         passError.isNotBlank() -> passError
-                        livePayload.isNotBlank() -> "Expires ${formatPassClock(snap.passExpiresAt)}. It still shows without a signal until then."
-                        passBusy -> "Issuing a signed code…"
-                        snap.passToken.isNotBlank() -> "This code expired. Reconnect to issue a new one."
-                        else -> "Connect once to issue this pass."
+                        livePayload.isNotBlank() -> stringResource(R.string.pass_expires, formatPassClock(snap.passExpiresAt))
+                        passBusy -> stringResource(R.string.pass_issuing)
+                        snap.passToken.isNotBlank() -> stringResource(R.string.pass_expired)
+                        else -> stringResource(R.string.pass_connect)
                     },
                     style = HinvrTypography.bodyMedium,
                     color = colors.creamMuted,
@@ -232,7 +234,7 @@ fun PassScreen(
                             try {
                                 session.ensurePass(true)
                             } catch (error: Exception) {
-                                passError = error.message ?: "Couldn't refresh the pass."
+                                passError = context.userMessage(error.message, R.string.err_refresh_pass)
                             } finally {
                                 passBusy = false
                             }
@@ -246,7 +248,7 @@ fun PassScreen(
                                 val url = session.googleWalletUrl()
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                             } catch (error: Exception) {
-                                passError = error.message ?: "Couldn't open Google Wallet."
+                                passError = context.userMessage(error.message, R.string.err_wallet)
                             } finally {
                                 passBusy = false
                             }
@@ -257,11 +259,11 @@ fun PassScreen(
                 Spacer(Modifier.height(8.dp))
             }
             PassVaultButton(
-                text = if (hasCredential) "Plan a visit" else "Choose membership",
+                text = if (hasCredential) stringResource(R.string.plan_visit) else stringResource(R.string.choose_membership),
                 onClick = if (hasCredential) onPlanVisit else onOpenPlans,
             )
             Text(
-                "How the pass works",
+                stringResource(R.string.how_pass),
                 style = HinvrTypography.labelLarge,
                 color = colors.gold,
                 modifier = Modifier
@@ -273,7 +275,7 @@ fun PassScreen(
                 Spacer(Modifier.height(8.dp))
             }
             Text(
-                "Official entry and assist only.\nThis is not an unofficial queue-jump.",
+                stringResource(R.string.pass_official),
                 style = HinvrTypography.bodyMedium,
                 color = colors.creamMuted.copy(alpha = 0.72f),
                 textAlign = TextAlign.Center,
@@ -300,7 +302,7 @@ fun PassScreen(
                         session.requestPhysicalCard(name, address)
                         showCard = false
                     } catch (error: Exception) {
-                        passError = error.message ?: "Couldn't join the card list."
+                        passError = context.userMessage(error.message, R.string.err_card_list)
                     } finally {
                         passBusy = false
                     }
@@ -350,11 +352,11 @@ private fun PassVaultHeader(active: Boolean) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                "HINVR",
+                stringResource(R.string.app_name),
                 style = HinvrTypography.titleMedium.copy(letterSpacing = 3.sp),
                 color = colors.cream,
             )
-            Text("MEMBER PASS", style = HinvrTypography.labelSmall, color = colors.gold)
+            Text(stringResource(R.string.pass_member), style = HinvrTypography.labelSmall, color = colors.gold)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -367,7 +369,7 @@ private fun PassVaultHeader(active: Boolean) {
                     .background(if (active) colors.gold else colors.creamMuted.copy(alpha = 0.45f)),
             )
             Text(
-                if (active) "READY" else "LOCKED",
+                if (active) stringResource(R.string.pass_ready) else stringResource(R.string.pass_locked),
                 style = HinvrTypography.labelSmall,
                 color = if (active) colors.gold else colors.creamMuted,
             )
@@ -389,18 +391,18 @@ private fun PassLedger(snap: SessionSnapshot, hasCredential: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         LedgerCell(
-            eyebrow = "DESK",
-            value = if (hasCredential) "Ready" else "Locked",
+            eyebrow = stringResource(R.string.ledger_desk),
+            value = if (hasCredential) stringResource(R.string.ledger_ready) else stringResource(R.string.ledger_locked),
         )
         LedgerRule()
         LedgerCell(
-            eyebrow = "MEMBER",
+            eyebrow = stringResource(R.string.ledger_member),
             value = if (hasCredential) snap.memberId.ifBlank { "HNV-00000" } else "—",
         )
         LedgerRule()
         LedgerCell(
-            eyebrow = "VALID",
-            value = if (hasCredential) snap.validUntilLabel.ifBlank { "Annual" } else "Join",
+            eyebrow = stringResource(R.string.ledger_valid),
+            value = if (hasCredential) snap.validUntilLabel.ifBlank { stringResource(R.string.ledger_annual) } else stringResource(R.string.ledger_join),
         )
     }
 }
@@ -555,7 +557,7 @@ private fun PassDrawerReveal(
         ) {
             Image(
                 painter = painterResource(R.drawable.pass_envelope_art),
-                contentDescription = "HINVR invitation folio",
+                contentDescription = stringResource(R.string.folio_cd),
                 contentScale = ContentScale.Crop,
                 alignment = Alignment.BottomCenter,
                 modifier = Modifier.fillMaxSize(),
@@ -570,11 +572,11 @@ private fun PassDrawerReveal(
                     .align(Alignment.TopStart)
                     .padding(18.dp),
             ) {
-                Text("HINVR", style = HinvrTypography.labelLarge, color = colors.ink)
-                Text("MEMBER FOLIO", style = HinvrTypography.labelSmall, color = colors.goldDim)
+                Text(stringResource(R.string.app_name), style = HinvrTypography.labelLarge, color = colors.ink)
+                Text(stringResource(R.string.folio), style = HinvrTypography.labelSmall, color = colors.goldDim)
             }
             Text(
-                "DRAW TO OPEN  →",
+                stringResource(R.string.draw_open),
                 style = HinvrTypography.labelSmall,
                 color = colors.ink.copy(alpha = 0.58f),
                 modifier = Modifier
@@ -596,7 +598,7 @@ private fun PassDrawerReveal(
                 }
                 .shadow(10.dp, CircleShape)
                 .clip(CircleShape)
-                .background(Brush.radialGradient(listOf(colors.saffron, colors.vermillion)))
+                .background(colors.saffron)
                 .border(2.dp, colors.gold.copy(alpha = 0.8f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
@@ -687,9 +689,9 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("HINVR PRIORITY", style = HinvrTypography.labelSmall, color = colors.ink)
+                        Text(stringResource(R.string.priority), style = HinvrTypography.labelSmall, color = colors.ink)
                         Text(
-                            if (hasCredential) snap.tier.name.uppercase() else "GOLD PREVIEW",
+                            if (hasCredential) snap.tier.name.uppercase() else stringResource(R.string.gold_preview),
                             style = HinvrTypography.bodyMedium,
                             color = colors.ink.copy(alpha = 0.72f),
                         )
@@ -697,7 +699,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    if (hasCredential) snap.displayName.ifBlank { "MEMBER" }.uppercase() else "YOUR NAME",
+                    if (hasCredential) snap.displayName.ifBlank { stringResource(R.string.member_word) }.uppercase() else stringResource(R.string.your_name),
                     style = HinvrTypography.titleLarge,
                     color = colors.ink,
                     maxLines = 1,
@@ -708,9 +710,9 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                     color = colors.ink.copy(alpha = 0.72f),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("VALID THROUGH", style = HinvrTypography.labelSmall, color = colors.ink.copy(alpha = 0.62f))
+                Text(stringResource(R.string.valid_through), style = HinvrTypography.labelSmall, color = colors.ink.copy(alpha = 0.62f))
                 Text(
-                    if (hasCredential) snap.validUntilLabel.ifBlank { "Annual" } else "Join to activate",
+                    if (hasCredential) snap.validUntilLabel.ifBlank { stringResource(R.string.ledger_annual) } else stringResource(R.string.join_activate),
                     style = HinvrTypography.bodyMedium,
                     color = colors.ink,
                 )
@@ -737,7 +739,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                         )
                     } else if (hasCredential) {
                         Text(
-                            "CODE",
+                            stringResource(R.string.code_label),
                             style = HinvrTypography.labelSmall,
                             color = colors.ink,
                             textAlign = TextAlign.Center,
@@ -751,13 +753,13 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                                 modifier = Modifier.size(28.dp),
                             )
                             Spacer(Modifier.height(7.dp))
-                            Text("MEMBER QR", style = HinvrTypography.labelSmall, color = colors.ink)
+                            Text(stringResource(R.string.member_qr), style = HinvrTypography.labelSmall, color = colors.ink)
                         }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (payload.isNotBlank()) "TAP TO ENLARGE" else if (hasCredential) "WAITING" else "LOCKED",
+                    if (payload.isNotBlank()) stringResource(R.string.tap_enlarge) else if (hasCredential) stringResource(R.string.waiting) else stringResource(R.string.pass_locked),
                     style = HinvrTypography.labelSmall,
                     color = colors.ink.copy(alpha = 0.65f),
                 )
@@ -768,9 +770,9 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
     if (showExpandedQr && payload.isNotBlank()) {
         Dialog(onDismissRequest = { showExpandedQr = false }) {
             IvoryCard {
-                Text("DESK CREDENTIAL", style = HinvrTypography.labelSmall, color = colors.goldDim)
+                Text(stringResource(R.string.pass_desk_credential), style = HinvrTypography.labelSmall, color = colors.goldDim)
                 Spacer(Modifier.height(6.dp))
-                Text("Hold this under the scanner", style = HinvrTypography.titleLarge, color = colors.ink)
+                Text(stringResource(R.string.hold_scanner), style = HinvrTypography.titleLarge, color = colors.ink)
                 Spacer(Modifier.height(16.dp))
                 PassQr(
                     payload = payload,
@@ -786,7 +788,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Tap outside to close",
+                    stringResource(R.string.tap_close),
                     style = HinvrTypography.labelSmall,
                     color = colors.goldDim,
                 )
@@ -829,14 +831,14 @@ private fun VisitHistory(visits: List<PassCheckIn>) {
     val colors = HinvrTheme.colors
     Column(Modifier.fillMaxWidth()) {
         Text(
-            "VISITS",
+            stringResource(R.string.visits),
             style = HinvrTypography.labelSmall.copy(letterSpacing = 2.sp),
             color = colors.gold,
         )
         Spacer(Modifier.height(10.dp))
         if (visits.isEmpty()) {
             Text(
-                "Desk check-ins show up here.",
+                stringResource(R.string.visits_empty),
                 style = HinvrTypography.bodyMedium,
                 color = colors.creamMuted,
                 textAlign = TextAlign.Center,
@@ -845,7 +847,7 @@ private fun VisitHistory(visits: List<PassCheckIn>) {
             return@Column
         }
         visits.forEach { visit ->
-            Text(visit.place.ifBlank { "HINVR desk" }, style = HinvrTypography.titleMedium, color = colors.cream)
+            Text(visit.place.ifBlank { stringResource(R.string.hinvr_desk) }, style = HinvrTypography.titleMedium, color = colors.cream)
             Text(formatVisit(visit.createdAt), style = HinvrTypography.bodyMedium, color = colors.creamMuted)
             if (visit.note.isNotBlank()) {
                 Text(visit.note, style = HinvrTypography.bodyMedium, color = colors.creamMuted)
@@ -855,28 +857,26 @@ private fun VisitHistory(visits: List<PassCheckIn>) {
     }
 }
 
-private val VisitFormat: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.ENGLISH)
-
 private fun formatVisit(raw: String): String {
     val instant = runCatching { Instant.parse(raw) }.getOrNull() ?: return raw
-    return VisitFormat.format(instant.atZone(ZoneId.systemDefault()))
+    val formatter = DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a", Locale.getDefault())
+    return formatter.format(instant.atZone(ZoneId.systemDefault()))
 }
 
 @Composable
 fun HowPassWorksScreen(onBack: () -> Unit) {
     val colors = HinvrTheme.colors
     val steps = listOf(
-        "Show the code" to "It is signed and expires in a few hours. A photo of the old string does not work.",
-        "Host confirms you" to "The desk checks the signature. A new code from your phone retires the old one.",
-        "Official assist" to "Entry, buggy, or wheelchair — as booked. Google Wallet and a posted card use the same check.",
+        stringResource(R.string.how_show) to stringResource(R.string.how_show_body),
+        stringResource(R.string.how_host) to stringResource(R.string.how_host_body),
+        stringResource(R.string.how_assist) to stringResource(R.string.how_assist_body),
     )
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
-            SabhaTopBar(title = "How the pass works", onBack = onBack)
+            SabhaTopBar(title = stringResource(R.string.how_pass), onBack = onBack)
             Column(Modifier.padding(horizontal = 22.dp, vertical = 8.dp)) {
                 Text(
-                    "Three quiet moves\nat the desk.",
+                    stringResource(R.string.how_title),
                     style = HinvrTypography.headlineMedium,
                     color = colors.ink,
                 )
@@ -907,7 +907,7 @@ fun HowPassWorksScreen(onBack: () -> Unit) {
                         .background(colors.gold.copy(alpha = 0.22f)),
                 )
                 Text(
-                    "We do not sell unofficial skip-the-line at board-run temples.",
+                    stringResource(R.string.how_footer),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )

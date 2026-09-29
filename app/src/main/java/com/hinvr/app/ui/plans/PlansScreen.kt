@@ -33,24 +33,27 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.HinvrTextButton
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.SabhaTopBar
+import com.hinvr.app.ui.motion.HinvrMotion
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrCardRadius
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
-import com.hinvr.app.ui.motion.HinvrMotion
 import kotlinx.coroutines.launch
 
 private data class PlanCard(
@@ -81,16 +84,25 @@ fun PlansScreen(onBack: () -> Unit) {
             "Darshan",
             "₹999",
             999,
-            "For watching and planning",
-            listOf("Official live darshan", "Mandir directory and favourites", "Basic concierge requests"),
+            stringResource(R.string.plan_darshan_audience),
+            listOf(
+                stringResource(R.string.plan_darshan_1),
+                stringResource(R.string.plan_darshan_2),
+                stringResource(R.string.plan_darshan_3),
+            ),
         ),
         PlanCard(
             MembershipTier.Gold,
             "Gold",
             "₹4,999",
             4999,
-            "For parents and regular visits",
-            listOf("Everything in Darshan", "Digital QR temple pass", "Visit and accessibility requests", "Priority concierge chat"),
+            stringResource(R.string.plan_gold_audience),
+            listOf(
+                stringResource(R.string.plan_gold_1),
+                stringResource(R.string.plan_gold_2),
+                stringResource(R.string.plan_gold_3),
+                stringResource(R.string.plan_gold_4),
+            ),
             recommended = true,
         ),
         PlanCard(
@@ -98,17 +110,26 @@ fun PlansScreen(onBack: () -> Unit) {
             "Platinum",
             "₹14,999",
             14999,
-            "For families needing a human desk",
-            listOf("Everything in Gold", "Phone concierge", "Family profile support", "Physical card request", "Partner assist priority"),
+            stringResource(R.string.plan_platinum_audience),
+            listOf(
+                stringResource(R.string.plan_platinum_1),
+                stringResource(R.string.plan_platinum_2),
+                stringResource(R.string.plan_platinum_3),
+                stringResource(R.string.plan_platinum_4),
+                stringResource(R.string.plan_platinum_5),
+            ),
         ),
         PlanCard(
             MembershipTier.Nri,
             "NRI",
             "$149",
             12499,
-            "For family abroad",
-            listOf("Everything in Platinum", "International support hours"),
-            invoiceNote = "Desk invoice ₹12,499",
+            stringResource(R.string.plan_nri_audience),
+            listOf(
+                stringResource(R.string.plan_nri_1),
+                stringResource(R.string.plan_nri_2),
+            ),
+            invoiceNote = stringResource(R.string.plan_nri_note),
         ),
     )
     var selectedTier by remember {
@@ -129,7 +150,7 @@ fun PlansScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            SabhaTopBar(title = "Membership", onBack = onBack)
+            SabhaTopBar(title = stringResource(R.string.membership), onBack = onBack)
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -140,12 +161,12 @@ fun PlansScreen(onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    Text("ONE YEAR. ONE DESK.", style = HinvrTypography.labelSmall, color = colors.gold)
+                    Text(stringResource(R.string.plans_kicker), style = HinvrTypography.labelSmall, color = colors.gold)
                     Spacer(Modifier.height(8.dp))
-                    Text("Choose how much help your family needs.", style = HinvrTypography.headlineLarge, color = colors.ink)
+                    Text(stringResource(R.string.plans_title), style = HinvrTypography.headlineLarge, color = colors.ink)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Live darshan stays simple. Higher plans add the pass and a human who can help plan the visit.",
+                        stringResource(R.string.plans_body),
                         style = HinvrTypography.bodyLarge,
                         color = colors.inkMuted,
                     )
@@ -163,7 +184,7 @@ fun PlansScreen(onBack: () -> Unit) {
                 item {
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Partner access depends on the mandir and confirmed services. We never sell unofficial queue-jumping.",
+                        stringResource(R.string.plans_footnote),
                         style = HinvrTypography.bodyMedium,
                         color = colors.inkMuted,
                     )
@@ -180,11 +201,12 @@ fun PlansScreen(onBack: () -> Unit) {
                 val pending = snap.requestStatus == "pending"
                 val samePending = pending && snap.requestTier == selectedTier.name
                 val button = when {
-                    sending -> "Sending…"
-                    samePending -> "Request sent"
-                    pending -> "Change request to ${plan.name}"
-                    snap.tier == selectedTier && snap.tier != MembershipTier.None -> "Request ${plan.name} again"
-                    else -> "Request ${plan.name}"
+                    sending -> stringResource(R.string.sending)
+                    samePending -> stringResource(R.string.request_sent_short)
+                    pending -> stringResource(R.string.change_request, plan.name)
+                    snap.tier == selectedTier && snap.tier != MembershipTier.None ->
+                        stringResource(R.string.request_again, plan.name)
+                    else -> stringResource(R.string.request_plan, plan.name)
                 }
                 HinvrPrimaryButton(
                     text = button,
@@ -194,6 +216,7 @@ fun PlansScreen(onBack: () -> Unit) {
                             sending = true
                             requestError = null
                             requestError = session.requestPlan(plan.tier, plan.amountInr)
+                                ?.let { context.userMessage(it, R.string.err_send_request) }
                             sending = false
                         }
                     },
@@ -205,16 +228,19 @@ fun PlansScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     when {
-                        samePending -> "The desk has this request. The pass opens after they confirm."
+                        samePending -> stringResource(R.string.pending_body)
                         snap.requestStatus == "declined" && snap.requestTier == selectedTier.name ->
-                            "The desk declined this request.${snap.requestNote.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()}"
-                        else -> "No charge in the app. The desk confirms the plan, then the pass and invoice open."
+                            stringResource(
+                                R.string.declined_body,
+                                snap.requestNote.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty(),
+                            )
+                        else -> stringResource(R.string.plans_quiet)
                     },
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
                 HinvrTextButton(
-                    text = if (opening) "Opening invoices…" else "View invoices",
+                    text = if (opening) stringResource(R.string.opening_invoices) else stringResource(R.string.view_invoices),
                     onClick = {
                         if (opening) return@HinvrTextButton
                         scope.launch {
@@ -270,8 +296,8 @@ private fun PlanOptionCard(
             Column(Modifier.weight(1f)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(plan.name, style = HinvrTypography.titleLarge, color = titleColor)
-                    if (plan.recommended) PlanChip("MOST POPULAR", selected)
-                    if (current) PlanChip("CURRENT", selected)
+                    if (plan.recommended) PlanChip(stringResource(R.string.most_popular), selected)
+                    if (current) PlanChip(stringResource(R.string.current_plan), selected)
                 }
                 Spacer(Modifier.height(3.dp))
                 Text(plan.audience, style = HinvrTypography.bodyMedium, color = bodyColor)
@@ -281,7 +307,7 @@ private fun PlanOptionCard(
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(plan.price, style = HinvrTypography.headlineLarge, color = if (selected) colors.gold else colors.ink)
-            Text(" / year", style = HinvrTypography.bodyMedium, color = bodyColor, modifier = Modifier.padding(bottom = 5.dp))
+            Text(stringResource(R.string.per_year), style = HinvrTypography.bodyMedium, color = bodyColor, modifier = Modifier.padding(bottom = 5.dp))
         }
         plan.invoiceNote?.let { note ->
             Spacer(Modifier.height(4.dp))
@@ -300,7 +326,7 @@ private fun PlanOptionCard(
         }
         if (!selected && plan.benefits.size > 2) {
             Text(
-                "+ ${plan.benefits.size - 2} more benefits",
+                stringResource(R.string.more_benefits, plan.benefits.size - 2),
                 style = HinvrTypography.labelLarge,
                 color = colors.gold,
                 modifier = Modifier.padding(top = 5.dp),

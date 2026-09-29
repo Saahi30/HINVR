@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { IconClose, IconGrid, IconHome, IconInbox, IconLive, IconMenu, IconScan, IconShield, IconTemple, IconUsers } from "@/components/icons";
+import { IconBell, IconClose, IconGrid, IconHome, IconInbox, IconLive, IconMenu, IconScan, IconShield, IconTemple, IconUsers } from "@/components/icons";
 import { cx } from "@/components/ui";
 
 const catalog = [
@@ -16,6 +16,7 @@ const ops = [
   { href: "/requests", label: "Requests", icon: IconInbox },
   { href: "/scan", label: "Scan pass", icon: IconScan },
   { href: "/live", label: "Live", icon: IconLive },
+  { href: "/notifications", label: "Notifications", icon: IconBell },
 ];
 
 const audience = [{ href: "/members", label: "Members", icon: IconUsers }];
@@ -30,6 +31,7 @@ function crumbs(pathname: string) {
   if (pathname.startsWith("/requests")) return ["Ops", "Requests"];
   if (pathname.startsWith("/scan")) return ["Ops", "Scan pass"];
   if (pathname.startsWith("/live")) return ["Ops", "Live"];
+  if (pathname.startsWith("/notifications")) return ["Ops", "Notifications"];
   if (pathname.startsWith("/members")) return ["Audience", "Members"];
   if (pathname.startsWith("/staff")) return ["Workspace", "Team"];
   if (pathname.startsWith("/setup")) return ["Workspace", "Setup"];

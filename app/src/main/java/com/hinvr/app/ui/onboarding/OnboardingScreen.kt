@@ -56,22 +56,22 @@ fun OnboardingScreen(onContinue: (signIn: Boolean) -> Unit) {
     val scope = rememberCoroutineScope()
     val pages = listOf(
         OnboardingPage(
-            kicker = "DARSHAN",
-            title = "Sit in the sabha from anywhere.",
-            body = "Live aarti, still. Official temple streams, not a novelty feed.",
+            kicker = stringResource(R.string.onboarding_darshan_kicker),
+            title = stringResource(R.string.onboarding_darshan_title),
+            body = stringResource(R.string.onboarding_darshan_body),
             scene = null,
             photo = true,
         ),
         OnboardingPage(
-            kicker = "PASS",
-            title = "Your name on a temple pass.",
-            body = "A credential you can show at the desk. Assist, not unofficial skip-the-line.",
+            kicker = stringResource(R.string.onboarding_pass_kicker),
+            title = stringResource(R.string.onboarding_pass_title),
+            body = stringResource(R.string.onboarding_pass_body),
             scene = TileScene.PassDesk,
         ),
         OnboardingPage(
-            kicker = "CONCIERGE",
-            title = "Ask. Book. Be received.",
-            body = "Dates, dress, pandit, a host at the mandir. Someone handles the logistics.",
+            kicker = stringResource(R.string.onboarding_concierge_kicker),
+            title = stringResource(R.string.onboarding_concierge_title),
+            body = stringResource(R.string.onboarding_concierge_body),
             scene = TileScene.ConciergeDesk,
         ),
     )

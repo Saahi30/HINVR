@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Assignment
@@ -41,11 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,11 +50,13 @@ import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.data.hasDeskPass
+import com.hinvr.app.i18n.LocalAppLanguage
+import com.hinvr.app.i18n.localized
 import com.hinvr.app.navigation.Destinations
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
+import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.catalog.ServiceTile
-import com.hinvr.app.ui.catalog.TileScene
 import com.hinvr.app.ui.components.BentoTile
 import com.hinvr.app.ui.components.CatalogPhoto
 import com.hinvr.app.ui.components.CircleIconButton
@@ -66,9 +65,12 @@ import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.MandirHeroCard
+import com.hinvr.app.ui.components.mandirArtwork
+import com.hinvr.app.ui.components.MembershipBadge
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.components.StatusCard
+import com.hinvr.app.ui.components.StatusLabel
 import com.hinvr.app.ui.motion.HinvrMotion
 import com.hinvr.app.ui.plans.MembershipGateSheet
 import com.hinvr.app.ui.theme.Atmosphere
@@ -93,11 +95,19 @@ fun HomeScreen(
     val tiles by catalog.services.collectAsStateWithLifecycle()
     val headline by catalog.headline.collectAsStateWithLifecycle()
     val colors = HinvrTheme.colors
-    val live = mandirs.firstOrNull { it.live }
-    val hero = live ?: mandirs.firstOrNull()
+    val language = LocalAppLanguage.current
+    val localizedMandirs = mandirs.localized()
+    val localizedTiles = tiles.map { it.localized() }
+    val live = localizedMandirs.firstOrNull { it.live }
+    val hero = live ?: localizedMandirs.firstOrNull()
     val member = snap.tier != MembershipTier.None
     var revealContent by remember { mutableStateOf(false) }
     var assistPrompt by remember { mutableStateOf<MandirAssistPrompt?>(null) }
+    val displayHeadline = if (headline == HinvrCatalog.DefaultHeadline || language == "hi") {
+        stringResource(R.string.home_headline)
+    } else {
+        headline
+    }
 
     LaunchedEffect(Unit) { catalog.refresh() }
     LaunchedEffect(Unit) {
@@ -105,107 +115,79 @@ fun HomeScreen(
         revealContent = true
     }
 
-    HinvrBackground(atmosphere = Atmosphere.Sabha, darkIcons = false) {
+    HinvrBackground(atmosphere = Atmosphere.Sabha, darkIcons = true) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0f to colors.linen,
-                            0.48f to lerp(colors.linen, colors.saffron, 0.07f),
-                            0.78f to lerp(colors.ivory, colors.saffron, 0.045f),
-                            1f to colors.linen,
-                        ),
-                    ),
-                )
                 .verticalScroll(rememberScrollState()),
         ) {
-            Box(Modifier.fillMaxWidth().height(372.dp)) {
-                CatalogPhoto(
-                    photoUrl = hero?.photoUrl.orEmpty(),
-                    fallback = heroDrawable(hero?.scene),
-                    contentDescription = hero?.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0f to Color(0x33100B08),
-                                    0.34f to Color.Transparent,
-                                    0.64f to Color(0x99100B08),
-                                    0.9f to colors.linen.copy(alpha = 0.92f),
-                                    1f to colors.linen,
-                                ),
-                            ),
-                        ),
-                )
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .padding(horizontal = HinvrSideInset),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "HINVR",
-                            style = HinvrTypography.titleMedium.copy(
-                                fontSize = 18.sp,
-                                letterSpacing = 3.sp,
-                            ),
-                            color = colors.cream,
-                            modifier = Modifier.weight(1f),
-                        )
-                        CircleIconButton(
-                            icon = if (member) Icons.Outlined.Wallet else Icons.AutoMirrored.Outlined.Assignment,
-                            contentDescription = if (member) "Pass" else "Plans",
-                            onClick = { if (member) onOpenPass() else onOpenPlans() },
-                        )
-                        Spacer(Modifier.padding(start = 8.dp))
-                        CircleIconButton(
-                            icon = Icons.Outlined.NotificationsNone,
-                            contentDescription = "Notifications",
-                            onClick = onOpenNotifications,
-                        )
-                        Spacer(Modifier.padding(start = 8.dp))
-                        CircleIconButton(
-                            icon = Icons.Outlined.Person,
-                            contentDescription = "Profile",
-                            onClick = onOpenProfile,
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = HinvrSideInset)
+                    .padding(top = 8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        headline,
-                        style = HinvrTypography.headlineLarge.copy(fontSize = 30.sp, lineHeight = 36.sp),
-                        color = colors.cream,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+                        stringResource(R.string.app_name),
+                        style = HinvrTypography.headlineMedium.copy(fontSize = 22.sp),
+                        color = colors.ink,
+                        modifier = Modifier.weight(1f),
                     )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        buildString {
-                            append(if (snap.displayName.isBlank()) "Namaste" else "Jai Shri Ram, ${snap.displayName}")
-                            append("  ·  ")
-                            append(
-                                if (member) {
-                                    "${if (snap.tier == MembershipTier.Nri) "NRI" else snap.tier.name} member${snap.validUntilLabel.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()}"
-                                } else {
-                                    "Not a member yet"
-                                },
-                            )
-                        },
-                        style = HinvrTypography.bodyMedium,
-                        color = colors.creamMuted,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+                    CircleIconButton(
+                        icon = if (member) Icons.Outlined.Wallet else Icons.AutoMirrored.Outlined.Assignment,
+                        contentDescription = if (member) stringResource(R.string.nav_pass) else stringResource(R.string.cd_plans),
+                        onClick = { if (member) onOpenPass() else onOpenPlans() },
                     )
-                    Spacer(Modifier.height(28.dp))
+                    Spacer(Modifier.padding(start = 8.dp))
+                    CircleIconButton(
+                        icon = Icons.Outlined.NotificationsNone,
+                        contentDescription = stringResource(R.string.cd_notifications),
+                        onClick = onOpenNotifications,
+                    )
+                    Spacer(Modifier.padding(start = 8.dp))
+                    CircleIconButton(
+                        icon = Icons.Outlined.Person,
+                        contentDescription = stringResource(R.string.cd_profile),
+                        onClick = onOpenProfile,
+                    )
                 }
+                Spacer(Modifier.height(28.dp))
+                StatusLabel(
+                    if (live != null) stringResource(R.string.home_live_now) else stringResource(R.string.home_temple_access),
+                    darkSurface = false,
+                )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    if (snap.displayName.isBlank()) {
+                        stringResource(R.string.home_namaste)
+                    } else {
+                        stringResource(R.string.home_namaste_name, snap.displayName)
+                    },
+                    style = HinvrTypography.displayLarge.copy(fontSize = 52.sp, lineHeight = 54.sp),
+                    color = colors.ink,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    if (live != null) stringResource(R.string.home_live_darshan, live.name) else displayHeadline,
+                    style = HinvrTypography.bodyLarge,
+                    color = colors.inkMuted,
+                    maxLines = 2,
+                )
+                Spacer(Modifier.height(16.dp))
+                MembershipBadge(
+                    tier = if (member) {
+                        stringResource(
+                            R.string.tier_member,
+                            if (snap.tier == MembershipTier.Nri) "NRI" else snap.tier.name,
+                        )
+                    } else {
+                        stringResource(R.string.membership)
+                    },
+                    validity = if (member) snap.validUntilLabel else stringResource(R.string.explore_access),
+                )
+                Spacer(Modifier.height(8.dp))
             }
 
             Column(Modifier.padding(horizontal = HinvrSideInset)) {
@@ -213,8 +195,8 @@ fun HomeScreen(
                     Column {
                         if (live != null) {
                             StatusCard(
-                                title = "${live.city} · LIVE",
-                                subtitle = live.updatedLabel,
+                                title = stringResource(R.string.home_live_darshan, live.name),
+                                subtitle = "${live.city} · ${live.updatedLabel}",
                                 icon = Icons.AutoMirrored.Outlined.Assignment,
                                 onClick = { onOpenRoute(Destinations.livePlayer(live.id)) },
                                 modifier = Modifier.padding(top = 4.dp),
@@ -224,19 +206,44 @@ fun HomeScreen(
                     }
                 }
                 AnimatedVisibility(visible = revealContent, enter = homeReveal(90)) {
-                    BentoGrid(
-                        tiles = tiles,
-                        onOpenPass = onOpenPass,
-                        onOpenConcierge = onOpenConcierge,
-                        onOpenRoute = onOpenRoute,
-                    )
+                    Column {
+                        BentoGrid(
+                            tiles = localizedTiles,
+                            onOpenPass = onOpenPass,
+                            onOpenConcierge = onOpenConcierge,
+                            onOpenRoute = onOpenRoute,
+                        )
+                        Spacer(Modifier.height(22.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.gold))
+                        Spacer(Modifier.height(22.dp))
+                        CatalogPhoto(
+                            photoUrl = "",
+                            fallback = mandirArtwork(hero?.id.orEmpty()),
+                            contentDescription = hero?.name ?: stringResource(R.string.home_courtyard_cd),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(3f / 4f),
+                            contentScale = ContentScale.Crop,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            hero?.place ?: stringResource(R.string.home_architecture),
+                            style = HinvrTypography.labelSmall,
+                            color = colors.saffron,
+                        )
+                        Text(
+                            hero?.name ?: stringResource(R.string.home_courtyard),
+                            style = HinvrTypography.headlineMedium,
+                            color = colors.ink,
+                        )
+                    }
                 }
                 AnimatedVisibility(visible = revealContent, enter = homeReveal(180)) {
                     Column {
                         Spacer(Modifier.height(18.dp))
                         CustomRequestPill(onClick = onOpenConcierge)
                         Spacer(Modifier.height(32.dp))
-                        SectionTitle("Nearby mandirs")
+                        SectionTitle(stringResource(R.string.home_near))
                         Spacer(Modifier.height(14.dp))
                     }
                 }
@@ -247,13 +254,14 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = HinvrSideInset),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(mandirs, key = { it.id }) { mandir ->
+                    items(localizedMandirs, key = { it.id }) { mandir ->
                         PortraitPhotoCard(
                             title = mandir.name,
                             place = mandir.city,
                             scene = mandir.scene,
                             live = mandir.live,
                             photoUrl = mandir.photoUrl,
+                            mandirId = mandir.id,
                             onClick = { onOpenRoute(Destinations.mandir(mandir.id)) },
                         )
                     }
@@ -263,7 +271,7 @@ fun HomeScreen(
             AnimatedVisibility(visible = revealContent, enter = homeReveal(330)) {
                 Column(Modifier.padding(horizontal = HinvrSideInset)) {
                     Spacer(Modifier.height(36.dp))
-                    SectionTitle("Happening in the sabha tonight")
+                    SectionTitle(stringResource(R.string.home_featured))
                     Spacer(Modifier.height(14.dp))
                     if (hero != null) {
                         MandirHeroCard(
@@ -272,6 +280,7 @@ fun HomeScreen(
                             scene = hero.scene,
                             live = hero.live,
                             photoUrl = hero.photoUrl,
+                            mandirId = hero.id,
                             onPhoto = { onOpenRoute(Destinations.mandir(hero.id)) },
                             onLive = { onOpenRoute(Destinations.livePlayer(hero.id)) },
                             onVr = { onOpenRoute(Destinations.vrPlayer(hero.id)) },
@@ -286,7 +295,7 @@ fun HomeScreen(
                         )
                         Spacer(Modifier.height(28.dp))
                     }
-                    SectionTitle("See it like family, not a tourist")
+                    SectionTitle(stringResource(R.string.home_hosts))
                     Spacer(Modifier.height(14.dp))
                 }
             }
@@ -297,7 +306,7 @@ fun HomeScreen(
         }
         when (assistPrompt) {
             MandirAssistPrompt.Gate -> MembershipGateSheet(
-                reason = "Visit assist is included in Gold.",
+                reason = stringResource(R.string.gate_visit),
                 onDismiss = { assistPrompt = null },
                 onSeePlans = {
                     assistPrompt = null
@@ -305,15 +314,15 @@ fun HomeScreen(
                 },
             )
             MandirAssistPrompt.Desk -> MembershipGateSheet(
-                reason = "This mandir does not accept the pass yet.",
+                reason = stringResource(R.string.gate_not_accepted),
                 onDismiss = { assistPrompt = null },
                 onSeePlans = {
                     assistPrompt = null
                     onOpenConcierge()
                 },
-                eyebrow = "DESK",
-                body = "Ask Concierge — we will handle the visit by hand.",
-                actionLabel = "Ask Concierge",
+                eyebrow = stringResource(R.string.gate_desk),
+                body = stringResource(R.string.gate_desk_body),
+                actionLabel = stringResource(R.string.ask_concierge),
             )
             null -> Unit
         }
@@ -348,9 +357,9 @@ private fun homeReveal(delayMs: Int): EnterTransition =
 @Composable
 private fun HostRail() {
     val hosts = listOf(
-        Triple("TIRUPATI", "Ananya Rao", "Knows the calm route for elderly parents."),
-        Triple("KASHI", "Raghav Mishra", "Ritual timings, ghats, and what to carry."),
-        Triple("SHIRDI", "Meera Patil", "A local hand from arrival to prasad."),
+        Triple("TIRUPATI", "Ananya Rao", stringResource(R.string.host_tirupati_bio)),
+        Triple("KASHI", "Raghav Mishra", stringResource(R.string.host_kashi_bio)),
+        Triple("SHIRDI", "Meera Patil", stringResource(R.string.host_shirdi_bio)),
     )
     val colors = HinvrTheme.colors
     LazyRow(
@@ -361,43 +370,33 @@ private fun HostRail() {
             Box(Modifier.width(238.dp).padding(top = 22.dp)) {
                 IvoryCard(modifier = Modifier.padding(top = 18.dp)) {
                     Spacer(Modifier.height(18.dp))
-                    Text(city, style = HinvrTypography.labelSmall, color = colors.gold)
+                    Text(city, style = HinvrTypography.labelSmall, color = colors.saffron)
                     Text(name, style = HinvrTypography.titleLarge, color = colors.ink)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         bio,
                         style = HinvrTypography.bodyMedium,
                         color = colors.inkMuted,
-                        modifier = Modifier
-                            .border(2.dp, colors.saffron, RoundedCornerShape(1.dp))
-                            .padding(start = 10.dp),
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
                 Box(
                     Modifier
                         .padding(start = 18.dp)
                         .size(54.dp)
-                        .background(colors.stoneRaised, CircleShape)
-                        .border(2.dp, colors.ivory, CircleShape),
+                        .background(colors.olive, CircleShape)
+                        .border(1.dp, colors.gold, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         name.split(" ").mapNotNull { it.firstOrNull() }.joinToString(""),
                         style = HinvrTypography.titleMedium,
-                        color = colors.gold,
+                        color = colors.cream,
                     )
                 }
             }
         }
     }
-}
-
-private fun heroDrawable(scene: TileScene?): Int = when (scene) {
-    TileScene.Kashi -> R.drawable.temple_kashi
-    TileScene.Shirdi -> R.drawable.temple_shirdi
-    TileScene.Kedarnath -> R.drawable.temple_kedarnath
-    TileScene.Somnath -> R.drawable.temple_somnath
-    else -> R.drawable.temple_tirupati
 }
 
 @Composable
@@ -430,7 +429,7 @@ private fun BentoGrid(
                     tile.title,
                     tile.benefit,
                     tile.scene,
-                    if (tile.tall) 228.dp else 158.dp,
+                    248.dp,
                     { open(tile) },
                     photoUrl = tile.photoUrl,
                 )
@@ -442,7 +441,7 @@ private fun BentoGrid(
                     tile.title,
                     tile.benefit,
                     tile.scene,
-                    if (tile.tall) 228.dp else 158.dp,
+                    248.dp,
                     { open(tile) },
                     photoUrl = tile.photoUrl,
                 )

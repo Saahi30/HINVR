@@ -11,9 +11,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import com.hinvr.app.R
 import com.hinvr.app.data.DeviceAddress
 import com.hinvr.app.data.ResolvedPlace
+import com.hinvr.app.i18n.userMessage
 import kotlinx.coroutines.launch
 
 @Composable
@@ -31,7 +34,7 @@ fun UseMyLocationButton(
         scope.launch {
             runCatching { DeviceAddress.resolve(context) }
                 .onSuccess(onPlace)
-                .onFailure { onError(it.message ?: "Couldn’t read your location. Type the address.") }
+                .onFailure { onError(context.userMessage(it.message, R.string.err_location)) }
             busy = false
         }
     }
@@ -41,11 +44,11 @@ fun UseMyLocationButton(
     ) { granted ->
         val allowed = granted[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             granted[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (allowed) lookup() else onError("Location is off. Type the address.")
+        if (allowed) lookup() else onError(context.getString(R.string.err_location_off))
     }
 
     HinvrTextButton(
-        text = if (busy) "Finding address…" else "Use my location",
+        text = if (busy) stringResource(R.string.finding_address) else stringResource(R.string.use_location),
         onClick = {
             val fine = ContextCompat.checkSelfPermission(
                 context,

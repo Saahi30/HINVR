@@ -36,10 +36,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.hinvr.app.R
 import com.hinvr.app.data.Audience
+import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.readyPlaces
 import com.hinvr.app.navigation.LocalSessionRepository
@@ -64,6 +66,7 @@ private val DialCodes = listOf(
 @Composable
 fun ProfileSetupScreen(onEnter: () -> Unit) {
     val session = LocalSessionRepository.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
     var name by remember { mutableStateOf("") }
@@ -72,7 +75,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
     var dial by remember { mutableStateOf(DialCodes.first()) }
     var phone by remember { mutableStateOf("") }
     var menu by remember { mutableStateOf(false) }
-    var language by remember { mutableStateOf("en") }
+    var language by remember { mutableStateOf(session.storedLanguage.value) }
     var audience by remember { mutableStateOf(Audience.Me) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -90,19 +93,19 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
         ) {
-            Text("PROFILE", style = HinvrTypography.labelSmall, color = colors.gold)
+            Text(stringResource(R.string.profile_kicker), style = HinvrTypography.labelSmall, color = colors.gold)
             Spacer(Modifier.height(12.dp))
-            Text("A name for the pass", style = HinvrTypography.headlineLarge, color = colors.ink)
+            Text(stringResource(R.string.profile_title), style = HinvrTypography.headlineLarge, color = colors.ink)
             Spacer(Modifier.height(8.dp))
             Text(
-                "We won’t sell membership here. Walk the home screen first.",
+                stringResource(R.string.profile_body),
                 style = HinvrTypography.bodyMedium,
                 color = colors.inkMuted,
             )
             Spacer(Modifier.height(28.dp))
-            LinenField(value = name, onValueChange = { name = it }, label = "Name")
+            LinenField(value = name, onValueChange = { name = it }, label = stringResource(R.string.field_name))
             Spacer(Modifier.height(16.dp))
-            LinenField(value = city, onValueChange = { city = it }, label = "City")
+            LinenField(value = city, onValueChange = { city = it }, label = stringResource(R.string.field_city))
             Spacer(Modifier.height(20.dp))
             MemberPlacesEditor(
                 places = places,
@@ -115,7 +118,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                 allowAdd = false,
             )
             Spacer(Modifier.height(16.dp))
-            Text("Phone", style = HinvrTypography.labelLarge, color = colors.ink)
+            Text(stringResource(R.string.field_phone), style = HinvrTypography.labelLarge, color = colors.ink)
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
@@ -140,7 +143,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                     onValueChange = { phone = it.filter { ch -> ch.isDigit() }.take(12) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text("98xxx xxxxx") },
+                    placeholder = { Text(stringResource(R.string.phone_hint)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = colors.ivory,
@@ -154,21 +157,24 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(24.dp))
-            Text("Language", style = HinvrTypography.labelLarge, color = colors.ink)
+            Text(stringResource(R.string.field_language), style = HinvrTypography.labelLarge, color = colors.ink)
             Spacer(Modifier.height(8.dp))
             ChipRow(
                 options = listOf("en" to "English", "hi" to "हिन्दी"),
                 selected = language,
-                onSelect = { language = it },
+                onSelect = {
+                    language = it
+                    session.selectLanguage(it)
+                },
             )
             Spacer(Modifier.height(24.dp))
-            Text("Who is this for", style = HinvrTypography.labelLarge, color = colors.ink)
+            Text(stringResource(R.string.field_audience), style = HinvrTypography.labelLarge, color = colors.ink)
             Spacer(Modifier.height(8.dp))
             ChipRow(
                 options = listOf(
-                    Audience.Me.name to "Me",
-                    Audience.Parents.name to "Parents in India",
-                    Audience.Family.name to "Whole family",
+                    Audience.Me.name to stringResource(R.string.audience_me),
+                    Audience.Parents.name to stringResource(R.string.audience_parents),
+                    Audience.Family.name to stringResource(R.string.audience_family),
                 ),
                 selected = audience.name,
                 onSelect = { audience = Audience.valueOf(it) },
@@ -179,7 +185,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
             }
             HinvrPrimaryButton(
-                text = if (saving) "Saving…" else stringResource(R.string.cta_enter),
+                text = if (saving) stringResource(R.string.saving) else stringResource(R.string.cta_enter),
                 enabled = name.isNotBlank() && city.isNotBlank() && phoneOk && places.readyPlaces() != null && !saving,
                 onClick = {
                     saving = true
@@ -197,7 +203,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                         }
                         saved
                             .onSuccess { onEnter() }
-                            .onFailure { error = it.message ?: "Couldn’t save your profile." }
+                            .onFailure { error = context.userMessage(it.message, R.string.err_save_profile) }
                         saving = false
                     }
                 },

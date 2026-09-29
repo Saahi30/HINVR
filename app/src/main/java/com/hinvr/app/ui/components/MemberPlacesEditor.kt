@@ -22,13 +22,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.hinvr.app.R
 import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.readyPlaces
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
-
-private val PlaceNames = listOf("Home", "Parents' home")
 
 @Composable
 fun MemberPlacesEditor(
@@ -40,14 +40,22 @@ fun MemberPlacesEditor(
 ) {
     val colors = HinvrTheme.colors
     val shown = if (allowAdd) places else places.take(1)
+    val placeNames = listOf(
+        stringResource(R.string.place_home),
+        stringResource(R.string.place_parents),
+    )
     Column {
-        Text(if (allowAdd) "Places" else "Your address", style = HinvrTypography.labelLarge, color = colors.ink)
+        Text(
+            if (allowAdd) stringResource(R.string.places) else stringResource(R.string.your_address),
+            style = HinvrTypography.labelLarge,
+            color = colors.ink,
+        )
         Spacer(Modifier.height(4.dp))
         Text(
             if (allowAdd) {
-                "Name each one. Home, your parents' home, or any other place."
+                stringResource(R.string.places_help)
             } else {
-                "One place for now. You can add more from your profile, or when you book."
+                stringResource(R.string.address_help)
             },
             style = HinvrTypography.bodyMedium,
             color = colors.inkMuted,
@@ -59,11 +67,11 @@ fun MemberPlacesEditor(
                 onValueChange = { label ->
                     onChange(shown.replace(index, place.copy(label = label)))
                 },
-                label = "Name",
+                label = stringResource(R.string.field_name),
             )
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PlaceNames.forEach { suggestion ->
+                placeNames.forEach { suggestion ->
                     HinvrTextButton(
                         text = suggestion,
                         onClick = { onChange(shown.replace(index, place.copy(label = suggestion))) },
@@ -75,7 +83,7 @@ fun MemberPlacesEditor(
                 onValueChange = { address ->
                     onChange(shown.replace(index, place.copy(address = address)))
                 },
-                label = "Address",
+                label = stringResource(R.string.field_address),
                 singleLine = false,
             )
             UseMyLocationButton(
@@ -87,7 +95,7 @@ fun MemberPlacesEditor(
             )
             if (allowAdd && shown.size > 1) {
                 HinvrTextButton(
-                    text = "Remove this place",
+                    text = stringResource(R.string.remove_place),
                     onClick = { onChange(shown.filterIndexed { i, _ -> i != index }) },
                 )
             }
@@ -95,7 +103,7 @@ fun MemberPlacesEditor(
         if (allowAdd) {
             Spacer(Modifier.height(8.dp))
             HinvrTextButton(
-                text = "Add another place",
+                text = stringResource(R.string.add_place),
                 onClick = { onChange(shown + MemberPlace()) },
             )
         }
@@ -146,11 +154,15 @@ fun ServicePlacePicker(
     val colors = HinvrTheme.colors
     var adding by remember(places.isEmpty()) { mutableStateOf(places.isEmpty()) }
     var draft by remember { mutableStateOf(MemberPlace()) }
+    val placeNames = listOf(
+        stringResource(R.string.place_home),
+        stringResource(R.string.place_parents),
+    )
     Column {
-        Text("Where", style = HinvrTypography.labelLarge, color = colors.ink)
+        Text(stringResource(R.string.where), style = HinvrTypography.labelLarge, color = colors.ink)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Choose a saved place, or add one for this booking.",
+            stringResource(R.string.where_help),
             style = HinvrTypography.bodyMedium,
             color = colors.inkMuted,
         )
@@ -166,22 +178,26 @@ fun ServicePlacePicker(
                     .clickable { onSelect(place) }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             ) {
-                Text(place.label.ifBlank { "Place" }, style = HinvrTypography.labelLarge, color = colors.ink)
+                Text(
+                    place.label.ifBlank { stringResource(R.string.place_fallback) },
+                    style = HinvrTypography.labelLarge,
+                    color = colors.ink,
+                )
                 Text(place.address, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
             }
             Spacer(Modifier.height(8.dp))
         }
         if (!adding) {
-            HinvrTextButton(text = "Add another place", onClick = { adding = true })
+            HinvrTextButton(text = stringResource(R.string.add_place), onClick = { adding = true })
         } else {
             PlaceField(
                 value = draft.label,
                 onValueChange = { draft = draft.copy(label = it) },
-                label = "Name",
+                label = stringResource(R.string.field_name),
             )
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PlaceNames.forEach { suggestion ->
+                placeNames.forEach { suggestion ->
                     HinvrTextButton(
                         text = suggestion,
                         onClick = { draft = draft.copy(label = suggestion) },
@@ -191,7 +207,7 @@ fun ServicePlacePicker(
             PlaceField(
                 value = draft.address,
                 onValueChange = { draft = draft.copy(address = it) },
-                label = "Address",
+                label = stringResource(R.string.field_address),
                 singleLine = false,
             )
             UseMyLocationButton(
@@ -203,7 +219,7 @@ fun ServicePlacePicker(
             )
             val ready = listOf(draft).readyPlaces()?.singleOrNull()
             HinvrPrimaryButton(
-                text = "Save this place",
+                text = stringResource(R.string.save_place),
                 enabled = ready != null,
                 onClick = {
                     val place = ready ?: return@HinvrPrimaryButton
@@ -213,7 +229,7 @@ fun ServicePlacePicker(
                 },
             )
             if (places.isNotEmpty()) {
-                HinvrTextButton(text = "Cancel", onClick = { adding = false })
+                HinvrTextButton(text = stringResource(R.string.cancel), onClick = { adding = false })
             }
         }
     }

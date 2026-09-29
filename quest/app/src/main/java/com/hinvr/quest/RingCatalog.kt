@@ -42,6 +42,7 @@ val TourChoices = listOf(
         ChoiceBadge.Vr360,
         R.drawable.temple_kashi,
         url = "https://www.youtube.com/embed/A5YdinFdV54",
+        localFile = "mahakaleshwar.mkv",
     ),
     HomeChoice(
         "Badrinath Temple",
@@ -49,6 +50,7 @@ val TourChoices = listOf(
         ChoiceBadge.Vr360,
         R.drawable.temple_kedarnath,
         url = "https://www.youtube.com/embed/VDNIuBQBSmk",
+        localFile = "badrinath.mkv",
     ),
     HomeChoice(
         "Ayodhya",
@@ -89,7 +91,7 @@ object Ring {
     }
 
     fun greetAgain() {
-        if (inSphere || isWatching) return
+        if (inSphere || isWatching || handedOffToYoutube) return
         stage = Stage.Splash
         index = 0
         selectedId = null
@@ -198,7 +200,7 @@ object Ring {
     var leaving by mutableStateOf(false)
         private set
 
-    val isWatching: Boolean get() = !watchingUrl.isNullOrBlank()
+    val isWatching: Boolean get() = watchingUrl != null
 
     var sphereTour by mutableStateOf<HomeChoice?>(null)
         private set
@@ -207,6 +209,15 @@ object Ring {
         private set
 
     val inSphere: Boolean get() = sphereTour != null
+
+    var handedOffToYoutube by mutableStateOf(false)
+        private set
+
+    fun consumeYoutubeHandoff(): Boolean {
+        val away = handedOffToYoutube
+        handedOffToYoutube = false
+        return away
+    }
 
     fun markTourEnded() {
         if (inSphere) tourEnded = true
@@ -264,7 +275,7 @@ object Ring {
             Stage.Live -> {
                 val card = cards[index]
                 selectedId = card.mandirId
-                if (card.liveUrl.isNotBlank()) watch(card.liveUrl, card.title, spherical = false)
+                watch(card.liveUrl, card.title, spherical = false)
             }
             Stage.Tour -> {
                 val tour = TourChoices[index]
@@ -273,7 +284,7 @@ object Ring {
                         sphereTour = tour
                         tourEnded = false
                     }
-                    Tour360.open(tour.url) -> Unit
+                    Tour360.open(tour.url) -> handedOffToYoutube = true
                     else -> watch(tour.url, tour.title, spherical = true)
                 }
             }

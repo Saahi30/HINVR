@@ -6,8 +6,8 @@
 
 1. **Splash** (`splash`) — Sanctum; sync session/catalog; continue after 2.5 seconds.
 2. **Onboarding** (`onboarding`) — three Sabha pages; shown once.
-3. **Phone** (`auth/phone`) — phone number; OTP can remain mocked in this wedge.
-4. **OTP** (`auth/otp/{phone}`) — six digits.
+3. **Account** (`auth/account/{mode}`) — email and password. `signup` or `signin`. Phone OTP is not used; the Supabase phone provider is off.
+4. **Reset password** (`auth/reset`) — “Forgot password?” on sign-in emails a recovery link (`hinvr://reset`). Opening it on this phone, or pasting it, chooses a new password.
 5. **Profile setup** (`auth/setup`) — name, city, language, Me/Parents/Family.
 6. **Main** (`main`) — four tabs only.
 

@@ -64,7 +64,13 @@ class QuestActivity : AppSystemActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (pausedAtMs != 0L && SystemClock.elapsedRealtime() - pausedAtMs > 60_000L) Ring.greetAgain()
+        val fromYoutube = Ring.consumeYoutubeHandoff()
+        if (!fromYoutube &&
+            pausedAtMs != 0L &&
+            SystemClock.elapsedRealtime() - pausedAtMs > 60_000L
+        ) {
+            Ring.greetAgain()
+        }
         pausedAtMs = 0L
         SanctumSound.releaseHold()
         SpherePlayer.resumeForApp()

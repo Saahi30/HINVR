@@ -1,15 +1,26 @@
 package com.hinvr.app.data
 
 import android.content.Context
+import android.content.Intent
+import com.hinvr.app.i18n.AppLocale
+import com.hinvr.app.push.PushTokens
+import java.util.concurrent.atomic.AtomicBoolean
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 private val Context.sessionStore: DataStore<Preferences> by preferencesDataStore("hinvr_session")
 
@@ -25,6 +36,7 @@ enum class Audience { Me, Parents, Family }
 data class SessionSnapshot(
     val hasOnboarded: Boolean = false,
     val isLoggedIn: Boolean = false,
+    val mustResetPassword: Boolean = false,
     val profileComplete: Boolean = false,
     val displayName: String = "",
     val email: String = "",
@@ -53,9 +65,38 @@ class SessionRepository(
     private val supabase: SupabaseBackend,
 ) {
 
-    private val store = context.applicationContext.sessionStore
+    private val appContext = context.applicationContext
+    private val store = appContext.sessionStore
+    private val holdLanguage = AtomicBoolean(false)
+    private val _storedLanguage = MutableStateFlow(AppLocale.read(appContext))
+    val storedLanguage: StateFlow<String> = _storedLanguage.asStateFlow()
+
+    fun selectLanguage(tag: String) {
+        holdLanguage.set(true)
+        applyLanguage(tag)
+    }
+
+    fun releaseLanguageHold() {
+        holdLanguage.set(false)
+    }
+
+    fun noteStoredLanguage(tag: String) {
+        if (holdLanguage.get()) return
+        applyLanguage(tag)
+    }
+
+    private fun applyLanguage(tag: String) {
+        val normalized = AppLocale.normalize(tag)
+        AppLocale.persist(appContext, normalized)
+        _storedLanguage.value = normalized
+    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val authLinkMessageState = MutableStateFlow<String?>(null)
 
     val configured: Boolean get() = supabase.configured
+
+    /** Set when a recovery link fails to open a session. */
+    val authLinkMessage: StateFlow<String?> = authLinkMessageState.asStateFlow()
 
     val hasCloud: Boolean get() = supabase.hasCloud
 
@@ -63,6 +104,7 @@ class SessionRepository(
         SessionSnapshot(
             hasOnboarded = prefs[Keys.hasOnboarded] == true,
             isLoggedIn = prefs[Keys.isLoggedIn] == true,
+            mustResetPassword = prefs[Keys.mustResetPassword] == true,
             profileComplete = prefs[Keys.profileComplete] == true,
             displayName = prefs[Keys.displayName].orEmpty(),
             email = prefs[Keys.email].orEmpty(),
@@ -121,6 +163,39 @@ class SessionRepository(
         return adoptCurrentUser()
     }
 
+    /** @return true when the email link opens this app. */
+    suspend fun requestPasswordReset(email: String): Boolean {
+        return supabase.sendPasswordReset(email.trim())
+    }
+
+    suspend fun acceptRecoveryLink(link: String) {
+        supabase.acceptRecoveryLink(link)
+        store.edit { it[Keys.mustResetPassword] = true }
+    }
+
+    suspend fun completePasswordReset(password: String): Boolean {
+        supabase.updatePassword(password)
+        val complete = adoptCurrentUser()
+        store.edit { it[Keys.mustResetPassword] = false }
+        return complete
+    }
+
+    suspend fun hasAuthSession(): Boolean = supabase.hasSession()
+
+    fun consumeAuthIntent(intent: Intent) {
+        supabase.handleAuthCallback(
+            intent,
+            onRecovered = {
+                scope.launch { store.edit { it[Keys.mustResetPassword] = true } }
+            },
+            onFailure = { message -> authLinkMessageState.value = message },
+        )
+    }
+
+    fun clearAuthLinkMessage() {
+        authLinkMessageState.value = null
+    }
+
     suspend fun completeProfile(
         name: String,
         city: String,
@@ -129,15 +204,20 @@ class SessionRepository(
         phoneE164: String,
         places: List<MemberPlace>,
     ) {
-        supabase.saveProfile(name, city, languageTag, audience, phoneE164, places)
-        store.edit {
-            it[Keys.profileComplete] = true
-            it[Keys.displayName] = name
-            it[Keys.city] = city
-            it[Keys.places] = encodePlaces(places)
-            it[Keys.languageTag] = languageTag
-            it[Keys.audience] = audience.name
-            it[Keys.phoneE164] = phoneE164
+        try {
+            supabase.saveProfile(name, city, languageTag, audience, phoneE164, places)
+            store.edit {
+                it[Keys.profileComplete] = true
+                it[Keys.displayName] = name
+                it[Keys.city] = city
+                it[Keys.places] = encodePlaces(places)
+                it[Keys.languageTag] = languageTag
+                it[Keys.audience] = audience.name
+                it[Keys.phoneE164] = phoneE164
+            }
+            applyLanguage(languageTag)
+        } finally {
+            releaseLanguageHold()
         }
     }
 
@@ -192,7 +272,24 @@ class SessionRepository(
         runCatching { supabase.createDeskRequest(kind, sanitized, city, mandirId) }
     }
 
+    suspend fun registerPush(token: String? = null) {
+        if (!snapshot.first().isLoggedIn) return
+        val value = token ?: PushTokens.current() ?: return
+        runCatching { supabase.registerDeviceToken(value) }
+    }
+
+    suspend fun fetchNotifications(): List<NoticeRow> {
+        return runCatching { supabase.fetchNotifications() }.getOrDefault(emptyList())
+    }
+
+    private suspend fun forgetPush() {
+        val value = PushTokens.current()
+        if (value != null) runCatching { supabase.forgetDeviceToken(value) }
+        PushTokens.delete()
+    }
+
     suspend fun signOut() {
+        runCatching { forgetPush() }
         supabase.signOut()
         store.edit { prefs ->
             val onboarded = prefs[Keys.hasOnboarded] == true
@@ -304,6 +401,7 @@ class SessionRepository(
     private object Keys {
         val hasOnboarded = booleanPreferencesKey("has_onboarded")
         val isLoggedIn = booleanPreferencesKey("is_logged_in")
+        val mustResetPassword = booleanPreferencesKey("must_reset_password")
         val profileComplete = booleanPreferencesKey("profile_complete")
         val displayName = stringPreferencesKey("display_name")
         val email = stringPreferencesKey("email")

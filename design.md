@@ -343,7 +343,7 @@ IA and gates stay as `screens.md`. This is look-and-feel only.
 |---|---|---|
 | **Splash** | Sanctum | Pattern 1. Diya + seal. No buttons |
 | **Onboarding** | Sabha (pages) with one Sanctum card mock | Full-bleed photo per page, serif line, skip text, saffron Continue |
-| **Phone / OTP** | Sabha | Big digits, gold underline, quiet legal. Not a dark cave unless we want login to feel like the vault — prefer linen so OTP is easy at noon |
+| **Account** | Sabha | Email and password, gold underline. Forgot password returns through the recovery link. Linen, easy to read at noon |
 | **Profile setup** | Sabha | One screen, large chips for Me / Parents / Family |
 | **Home** | Sabha, hero may be photo | Patterns 2 + 3 + 4 + 9. Live rail is photo chips with LIVE pill, never a text empty-state as the hero |
 | **Notifications** | Sabha | Rows, not cards. Empty: serif “We will remind you before aarti.” |

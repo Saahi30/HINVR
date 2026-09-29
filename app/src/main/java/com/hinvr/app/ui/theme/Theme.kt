@@ -16,6 +16,15 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 
+/** Shared layout tokens; screens should compose these instead of inventing spacing. */
+object HinvrSpacing {
+    val xs = 6.dp
+    val sm = 12.dp
+    val md = 20.dp
+    val lg = 32.dp
+    val xl = 48.dp
+}
+
 enum class Atmosphere { Sabha, Sanctum }
 
 @Immutable
@@ -26,8 +35,8 @@ data class HinvrColors(
     val stoneRaised: Color = TempleStoneLight,
     val gold: Color = AntiqueGold,
     val goldDim: Color = AntiqueGoldDim,
-    val saffron: Color = Saffron,
-    val saffronDeep: Color = SaffronDeep,
+    val saffron: Color = Clay,
+    val saffronDeep: Color = ClayDeep,
     val vermillion: Color = Vermillion,
     val amber: Color = DiyaAmber,
     val flame: Color = FlameCore,
@@ -38,12 +47,15 @@ data class HinvrColors(
     val haze: Color = IncenseHaze,
     val linen: Color = Linen,
     val ivory: Color = Ivory,
+    val olive: Color = Olive,
+    val burgundy: Color = Burgundy,
+    val photoWarmth: Color = PhotoWarmth,
 )
 
 val LocalHinvrColors = staticCompositionLocalOf { HinvrColors() }
 val LocalAtmosphere = staticCompositionLocalOf { Atmosphere.Sanctum }
 
-val HinvrCardRadius = 28.dp
+val HinvrCardRadius = 4.dp
 val HinvrSheetRadius = 32.dp
 val HinvrPillRadius = 999.dp
 val HinvrSideInset = 22.dp
@@ -71,25 +83,25 @@ private val HinvrDarkScheme = darkColorScheme(
 )
 
 private val HinvrLightScheme = lightColorScheme(
-    primary = Saffron,
-    onPrimary = Cream,
-    primaryContainer = Color(0xFFF3D9C4),
+    primary = Burgundy,
+    onPrimary = Surface,
+    primaryContainer = Color(0xFFE4D5C8),
     onPrimaryContainer = Ink,
     secondary = AntiqueGold,
     onSecondary = Ink,
-    secondaryContainer = Ivory,
+    secondaryContainer = Surface,
     onSecondaryContainer = Ink,
-    tertiary = DiyaAmber,
-    onTertiary = Ink,
-    background = Linen,
+    tertiary = Clay,
+    onTertiary = Surface,
+    background = Paper,
     onBackground = Ink,
-    surface = Ivory,
+    surface = Surface,
     onSurface = Ink,
-    surfaceVariant = Color(0xFFE8DCCE),
+    surfaceVariant = Paper,
     onSurfaceVariant = InkMuted,
-    outline = Color(0xFFD4C4B0),
-    error = Vermillion,
-    onError = Cream,
+    outline = AntiqueGold,
+    error = ClayDeep,
+    onError = Surface,
 )
 
 @Composable

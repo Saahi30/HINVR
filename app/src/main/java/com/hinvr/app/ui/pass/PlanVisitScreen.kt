@@ -51,8 +51,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.R
+import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.navigation.LocalCatalogRepository
@@ -66,7 +70,7 @@ import com.hinvr.app.ui.components.PhotoScrim
 import com.hinvr.app.ui.components.SabhaSearchField
 import com.hinvr.app.ui.components.SabhaTopBar
 import com.hinvr.app.ui.components.ServicePlacePicker
-import com.hinvr.app.ui.components.templeDrawable
+import com.hinvr.app.ui.components.mandirArtwork
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -78,21 +82,22 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-private val VisitDateFormat: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.ENGLISH)
+private fun visitDateFormat(): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())
 
 private data class DeskHelp(
-    val label: String,
-    val detail: String,
+    val key: String,
+    val labelRes: Int,
+    val detailRes: Int,
 )
 
 private val PopularTempleIds = listOf("tirupati", "kashi", "shirdi", "somnath")
 
 private val DeskHelpOptions = listOf(
-    DeskHelp("Wheelchair", "Someone in the group cannot walk the distance"),
-    DeskHelp("Buggy", "A cart inside the temple, where the temple has one"),
-    DeskHelp("Prasad", "Prasad packed to take home"),
-    DeskHelp("Meet at the gate", "A person to receive you and walk with you"),
+    DeskHelp("Wheelchair", R.string.help_wheelchair, R.string.help_wheelchair_detail),
+    DeskHelp("Buggy", R.string.help_buggy, R.string.help_buggy_detail),
+    DeskHelp("Prasad", R.string.help_prasad, R.string.help_prasad_detail),
+    DeskHelp("Meet at the gate", R.string.help_gate, R.string.help_gate_detail),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +108,7 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val colors = HinvrTheme.colors
     val temples = mandirs.filter { it.passAccepted }
     var mandirId by remember(initialMandirId) { mutableStateOf(initialMandirId) }
@@ -122,10 +128,15 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     val shown = if (searching) temples.filter { it.matchesTempleQuery(templeQuery) } else popular
     val pinned = selected?.takeIf { !searching && shown.none { temple -> temple.id == it.id } }
     val ready = selected != null && visitDate != null && place != null
+    val noExtraHelp = stringResource(R.string.no_extra_help)
+    val noNote = stringResource(R.string.no_note)
+    val peopleWord = stringResource(R.string.people)
+    val personWord = stringResource(R.string.person)
+    val helpLabels = DeskHelpOptions.associate { it.key to stringResource(it.labelRes) }
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
-            SabhaTopBar(title = "Plan a visit", onBack = onBack)
+            SabhaTopBar(title = stringResource(R.string.visit_title), onBack = onBack)
             if (submitted && selected != null && visitDate != null) {
                 VisitSent(
                     mandir = selected,
@@ -148,22 +159,22 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                     .padding(bottom = 28.dp),
             ) {
                 Text(
-                    "Tell the desk where you are going, and who is coming.",
+                    stringResource(R.string.visit_lead),
                     style = HinvrTypography.headlineMedium,
                     color = colors.ink,
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "They will call you on this phone to confirm. Official entry only.",
+                    stringResource(R.string.visit_sub),
                     style = HinvrTypography.bodyLarge,
                     color = colors.inkMuted,
                 )
 
                 Spacer(Modifier.height(26.dp))
-                SectionHeading("Which temple")
+                SectionHeading(stringResource(R.string.which_temple))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Search by name, or tap a popular temple.",
+                    stringResource(R.string.which_temple_help),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
@@ -171,12 +182,12 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 SabhaSearchField(
                     value = templeQuery,
                     onValueChange = { templeQuery = it },
-                    placeholder = "Tirupati, Kashi, Vaishno Devi…",
+                    placeholder = stringResource(R.string.temple_search),
                 )
                 Spacer(Modifier.height(16.dp))
                 if (pinned != null) {
                     Text(
-                        "YOUR CHOICE",
+                        stringResource(R.string.your_choice),
                         style = HinvrTypography.labelSmall,
                         color = colors.gold,
                     )
@@ -199,7 +210,7 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 }
                 if (!searching) {
                     Text(
-                        "POPULAR NOW",
+                        stringResource(R.string.popular_now),
                         style = HinvrTypography.labelSmall,
                         color = colors.gold,
                     )
@@ -223,13 +234,13 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                     }
                 } else if (shown.isEmpty()) {
                     Text(
-                        "No temple by that name.",
+                        stringResource(R.string.no_temple),
                         style = HinvrTypography.titleMedium,
                         color = colors.ink,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Every temple here accepts the pass. Try another name.",
+                        stringResource(R.string.no_temple_body),
                         style = HinvrTypography.bodyMedium,
                         color = colors.inkMuted,
                     )
@@ -254,7 +265,7 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 }
 
                 Spacer(Modifier.height(16.dp))
-                SectionHeading("Visit date")
+                SectionHeading(stringResource(R.string.visit_date))
                 Spacer(Modifier.height(10.dp))
                 DateChoice(
                     date = visitDate,
@@ -262,10 +273,10 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 )
 
                 Spacer(Modifier.height(26.dp))
-                SectionHeading("How many people")
+                SectionHeading(stringResource(R.string.how_many))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Count everyone, including you.",
+                    stringResource(R.string.how_many_help),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
@@ -276,10 +287,10 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 )
 
                 Spacer(Modifier.height(26.dp))
-                SectionHeading("Help at the temple")
+                SectionHeading(stringResource(R.string.help_at_temple))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Tap any that apply. You can leave this blank.",
+                    stringResource(R.string.help_at_temple_hint),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
@@ -287,19 +298,19 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 DeskHelpOptions.forEach { option ->
                     HelpChoice(
                         option = option,
-                        selected = option.label in assist,
+                        selected = option.key in assist,
                         onClick = {
-                            assist = if (option.label in assist) assist - option.label else assist + option.label
+                            assist = if (option.key in assist) assist - option.key else assist + option.key
                         },
                     )
                     Spacer(Modifier.height(8.dp))
                 }
 
                 Spacer(Modifier.height(18.dp))
-                SectionHeading("A note for the desk")
+                SectionHeading(stringResource(R.string.desk_note))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Optional. Names, age, or anything they should know.",
+                    stringResource(R.string.desk_note_hint),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
@@ -329,7 +340,7 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                             placeError = null
                             runCatching { session.addPlace(newPlace) }
                                 .onSuccess { selectedPlace = newPlace }
-                                .onFailure { placeError = it.message ?: "Couldn’t save that place." }
+                                .onFailure { placeError = context.userMessage(it.message, R.string.err_save_place) }
                         }
                     },
                     onLocated = { },
@@ -344,10 +355,10 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                 if (!ready) {
                     Text(
                         when {
-                            selected == null && visitDate == null -> "Choose a temple and a date to send."
-                            selected == null -> "Choose a temple to send."
-                            visitDate == null -> "Choose a date to send."
-                            else -> "Choose a place to send."
+                            selected == null && visitDate == null -> stringResource(R.string.need_temple_date)
+                            selected == null -> stringResource(R.string.need_temple)
+                            visitDate == null -> stringResource(R.string.need_date)
+                            else -> stringResource(R.string.need_place)
                         },
                         style = HinvrTypography.bodyLarge,
                         color = colors.ink,
@@ -355,18 +366,19 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                     Spacer(Modifier.height(10.dp))
                 }
                 HinvrPrimaryButton(
-                    text = "Send visit request",
+                    text = stringResource(R.string.send_visit),
                     enabled = ready,
                     onClick = {
                         val mandir = selected ?: return@HinvrPrimaryButton
                         val date = visitDate ?: return@HinvrPrimaryButton
                         val chosen = place ?: return@HinvrPrimaryButton
-                        val help = assist.ifEmpty { setOf("No extra help") }.joinToString()
-                        val note = notes.trim().ifBlank { "No note" }
+                        val help = assist.map { helpLabels[it] ?: it }.ifEmpty { listOf(noExtraHelp) }.joinToString()
+                        val note = notes.trim().ifBlank { noNote }
+                        val partyLabel = if (partySize == 1) "1 $personWord" else "$partySize $peopleWord"
                         scope.launch {
                             session.addLocalRequest(
                                 "VISIT",
-                                "${templeHeadline(mandir)}, ${mandir.place} · ${date.format(VisitDateFormat)} · $partySize people · $help · ${chosen.label}: ${chosen.address} · ${snap.displayName.ifBlank { snap.city }} · $note",
+                                "${templeHeadline(mandir)}, ${mandir.place} · ${date.format(visitDateFormat())} · $partyLabel · $help · ${chosen.label}: ${chosen.address} · ${snap.displayName.ifBlank { snap.city }} · $note",
                                 mandir.id,
                             )
                             submitted = true
@@ -406,10 +418,10 @@ private fun VisitSent(
             .padding(horizontal = HinvrSideInset)
             .padding(top = 12.dp, bottom = 28.dp),
     ) {
-        Text("Request sent.", style = HinvrTypography.headlineLarge, color = colors.ink)
+        Text(stringResource(R.string.request_sent), style = HinvrTypography.headlineLarge, color = colors.ink)
         Spacer(Modifier.height(10.dp))
         Text(
-            "The desk will call you on this phone before the visit. Entry and help depend on the temple.",
+            stringResource(R.string.visit_sent_body),
             style = HinvrTypography.bodyLarge,
             color = colors.inkMuted,
         )
@@ -420,7 +432,7 @@ private fun VisitSent(
             Text("${place.label} · ${place.address}", style = HinvrTypography.bodyLarge, color = colors.inkMuted)
         }
         Spacer(Modifier.height(22.dp))
-        HinvrPrimaryButton("Back to pass", onBack)
+        HinvrPrimaryButton(stringResource(R.string.back_to_pass), onBack)
     }
 }
 
@@ -510,8 +522,8 @@ private fun TemplePhotoChoice(
             },
     ) {
         CatalogPhoto(
-            photoUrl = mandir.photoUrl,
-            fallback = mandir.scene.templeDrawable(),
+            photoUrl = if (mandir.photoUrl.startsWith("http")) "" else mandir.photoUrl,
+            fallback = mandirArtwork(mandir.id),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             contentDescription = null,
@@ -562,6 +574,7 @@ private fun TemplePhotoChoice(
 private fun DateChoice(date: LocalDate?, onClick: () -> Unit) {
     val colors = HinvrTheme.colors
     val shape = RoundedCornerShape(20.dp)
+    val visitDateCd = stringResource(R.string.cd_visit_date)
     Row(
         Modifier
             .fillMaxWidth()
@@ -570,19 +583,19 @@ private fun DateChoice(date: LocalDate?, onClick: () -> Unit) {
             .background(colors.ivory)
             .border(1.dp, colors.gold.copy(alpha = 0.28f), shape)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "Choose visit date" }
+            .semantics { contentDescription = visitDateCd }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                if (date == null) "Tap to choose a date" else date.format(VisitDateFormat),
+                if (date == null) stringResource(R.string.tap_date) else date.format(visitDateFormat()),
                 style = HinvrTypography.titleMedium,
                 color = if (date == null) colors.inkMuted else colors.ink,
             )
             if (date == null) {
                 Text(
-                    "A calendar will open",
+                    stringResource(R.string.calendar_opens),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
@@ -609,7 +622,7 @@ private fun PartyStepper(count: Int, onChange: (Int) -> Unit) {
         ) {
             StepperButton(
                 label = "−",
-                description = "Fewer people",
+                description = stringResource(R.string.fewer_people),
                 enabled = count > 1,
                 onClick = { onChange(count - 1) },
             )
@@ -620,14 +633,14 @@ private fun PartyStepper(count: Int, onChange: (Int) -> Unit) {
                     color = colors.ink,
                 )
                 Text(
-                    if (count == 1) "person" else "people",
+                    if (count == 1) stringResource(R.string.person) else stringResource(R.string.people),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
             }
             StepperButton(
                 label = "+",
-                description = "More people",
+                description = stringResource(R.string.more_people),
                 enabled = count < 12,
                 onClick = { onChange(count + 1) },
             )
@@ -635,7 +648,7 @@ private fun PartyStepper(count: Int, onChange: (Int) -> Unit) {
         if (count >= 12) {
             Spacer(Modifier.height(8.dp))
             Text(
-                "For more than 12, write the number in the note.",
+                stringResource(R.string.more_than_12),
                 style = HinvrTypography.bodyMedium,
                 color = colors.inkMuted,
             )
@@ -677,6 +690,8 @@ private fun HelpChoice(
 ) {
     val colors = HinvrTheme.colors
     val shape = RoundedCornerShape(20.dp)
+    val label = stringResource(option.labelRes)
+    val detail = stringResource(option.detailRes)
     Row(
         Modifier
             .fillMaxWidth()
@@ -687,7 +702,7 @@ private fun HelpChoice(
             .clickable(onClick = onClick)
             .semantics {
                 role = Role.Checkbox
-                contentDescription = option.label
+                contentDescription = label
             }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -711,8 +726,8 @@ private fun HelpChoice(
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(option.label, style = HinvrTypography.titleMedium, color = colors.ink)
-            Text(option.detail, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
+            Text(label, style = HinvrTypography.titleMedium, color = colors.ink)
+            Text(detail, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
         }
     }
 }
@@ -737,7 +752,7 @@ private fun NoteField(value: String, onValueChange: (String) -> Unit) {
             Box {
                 if (value.isEmpty()) {
                     Text(
-                        "Example: Mother cannot climb stairs. We will arrive by 9 in the morning.",
+                        stringResource(R.string.note_example),
                         style = HinvrTypography.bodyLarge,
                         color = colors.inkMuted,
                     )
@@ -756,17 +771,22 @@ private fun VisitRecap(
     assist: Set<String>,
 ) {
     val colors = HinvrTheme.colors
-    val people = if (partySize == 1) "1 person" else "$partySize people"
-    val help = assist.joinToString().ifBlank { "No extra help" }
+    val people = if (partySize == 1) {
+        "1 ${stringResource(R.string.person)}"
+    } else {
+        "$partySize ${stringResource(R.string.people)}"
+    }
+    val helpLabels = DeskHelpOptions.associate { it.key to stringResource(it.labelRes) }
+    val help = assist.map { helpLabels[it] ?: it }.joinToString().ifBlank { stringResource(R.string.no_extra_help) }
     IvoryCard {
-        Text("Please check", style = HinvrTypography.titleMedium, color = colors.ink)
+        Text(stringResource(R.string.please_check), style = HinvrTypography.titleMedium, color = colors.ink)
         Spacer(Modifier.height(8.dp))
         Text(
             "${templeHeadline(mandir)} · ${templeSubline(mandir)}",
             style = HinvrTypography.bodyLarge,
             color = colors.ink,
         )
-        Text(date.format(VisitDateFormat), style = HinvrTypography.bodyLarge, color = colors.ink)
+        Text(date.format(visitDateFormat()), style = HinvrTypography.bodyLarge, color = colors.ink)
         Text("$people · $help", style = HinvrTypography.bodyLarge, color = colors.inkMuted)
     }
 }
@@ -802,12 +822,12 @@ private fun VisitDateDialog(
                     onConfirm(picked)
                 },
             ) {
-                Text("Choose this date")
+                Text(stringResource(R.string.choose_date))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         },
     ) {
@@ -815,7 +835,7 @@ private fun VisitDateDialog(
             state = state,
             title = {
                 Text(
-                    "Choose the visit date",
+                    stringResource(R.string.choose_visit_date),
                     modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
                     style = HinvrTypography.titleLarge,
                 )

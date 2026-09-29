@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="temple_stone">#FF1A120C</color>
-    <color name="temple_stone_deep">#FF100B08</color>
-    <color name="antique_gold">#FFC9A227</color>
-    <color name="diya_amber">#FFE8A317</color>
-    <color name="saffron">#FFC45C26</color>
-    <color name="linen">#FFF4EDE3</color>
-    <color name="ivory">#FFFFF8F0</color>
+    <color name="temple_stone">#FF4A2F1F</color>
+    <color name="temple_stone_deep">#FF3A241C</color>
+    <color name="antique_gold">#FFB08958</color>
+    <color name="diya_amber">#FFC4A574</color>
+    <color name="saffron">#FF6E4A3C</color>
+    <color name="linen">#FFDCC99A</color>
+    <color name="ivory">#FFF3EEE2</color>
 </resources>

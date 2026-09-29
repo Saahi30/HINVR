@@ -80,6 +80,15 @@ export function IconScan({ className }: { className?: string }) {
   );
 }
 
+export function IconBell({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M8 2.2a3.2 3.2 0 0 0-3.2 3.2v2.2L3.6 9.4v.8h8.8v-.8L11.2 7.6V5.4A3.2 3.2 0 0 0 8 2.2Z" stroke="currentColor" strokeLinejoin="round" />
+      <path d="M6.7 11.4a1.3 1.3 0 0 0 2.6 0" stroke="currentColor" />
+    </svg>
+  );
+}
+
 export function IconLive({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>

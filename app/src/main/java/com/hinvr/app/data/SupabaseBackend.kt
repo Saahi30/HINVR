@@ -4,21 +4,29 @@ import com.hinvr.app.BuildConfig
 import com.hinvr.app.ui.catalog.Mandir
 import com.hinvr.app.ui.catalog.ServiceTile
 import com.hinvr.app.ui.catalog.parseTileScene
+import android.content.Intent
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.FlowType
+import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.auth.OtpVerifyResult
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.exception.AuthWeakPasswordException
+import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import java.net.HttpURLConnection
 import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -164,6 +172,19 @@ data class SettingRow(
     val value: HomeSettingsValue = HomeSettingsValue(),
 )
 
+@Serializable
+data class NoticeRow(
+    val id: String,
+    val title: String = "",
+    val body: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+private data class DeviceTokenArg(
+    @SerialName("p_token") val token: String,
+)
+
 data class RemoteCatalog(
     val mandirs: List<Mandir>,
     val services: List<ServiceTile>,
@@ -189,7 +210,12 @@ class SupabaseBackend {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
         ) {
-            install(Auth)
+            install(Auth) {
+                // Recovery emails return here. Password sign-in does not use this redirect.
+                flowType = FlowType.PKCE
+                scheme = PASSWORD_RESET_SCHEME
+                host = PASSWORD_RESET_HOST
+            }
             install(Postgrest) {
                 serializer = KotlinXSerializer(Json { ignoreUnknownKeys = true })
             }
@@ -201,7 +227,7 @@ class SupabaseBackend {
     suspend fun signUp(email: String, password: String) = io {
         val sb = requireClient()
         try {
-            sb.auth.signUpWith(Email) {
+            sb.auth.signUpWith(Email, redirectUrl = null) {
                 this.email = email
                 this.password = password
             }
@@ -218,13 +244,104 @@ class SupabaseBackend {
     suspend fun signIn(email: String, password: String) = io {
         val sb = requireClient()
         try {
-            sb.auth.signInWith(Email) {
+            sb.auth.signInWith(Email, redirectUrl = null) {
                 this.email = email
                 this.password = password
             }
         } catch (e: Exception) {
             throw AuthException(humanize(e), e)
         }
+    }
+
+    /**
+     * Emails a recovery link. Prefers the app redirect so the link opens the
+     * reset screen. If that URL is not allowed yet, falls back to the project
+     * site URL and the member pastes the link.
+     *
+     * @return true when the email link can open this app.
+     */
+    suspend fun sendPasswordReset(email: String): Boolean = io {
+        val sb = requireClient()
+        try {
+            sb.auth.resetPasswordForEmail(email, redirectUrl = PASSWORD_RESET_URL)
+            true
+        } catch (e: Exception) {
+            if (!redirectRejected(e)) throw AuthException(humanize(e), e)
+            try {
+                sb.auth.resetPasswordForEmail(email, redirectUrl = null)
+                false
+            } catch (again: Exception) {
+                throw AuthException(humanize(again), again)
+            }
+        }
+    }
+
+    /** Turns a recovery email link, or the app redirect, into a session. */
+    suspend fun acceptRecoveryLink(link: String) = io {
+        val sb = requireClient()
+        val trimmed = link.trim()
+        try {
+            val code = queryParam(trimmed, "code")
+            val type = queryParam(trimmed, "type")
+            val opensApp = trimmed.startsWith("$PASSWORD_RESET_URL", ignoreCase = true)
+            if (!code.isNullOrBlank() && (opensApp || type.equals("recovery", ignoreCase = true))) {
+                sb.auth.exchangeCodeForSession(code)
+                return@io
+            }
+            val fragment = trimmed.substringAfter('#', "")
+            val accessToken = queryParam(fragment, "access_token")
+            val fragmentType = queryParam(fragment, "type")
+            if (!accessToken.isNullOrBlank() && fragmentType.equals("recovery", ignoreCase = true)) {
+                val refresh = queryParam(fragment, "refresh_token").orEmpty()
+                sb.auth.importAuthToken(accessToken, refresh, retrieveUser = true)
+                return@io
+            }
+            val token = queryParam(trimmed, "token") ?: queryParam(trimmed, "token_hash")
+            if (token.isNullOrBlank() || !type.equals("recovery", ignoreCase = true)) {
+                throw AuthException("That isn’t a password reset link.")
+            }
+            when (sb.auth.verifyEmailOtp(OtpType.Email.RECOVERY, tokenHash = token)) {
+                is OtpVerifyResult.Authenticated -> Unit
+                OtpVerifyResult.VerifiedNoSession ->
+                    throw AuthException("That link didn’t sign you in. Request a new one.")
+            }
+        } catch (e: AuthException) {
+            throw e
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
+    }
+
+    suspend fun updatePassword(newPassword: String) = io {
+        val sb = requireClient()
+        try {
+            sb.auth.updateUser {
+                password = newPassword
+            }
+        } catch (e: Exception) {
+            throw AuthException(humanize(e), e)
+        }
+    }
+
+    suspend fun hasSession(): Boolean = io {
+        val sb = client ?: return@io false
+        sb.auth.awaitInitialization()
+        sb.auth.currentSessionOrNull() != null
+    }
+
+    fun handleAuthCallback(intent: Intent, onRecovered: () -> Unit, onFailure: (String) -> Unit) {
+        val data = intent.data ?: return
+        if (data.scheme != PASSWORD_RESET_SCHEME || data.host != PASSWORD_RESET_HOST) return
+        val sb = client ?: return
+        if (data.getQueryParameter("code").isNullOrBlank()) {
+            onFailure("That reset link didn’t include a code. Paste the link from the email instead.")
+            return
+        }
+        sb.handleDeeplinks(
+            intent,
+            onSessionSuccess = { onRecovered() },
+            onError = { onFailure(humanize(it)) },
+        )
     }
 
     suspend fun currentUser(): RemoteUser? = io {
@@ -520,11 +637,32 @@ class SupabaseBackend {
         parsed ?: throw AuthException("Couldn't refresh the pass.")
     }
 
+    suspend fun registerDeviceToken(token: String) = io {
+        requireClient().postgrest.rpc("register_device_token", DeviceTokenArg(token))
+    }
+
+    suspend fun forgetDeviceToken(token: String) = io {
+        requireClient().postgrest.rpc("forget_device_token", DeviceTokenArg(token))
+    }
+
+    suspend fun fetchNotifications(): List<NoticeRow> = io {
+        if (!hasCloud) return@io emptyList()
+        val sb = client ?: return@io emptyList()
+        sb.auth.awaitInitialization()
+        if (sb.auth.currentUserOrNull() == null) return@io emptyList()
+        sb.from("notifications").select(Columns.list("id", "title", "body", "created_at")) {
+            order("created_at", Order.DESCENDING)
+            limit(40)
+        }.decodeList()
+    }
+
     suspend fun signOut() = io {
         val sb = client ?: return@io
         runCatching {
             sb.auth.awaitInitialization()
             sb.auth.signOut()
+        }.onFailure {
+            runCatching { sb.auth.clearSession() }
         }
     }
 
@@ -616,6 +754,11 @@ private fun humanize(e: Throwable): String {
             message.contains("invalid login", ignoreCase = true) ||
             message.contains("invalid credentials", ignoreCase = true) ->
             "That email or password doesn’t match."
+        code.contains("otp_expired", ignoreCase = true) ||
+            message.contains("has expired", ignoreCase = true) ||
+            message.contains("code verifier", ignoreCase = true) ||
+            message.contains("invalid or has expired", ignoreCase = true) ->
+            "That link has expired. Request a new one on this phone."
         message.contains("email", ignoreCase = true) && message.contains("invalid", ignoreCase = true) ->
             "That email doesn’t look right."
         message.contains("password", ignoreCase = true) &&
@@ -632,5 +775,20 @@ private fun humanize(e: Throwable): String {
         else -> "Couldn’t reach HINVR. Try again."
     }
 }
+
+private fun redirectRejected(e: Throwable): Boolean {
+    val rest = e as? RestException
+    val message = rest?.message ?: e.message.orEmpty()
+    return message.contains("redirect", ignoreCase = true)
+}
+
+private fun queryParam(source: String, name: String): String? {
+    val raw = Regex("(?:^|[?&#])$name=([^&#\\s]+)").find(source)?.groupValues?.getOrNull(1) ?: return null
+    return runCatching { URLDecoder.decode(raw, Charsets.UTF_8) }.getOrDefault(raw)
+}
+
+private const val PASSWORD_RESET_SCHEME = "hinvr"
+private const val PASSWORD_RESET_HOST = "reset"
+private const val PASSWORD_RESET_URL = "$PASSWORD_RESET_SCHEME://$PASSWORD_RESET_HOST"
 
 private suspend fun <T> io(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }

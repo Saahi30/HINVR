@@ -3,7 +3,7 @@
     <style name="Theme.HINVR" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@color/temple_stone_deep</item>
         <item name="android:navigationBarColor">@color/temple_stone_deep</item>
-        <item name="android:windowBackground">@color/temple_stone</item>
+        <item name="android:windowBackground">@color/linen</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
         <item name="android:isLightTheme">false</item>

@@ -22,9 +22,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.hinvr.app.R
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
@@ -33,17 +35,17 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val ClockFormat: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+fun formatPassClock(epochMs: Long): String {
+    val formatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+    return formatter.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
+}
 
-fun formatPassClock(epochMs: Long): String =
-    ClockFormat.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
-
+@Composable
 fun physicalCardLabel(status: String): String = when (status) {
-    "waitlist" -> "On the card list"
-    "printing" -> "Card is printing"
-    "shipped" -> "Card was sent"
-    else -> "Physical card"
+    "waitlist" -> stringResource(R.string.card_waitlist)
+    "printing" -> stringResource(R.string.card_printing)
+    "shipped" -> stringResource(R.string.card_shipped)
+    else -> stringResource(R.string.physical_card)
 }
 
 @Composable
@@ -56,8 +58,12 @@ fun PassCredentialActions(
 ) {
     val cardOpen = cardStatus == "waitlist" || cardStatus == "printing" || cardStatus == "shipped"
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        PassLink(if (busy) "Issuing…" else "New code", enabled = !busy, onClick = onNewCode)
-        PassLink("Google Wallet", enabled = !busy, onClick = onWallet)
+        PassLink(
+            if (busy) stringResource(R.string.issuing) else stringResource(R.string.new_code),
+            enabled = !busy,
+            onClick = onNewCode,
+        )
+        PassLink(stringResource(R.string.google_wallet), enabled = !busy, onClick = onWallet)
         PassLink(physicalCardLabel(cardStatus), enabled = !busy && !cardOpen, onClick = onCard)
     }
 }
@@ -89,26 +95,26 @@ fun PhysicalCardDialog(
     var address by rememberSaveable { mutableStateOf(initialAddress) }
     Dialog(onDismissRequest = { if (!busy) onDismiss() }) {
         IvoryCard {
-            Text("PHYSICAL CARD", style = HinvrTypography.labelSmall, color = colors.goldDim)
+            Text(stringResource(R.string.physical_card_kicker), style = HinvrTypography.labelSmall, color = colors.goldDim)
             Spacer(Modifier.height(6.dp))
-            Text("Join the print list", style = HinvrTypography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.join_print_list), style = HinvrTypography.titleLarge, color = colors.ink)
             Spacer(Modifier.height(8.dp))
             Text(
-                "The desk prints it later. The phone code is what they scan.",
+                stringResource(R.string.card_body),
                 style = HinvrTypography.bodyMedium,
                 color = colors.inkMuted,
             )
             Spacer(Modifier.height(16.dp))
-            CardField(value = name, onValueChange = { name = it }, hint = "Name on the card")
+            CardField(value = name, onValueChange = { name = it }, hint = stringResource(R.string.card_name))
             Spacer(Modifier.height(10.dp))
-            CardField(value = address, onValueChange = { address = it }, hint = "Where to send it", tall = true)
+            CardField(value = address, onValueChange = { address = it }, hint = stringResource(R.string.card_address), tall = true)
             if (error.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Text(error, style = HinvrTypography.bodyMedium, color = colors.vermillion)
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                if (busy) "Sending…" else "Request the card",
+                if (busy) stringResource(R.string.sending) else stringResource(R.string.request_card),
                 style = HinvrTypography.labelLarge,
                 color = if (busy || name.isBlank() || address.isBlank()) colors.goldDim else colors.gold,
                 modifier = Modifier

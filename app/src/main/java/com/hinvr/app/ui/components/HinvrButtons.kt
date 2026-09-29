@@ -56,9 +56,9 @@ fun HinvrPrimaryButton(
             },
         shape = ButtonShape,
         colors = ButtonDefaults.buttonColors(
-            containerColor = colors.saffron,
+            containerColor = colors.burgundy,
             contentColor = colors.cream,
-            disabledContainerColor = colors.stoneRaised,
+            disabledContainerColor = colors.olive.copy(alpha = 0.45f),
             disabledContentColor = colors.creamMuted,
         ),
         contentPadding = PaddingValues(horizontal = 20.dp),

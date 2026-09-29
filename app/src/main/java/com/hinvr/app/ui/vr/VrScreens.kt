@@ -15,17 +15,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.hinvr.app.navigation.LocalCatalogRepository
-import com.hinvr.app.navigation.LocalSessionRepository
+import com.hinvr.app.R
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.data.hasDeskPass
+import com.hinvr.app.i18n.localized
+import com.hinvr.app.navigation.LocalCatalogRepository
+import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.LivePill
@@ -50,7 +54,7 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
     val snap by LocalSessionRepository.current.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val hasVr = snap.tier.hasDeskPass
     var showGate by remember { mutableStateOf(false) }
-    val rows = mandirs.filter { it.vr }
+    val rows = mandirs.localized().filter { it.vr }
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
             SabhaTopBar(onBack = onBack)
@@ -58,10 +62,10 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
                 contentPadding = PaddingValues(horizontal = HinvrSideInset, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { SectionTitle("360. Move your phone") }
+                item { SectionTitle(stringResource(R.string.vr_title)) }
                 item {
                     Text(
-                        "Recorded walks. Not live. Gold includes VR darshan.",
+                        stringResource(R.string.vr_body),
                         style = HinvrTypography.bodyLarge,
                         color = colors.inkMuted,
                     )
@@ -69,10 +73,11 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
                 items(rows, key = { it.id }) { row ->
                     PortraitPhotoCard(
                         title = row.name,
-                        place = "Recorded 360 · not live",
+                        place = stringResource(R.string.vr_place),
                         scene = row.scene,
                         live = false,
                         photoUrl = row.photoUrl,
+                        mandirId = row.id,
                         onClick = {
                             if (hasVr) onOpenPlayer(row.id) else showGate = true
                         },
@@ -85,7 +90,7 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
         }
         if (showGate) {
             MembershipGateSheet(
-                reason = "VR darshan is included in Gold.",
+                reason = stringResource(R.string.gate_vr),
                 onDismiss = { showGate = false },
                 onSeePlans = onPlans,
             )
@@ -97,7 +102,8 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
 fun VrPlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
     val catalog = LocalCatalogRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
-    val mandir = remember(id, mandirs) { catalog.mandir(id) }
+    val context = LocalContext.current
+    val mandir = remember(id, mandirs, context) { catalog.mandir(id).localized(context) }
     val snap by LocalSessionRepository.current.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val hasVr = snap.tier.hasDeskPass
     var showGate by remember(hasVr) { mutableStateOf(!hasVr) }
@@ -112,13 +118,13 @@ fun VrPlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
                 Column(Modifier.fillMaxSize().navigationBarsPadding()) {
                     SabhaTopBar(onBack = onBack, onPhoto = true)
                     if (!portrait) {
-                        LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
+                        LivePill(Modifier.padding(horizontal = HinvrSideInset), label = stringResource(R.string.vr_pill))
                         Spacer(Modifier.weight(1f))
                         Column(Modifier.padding(HinvrSideInset)) {
                             Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
-                            Text("Move your phone — gyroscope comes next.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+                            Text(stringResource(R.string.vr_move), style = HinvrTypography.bodyMedium, color = colors.creamMuted)
                             Spacer(Modifier.height(16.dp))
-                            HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+                            HinvrPrimaryButton(stringResource(R.string.vr_gold_button), onPlans)
                         }
                     }
                 }
@@ -131,19 +137,19 @@ fun VrPlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
                         .navigationBarsPadding(),
                 ) {
                     SabhaTopBar(onBack = onBack, onPhoto = true)
-                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = "RECORDED 360 · NOT LIVE")
+                    LivePill(Modifier.padding(horizontal = HinvrSideInset), label = stringResource(R.string.vr_pill))
                     Spacer(Modifier.weight(1f))
                     Column(Modifier.padding(HinvrSideInset)) {
                         Text(mandir.name, style = HinvrTypography.headlineMedium, color = colors.cream)
-                        Text("Paste a 360 URL in the desk to play here.", style = HinvrTypography.bodyMedium, color = colors.creamMuted)
+                        Text(stringResource(R.string.vr_missing), style = HinvrTypography.bodyMedium, color = colors.creamMuted)
                         Spacer(Modifier.height(16.dp))
-                        HinvrPrimaryButton("VR darshan is included in Gold", onPlans)
+                        HinvrPrimaryButton(stringResource(R.string.vr_gold_button), onPlans)
                     }
                 }
             }
             if (showGate) {
                 MembershipGateSheet(
-                    reason = "VR darshan is included in Gold.",
+                    reason = stringResource(R.string.gate_vr),
                     onDismiss = { showGate = false },
                     onSeePlans = onPlans,
                 )

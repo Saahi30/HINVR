@@ -36,11 +36,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.R
 import com.hinvr.app.data.Audience
+import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.data.SessionSnapshot
@@ -70,11 +73,7 @@ private val DialCodes = listOf(
 
 private val Languages = listOf("en" to "English", "hi" to "हिन्दी")
 
-private val Audiences = listOf(
-    Audience.Me to "Me",
-    Audience.Parents to "Parents in India",
-    Audience.Family to "Whole family",
-)
+private val AudienceOrder = listOf(Audience.Me, Audience.Parents, Audience.Family)
 
 @Composable
 fun ProfileScreen(
@@ -115,6 +114,8 @@ fun ProfileScreen(
         dial = dialFor(snap.phoneE164)
         phone = nationalNumber(snap.phoneE164)
         language = snap.languageTag
+        session.selectLanguage(snap.languageTag)
+        session.releaseLanguageHold()
         audience = snap.audience
         places = snap.places.ifEmpty { listOf(MemberPlace(label = "Home")) }
         saveError = null
@@ -126,7 +127,13 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            SabhaTopBar(onBack = onBack)
+            SabhaTopBar(onBack = {
+                if (editing && language != snap.languageTag) {
+                    session.selectLanguage(snap.languageTag)
+                    session.releaseLanguageHold()
+                }
+                onBack()
+            })
             Column(
                 Modifier
                     .weight(1f)
@@ -134,7 +141,7 @@ fun ProfileScreen(
                     .padding(horizontal = 22.dp)
                     .padding(bottom = 28.dp),
             ) {
-                Text(snap.displayName.ifBlank { "Member" }, style = HinvrTypography.headlineLarge, color = colors.ink)
+                Text(snap.displayName.ifBlank { stringResource(R.string.member_fallback) }, style = HinvrTypography.headlineLarge, color = colors.ink)
                 if (snap.email.isNotBlank()) {
                     Spacer(Modifier.height(4.dp))
                     Text(snap.email, style = HinvrTypography.bodyMedium, color = colors.inkMuted)
@@ -142,11 +149,11 @@ fun ProfileScreen(
                 Spacer(Modifier.height(22.dp))
 
                 if (editing) {
-                    SabhaSearchField(name, { name = it }, "Member name")
+                    SabhaSearchField(name, { name = it }, stringResource(R.string.member_name_hint))
                     Spacer(Modifier.height(10.dp))
-                    SabhaSearchField(city, { city = it }, "City")
+                    SabhaSearchField(city, { city = it }, stringResource(R.string.field_city))
                     Spacer(Modifier.height(16.dp))
-                    Text("Phone", style = HinvrTypography.labelLarge, color = colors.ink)
+                    Text(stringResource(R.string.field_phone), style = HinvrTypography.labelLarge, color = colors.ink)
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box {
@@ -171,7 +178,7 @@ fun ProfileScreen(
                             onValueChange = { phone = it.filter { ch -> ch.isDigit() }.take(12) },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            placeholder = { Text("98xxx xxxxx") },
+                            placeholder = { Text(stringResource(R.string.phone_hint)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = colors.ivory,
@@ -185,14 +192,21 @@ fun ProfileScreen(
                         )
                     }
                     Spacer(Modifier.height(20.dp))
-                    Text("Language", style = HinvrTypography.labelLarge, color = colors.ink)
-                    Spacer(Modifier.height(8.dp))
-                    ChipRow(options = Languages, selected = language, onSelect = { language = it })
-                    Spacer(Modifier.height(20.dp))
-                    Text("Who is this for", style = HinvrTypography.labelLarge, color = colors.ink)
+                    Text(stringResource(R.string.field_language), style = HinvrTypography.labelLarge, color = colors.ink)
                     Spacer(Modifier.height(8.dp))
                     ChipRow(
-                        options = Audiences.map { it.first.name to it.second },
+                        options = Languages,
+                        selected = language,
+                        onSelect = {
+                            language = it
+                            session.selectLanguage(it)
+                        },
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Text(stringResource(R.string.field_audience), style = HinvrTypography.labelLarge, color = colors.ink)
+                    Spacer(Modifier.height(8.dp))
+                    ChipRow(
+                        options = AudienceOrder.map { it.name to audienceLabel(it) },
                         selected = audience.name,
                         onSelect = { audience = Audience.valueOf(it) },
                     )
@@ -212,7 +226,7 @@ fun ProfileScreen(
                     }
                     Spacer(Modifier.height(16.dp))
                     HinvrPrimaryButton(
-                        text = if (saving) "Saving…" else "Save profile",
+                        text = if (saving) stringResource(R.string.saving) else stringResource(R.string.save_profile),
                         enabled = name.isNotBlank() && city.isNotBlank() && phoneOk && placesOk && !saving,
                         onClick = {
                             val savedPlaces = places.readyPlaces() ?: return@HinvrPrimaryButton
@@ -231,7 +245,7 @@ fun ProfileScreen(
                                 }
                                 saved
                                     .onSuccess { editing = false }
-                                    .onFailure { saveError = it.message ?: "Couldn’t save your profile." }
+                                    .onFailure { saveError = context.userMessage(it.message, R.string.err_save_profile) }
                                 saving = false
                             }
                         },
@@ -239,20 +253,20 @@ fun ProfileScreen(
                     Spacer(Modifier.height(8.dp))
                 } else {
                     IvoryCard {
-                        DetailRow("City", snap.city.ifBlank { "Not set" })
+                        DetailRow(stringResource(R.string.field_city), snap.city.ifBlank { stringResource(R.string.not_set) })
                         Spacer(Modifier.height(12.dp))
-                        DetailRow("Phone", snap.phoneE164.ifBlank { "Not set" })
+                        DetailRow(stringResource(R.string.field_phone), snap.phoneE164.ifBlank { stringResource(R.string.not_set) })
                         Spacer(Modifier.height(12.dp))
-                        DetailRow("Language", languageLabel(snap.languageTag))
+                        DetailRow(stringResource(R.string.field_language), languageLabel(snap.languageTag))
                         Spacer(Modifier.height(12.dp))
-                        DetailRow("For", audienceLabel(snap.audience))
+                        DetailRow(stringResource(R.string.field_for), audienceLabel(snap.audience))
                     }
                     Spacer(Modifier.height(14.dp))
                     IvoryCard {
-                        Text("Places", style = HinvrTypography.labelLarge, color = colors.gold)
+                        Text(stringResource(R.string.places), style = HinvrTypography.labelLarge, color = colors.gold)
                         Spacer(Modifier.height(10.dp))
                         if (snap.places.isEmpty()) {
-                            Text("No places yet.", style = HinvrTypography.bodyMedium, color = colors.inkMuted)
+                            Text(stringResource(R.string.no_places), style = HinvrTypography.bodyMedium, color = colors.inkMuted)
                         } else {
                             snap.places.forEachIndexed { index, place ->
                                 if (index > 0) Spacer(Modifier.height(12.dp))
@@ -265,7 +279,7 @@ fun ProfileScreen(
 
                 Spacer(Modifier.height(14.dp))
                 IvoryCard(onClick = onPlans) {
-                    Text("Membership", style = HinvrTypography.labelLarge, color = colors.gold)
+                    Text(stringResource(R.string.membership), style = HinvrTypography.labelLarge, color = colors.gold)
                     Spacer(Modifier.height(8.dp))
                     Text(tierLabel(snap.tier), style = HinvrTypography.titleMedium, color = colors.ink)
                     if (snap.memberId.isNotBlank()) {
@@ -277,12 +291,12 @@ fun ProfileScreen(
                         )
                     } else {
                         Spacer(Modifier.height(4.dp))
-                        Text("See plans", style = HinvrTypography.bodyMedium, color = colors.inkMuted)
+                        Text(stringResource(R.string.see_plans), style = HinvrTypography.bodyMedium, color = colors.inkMuted)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (openingMembership) "Opening…" else "Manage subscription",
+                    if (openingMembership) stringResource(R.string.opening) else stringResource(R.string.manage_subscription),
                     style = HinvrTypography.titleMedium,
                     color = colors.ink,
                     modifier = Modifier
@@ -303,7 +317,7 @@ fun ProfileScreen(
                 Spacer(Modifier.height(6.dp))
                 IvoryCard {
                     Text(
-                        if (editing) "Cancel editing" else "Edit profile",
+                        if (editing) stringResource(R.string.cancel_editing) else stringResource(R.string.edit_profile),
                         style = HinvrTypography.titleMedium,
                         color = colors.ink,
                         modifier = Modifier
@@ -316,7 +330,7 @@ fun ProfileScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Legal",
+                        stringResource(R.string.legal),
                         style = HinvrTypography.titleMedium,
                         color = colors.ink,
                         modifier = Modifier
@@ -327,7 +341,7 @@ fun ProfileScreen(
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Sign out",
+                    stringResource(R.string.sign_out),
                     style = HinvrTypography.titleMedium,
                     color = colors.vermillion,
                     modifier = Modifier
@@ -395,11 +409,16 @@ private fun nationalNumber(phoneE164: String): String {
 
 private fun languageLabel(tag: String): String = Languages.firstOrNull { it.first == tag }?.second ?: tag
 
-private fun audienceLabel(audience: Audience): String =
-    Audiences.firstOrNull { it.first == audience }?.second ?: audience.name
+@Composable
+private fun audienceLabel(audience: Audience): String = when (audience) {
+    Audience.Me -> stringResource(R.string.audience_me)
+    Audience.Parents -> stringResource(R.string.audience_parents)
+    Audience.Family -> stringResource(R.string.audience_family)
+}
 
+@Composable
 private fun tierLabel(tier: MembershipTier): String = when (tier) {
-    MembershipTier.None -> "No membership yet"
+    MembershipTier.None -> stringResource(R.string.tier_none)
     MembershipTier.Darshan -> "Darshan"
     MembershipTier.Gold -> "Gold"
     MembershipTier.Platinum -> "Platinum"
@@ -411,30 +430,15 @@ fun LegalScreen(onBack: () -> Unit) {
     val colors = HinvrTheme.colors
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
-            SabhaTopBar(title = "Legal", onBack = onBack)
+            SabhaTopBar(title = stringResource(R.string.legal), onBack = onBack)
             Column(Modifier.padding(horizontal = 22.dp)) {
                 IvoryCard {
                     Text(
-                        "Terms, privacy, refunds.\nHINVR is not a temple board. Streams are attributed to the temple.",
+                        stringResource(R.string.legal_body),
                         style = HinvrTypography.bodyLarge,
                         color = colors.ink,
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun NotificationsScreen(onBack: () -> Unit) {
-    val colors = HinvrTheme.colors
-    HinvrBackground(atmosphere = Atmosphere.Sabha) {
-        Column(Modifier.fillMaxSize()) {
-            SabhaTopBar(title = "Notifications", onBack = onBack)
-            Column(Modifier.padding(horizontal = 22.dp, vertical = 24.dp)) {
-                Text("We will remind you before aarti.", style = HinvrTypography.headlineMedium, color = colors.ink)
-                Spacer(Modifier.height(8.dp))
-                Text("Nothing waiting right now.", style = HinvrTypography.bodyLarge, color = colors.inkMuted)
             }
         }
     }

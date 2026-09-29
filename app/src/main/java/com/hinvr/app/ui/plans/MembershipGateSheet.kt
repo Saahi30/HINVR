@@ -10,7 +10,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.hinvr.app.R
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
@@ -21,9 +23,9 @@ fun MembershipGateSheet(
     reason: String,
     onDismiss: () -> Unit,
     onSeePlans: () -> Unit,
-    eyebrow: String = "MEMBERSHIP",
-    body: String = "Gold includes the digital pass, visit assist, and recorded VR darshan.",
-    actionLabel: String = "See membership",
+    eyebrow: String = stringResource(R.string.gate_membership),
+    body: String = stringResource(R.string.gate_gold_body),
+    actionLabel: String = stringResource(R.string.gate_see_membership),
 ) {
     val colors = HinvrTheme.colors
     ModalBottomSheet(

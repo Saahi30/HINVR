@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -25,11 +24,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.R
 import com.hinvr.app.data.SessionSnapshot
 import com.hinvr.app.data.hasDeskPass
+import com.hinvr.app.i18n.localized
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.FilterChip
@@ -50,6 +53,8 @@ import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import kotlinx.coroutines.launch
 
+private data class MandirChip(val key: String, val labelRes: Int)
+
 @Composable
 fun MandirsScreen(onOpenTemple: (String) -> Unit) {
     val colors = HinvrTheme.colors
@@ -59,13 +64,20 @@ fun MandirsScreen(onOpenTemple: (String) -> Unit) {
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     var query by remember { mutableStateOf("") }
     var chip by remember { mutableStateOf<String?>(null) }
-    val chips = listOf("Live", "VR", "Pass accepted", "Nearby", "Favorites")
-    val filtered = mandirs.filter { row ->
+    val chips = listOf(
+        MandirChip("Live", R.string.chip_live),
+        MandirChip("VR", R.string.chip_vr),
+        MandirChip("Pass", R.string.chip_pass),
+        MandirChip("Nearby", R.string.chip_nearby),
+        MandirChip("Favorites", R.string.chip_favorites),
+    )
+    val localizedMandirs = mandirs.localized()
+    val filtered = localizedMandirs.filter { row ->
         val q = query.isBlank() || row.name.contains(query, true) || row.place.contains(query, true)
         val c = when (chip) {
             "Live" -> row.live
             "VR" -> row.vr
-            "Pass accepted" -> row.passAccepted
+            "Pass" -> row.passAccepted
             "Nearby" -> snap.city.isNotBlank() &&
                 (row.city.contains(snap.city, true) || row.place.contains(snap.city, true))
             "Favorites" -> row.id in snap.favoriteMandirs
@@ -82,26 +94,30 @@ fun MandirsScreen(onOpenTemple: (String) -> Unit) {
                 .padding(horizontal = HinvrSideInset),
         ) {
             Spacer(Modifier.height(12.dp))
-            SectionTitle("Mandirs")
+            SectionTitle(stringResource(R.string.nav_mandirs))
             Spacer(Modifier.height(14.dp))
-            SabhaSearchField(query, { query = it }, "Kashi, Balaji, your kuldevi…")
+            SabhaSearchField(query, { query = it }, stringResource(R.string.mandirs_search))
             Spacer(Modifier.height(12.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(chips) { label ->
-                    FilterChip(label, selected = chip == label, onClick = { chip = if (chip == label) null else label })
+                items(chips, key = { it.key }) { item ->
+                    FilterChip(
+                        stringResource(item.labelRes),
+                        selected = chip == item.key,
+                        onClick = { chip = if (chip == item.key) null else item.key },
+                    )
                 }
             }
             Spacer(Modifier.height(16.dp))
             if (filtered.isEmpty()) {
                 Text(
-                    "No mandir by that name.",
+                    stringResource(R.string.mandirs_empty),
                     style = HinvrTypography.headlineMedium,
                     color = colors.ink,
                     modifier = Modifier.padding(top = 32.dp),
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Ask Concierge — we will add it.",
+                    stringResource(R.string.mandirs_empty_body),
                     style = HinvrTypography.bodyLarge,
                     color = colors.inkMuted,
                 )
@@ -119,6 +135,7 @@ fun MandirsScreen(onOpenTemple: (String) -> Unit) {
                             vr = row.vr,
                             passAccepted = row.passAccepted,
                             photoUrl = row.photoUrl,
+                            mandirId = row.id,
                             onClick = { onOpenTemple(row.id) },
                             width = null,
                             height = 200.dp,
@@ -146,13 +163,15 @@ fun TempleDetailScreen(
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val scope = rememberCoroutineScope()
-    val mandir = remember(id, mandirs) { catalog.mandir(id) }
+    val context = LocalContext.current
+    val mandir = remember(id, mandirs, context) { catalog.mandir(id).localized(context) }
     val colors = HinvrTheme.colors
     val uriHandler = LocalUriHandler.current
     val facilities = remember(mandir.facilities) {
         mandir.facilities.lines().map { it.trim() }.filter { it.isNotBlank() }
     }
     var assistPrompt by remember { mutableStateOf<MandirAssistPrompt?>(null) }
+    val genericSummary = stringResource(R.string.mandir_generic_summary, mandir.name, mandir.place)
     HinvrBackground(atmosphere = Atmosphere.Sabha, darkIcons = false) {
         Column(
             Modifier
@@ -171,6 +190,7 @@ fun TempleDetailScreen(
                     scene = mandir.scene,
                     live = mandir.live,
                     photoUrl = mandir.photoUrl,
+                    mandirId = mandir.id,
                     onPhoto = {},
                     onLive = onLive,
                     onVr = onVr,
@@ -185,21 +205,25 @@ fun TempleDetailScreen(
                 )
                 Spacer(Modifier.height(20.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (mandir.live) Badge("LIVE")
-                    if (mandir.vr) Badge("VR")
-                    if (mandir.passAccepted) Badge("PASS")
+                    if (mandir.live) Badge(stringResource(R.string.badge_live))
+                    if (mandir.vr) Badge(stringResource(R.string.badge_vr))
+                    if (mandir.passAccepted) Badge(stringResource(R.string.badge_pass))
                 }
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    mandir.summary.ifBlank { "${mandir.name} is a living place of worship in ${mandir.place}." },
+                    mandir.summary.ifBlank { genericSummary },
                     style = HinvrTypography.headlineMedium,
                     color = colors.ink,
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    if (mandir.id in snap.favoriteMandirs) "♥ Saved mandir" else "♡ Save mandir",
+                    if (mandir.id in snap.favoriteMandirs) {
+                        stringResource(R.string.saved_mandir)
+                    } else {
+                        stringResource(R.string.save_mandir)
+                    },
                     style = HinvrTypography.titleMedium,
-                    color = if (mandir.id in snap.favoriteMandirs) colors.vermillion else colors.gold,
+                    color = if (mandir.id in snap.favoriteMandirs) colors.saffron else colors.gold,
                     modifier = Modifier
                         .clickable { scope.launch { session.toggleFavorite(mandir.id) } }
                         .padding(vertical = 8.dp),
@@ -208,45 +232,45 @@ fun TempleDetailScreen(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     TempleFactCard(
-                        eyebrow = "SACRED FOCUS",
+                        eyebrow = stringResource(R.string.fact_focus),
                         value = mandir.deity.ifBlank { mandir.name },
                         modifier = Modifier.weight(1f),
                     )
                     TempleFactCard(
-                        eyebrow = "NEXT AARTI",
-                        value = mandir.nextAarti ?: "See timings",
+                        eyebrow = stringResource(R.string.fact_aarti),
+                        value = mandir.nextAarti ?: stringResource(R.string.see_timings),
                         modifier = Modifier.weight(1f),
                     )
                 }
 
                 EditorialSection(
-                    eyebrow = "WHY DEVOTEES COME",
-                    title = "Meaning before itinerary",
+                    eyebrow = stringResource(R.string.why_kicker),
+                    title = stringResource(R.string.why_title),
                     body = mandir.significance,
                 )
                 EditorialSection(
-                    eyebrow = "A LIVING HISTORY",
-                    title = "Carried across generations",
+                    eyebrow = stringResource(R.string.history_kicker),
+                    title = stringResource(R.string.history_title),
                     body = mandir.history,
                 )
                 EditorialSection(
-                    eyebrow = "BUILT IN STONE",
-                    title = "What to notice",
+                    eyebrow = stringResource(R.string.stone_kicker),
+                    title = stringResource(R.string.stone_title),
                     body = mandir.architecture,
                 )
 
                 Spacer(Modifier.height(30.dp))
-                SectionTitle("Before you go")
+                SectionTitle(stringResource(R.string.before_you_go))
                 Spacer(Modifier.height(12.dp))
-                TempleGuideCard("DRESS", mandir.dressCode)
+                TempleGuideCard(stringResource(R.string.guide_dress), mandir.dressCode)
                 Spacer(Modifier.height(10.dp))
-                TempleGuideCard("BEST TIME", mandir.bestTime)
+                TempleGuideCard(stringResource(R.string.guide_time), mandir.bestTime)
                 Spacer(Modifier.height(10.dp))
-                TempleGuideCard("DESK NOTE", mandir.visitorNotes)
+                TempleGuideCard(stringResource(R.string.guide_note), mandir.visitorNotes)
 
                 if (facilities.isNotEmpty()) {
                     Spacer(Modifier.height(28.dp))
-                    Text("FACILITIES", style = HinvrTypography.labelSmall, color = colors.gold)
+                    Text(stringResource(R.string.facilities), style = HinvrTypography.labelSmall, color = colors.gold)
                     Spacer(Modifier.height(10.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(facilities) { facility ->
@@ -256,13 +280,13 @@ fun TempleDetailScreen(
                 }
 
                 Spacer(Modifier.height(28.dp))
-                SectionTitle("Official timings")
+                SectionTitle(stringResource(R.string.official_timings))
                 Spacer(Modifier.height(10.dp))
                 IvoryCard {
                     Text(mandir.timings, style = HinvrTypography.titleMedium, color = colors.ink)
                     if (mandir.address.isNotBlank()) {
                         Spacer(Modifier.height(14.dp))
-                        Text("ADDRESS", style = HinvrTypography.labelSmall, color = colors.gold)
+                        Text(stringResource(R.string.address_label), style = HinvrTypography.labelSmall, color = colors.gold)
                         Spacer(Modifier.height(4.dp))
                         Text(mandir.address, style = HinvrTypography.bodyLarge, color = colors.inkMuted)
                     }
@@ -275,17 +299,17 @@ fun TempleDetailScreen(
                 if (mandir.officialWebsite.isNotBlank()) {
                     Spacer(Modifier.height(12.dp))
                     HinvrGoldOutlineButton(
-                        "Open official website",
+                        stringResource(R.string.open_website),
                         onClick = { uriHandler.openUri(mandir.officialWebsite) },
                     )
                 }
                 if (mandir.live) {
                     Spacer(Modifier.height(12.dp))
-                    HinvrPrimaryButton("Watch official live darshan", onLive)
+                    HinvrPrimaryButton(stringResource(R.string.watch_live), onLive)
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Information can change on festival days. HINVR attributes official sources and never invents access.",
+                    stringResource(R.string.mandir_disclaimer),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )
@@ -294,7 +318,7 @@ fun TempleDetailScreen(
         }
         when (assistPrompt) {
             MandirAssistPrompt.Gate -> MembershipGateSheet(
-                reason = "Visit assist is included in Gold.",
+                reason = stringResource(R.string.gate_visit),
                 onDismiss = { assistPrompt = null },
                 onSeePlans = {
                     assistPrompt = null
@@ -302,15 +326,15 @@ fun TempleDetailScreen(
                 },
             )
             MandirAssistPrompt.Desk -> MembershipGateSheet(
-                reason = "This mandir does not accept the pass yet.",
+                reason = stringResource(R.string.gate_not_accepted),
                 onDismiss = { assistPrompt = null },
                 onSeePlans = {
                     assistPrompt = null
                     onConcierge()
                 },
-                eyebrow = "DESK",
-                body = "Ask Concierge — we will handle the visit by hand.",
-                actionLabel = "Ask Concierge",
+                eyebrow = stringResource(R.string.gate_desk),
+                body = stringResource(R.string.gate_desk_body),
+                actionLabel = stringResource(R.string.ask_concierge),
             )
             null -> Unit
         }

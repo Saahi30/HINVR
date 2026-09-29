@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
@@ -17,7 +18,7 @@ fun PassQr(payload: String, modifier: Modifier = Modifier) {
     val bitmap = remember(payload) { createQrBitmap(payload) }
     Image(
         bitmap = bitmap.asImageBitmap(),
-        contentDescription = "Membership QR credential",
+        contentDescription = stringResource(com.hinvr.app.R.string.qr_cd),
         modifier = modifier,
         contentScale = ContentScale.Fit,
     )
@@ -37,7 +38,7 @@ private fun createQrBitmap(payload: String, size: Int = 640): Bitmap {
     return Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { bitmap ->
         for (x in 0 until size) {
             for (y in 0 until size) {
-                bitmap.setPixel(x, y, if (matrix[x, y]) 0xFF1A120C.toInt() else 0xFFFFF8F0.toInt())
+                bitmap.setPixel(x, y, if (matrix[x, y]) 0xFF4A2F1F.toInt() else 0xFFF3EEE2.toInt())
             }
         }
     }

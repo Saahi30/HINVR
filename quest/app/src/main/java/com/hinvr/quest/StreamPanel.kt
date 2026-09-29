@@ -94,14 +94,23 @@ fun StreamPanel() {
                 .weight(1f)
                 .fillMaxWidth()
                 .background(Stone),
+            contentAlignment = Alignment.Center,
         ) {
             if (url.isBlank()) {
-                Text(
-                    "The stream closes when you step back.",
-                    color = CreamMuted,
-                    fontSize = 16.sp,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "No official stream",
+                        color = Cream,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 28.sp,
+                    )
+                    Text(
+                        "There is no live darshan for this mandir yet.",
+                        color = CreamMuted,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             } else {
                 YoutubeWebView(url, spherical, Modifier.fillMaxSize())
             }

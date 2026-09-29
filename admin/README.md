@@ -12,4 +12,4 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Create the first desk account — it becomes owner.
 
-In Supabase Auth, add `http://localhost:3000/auth/callback` to redirect URLs. For local use, turn off **Confirm email**.
+In Supabase Auth, add `http://localhost:3000/auth/callback` and `hinvr://reset` to redirect URLs. The app link is how a member opens the password reset email on the phone. For local use, turn off **Confirm email**.

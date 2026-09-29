@@ -105,6 +105,14 @@ export type DeskRequestRow = DeskRequest & {
   tier: string;
 };
 
+export type NoticeRow = {
+  id: string;
+  title: string;
+  body: string;
+  sent_count: number;
+  created_at: string;
+};
+
 export type BuyRequestStatus = "pending" | "approved" | "declined";
 
 export type BuyRequestRow = {

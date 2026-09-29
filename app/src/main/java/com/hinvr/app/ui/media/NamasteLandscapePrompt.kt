@@ -26,8 +26,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hinvr.app.R
 import com.hinvr.app.ui.motion.HinvrMotion
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -80,14 +82,14 @@ fun NamasteLandscapePrompt(modifier: Modifier = Modifier) {
                 )
                 Spacer(Modifier.height(20.dp))
                 Text(
-                    "Namaste.",
+                    stringResource(R.string.turn_sideways_title),
                     style = HinvrTypography.headlineMedium,
                     color = colors.cream,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "Kindly turn your phone sideways\nfor darshan.",
+                    stringResource(R.string.turn_sideways_body),
                     style = HinvrTypography.bodyLarge,
                     color = colors.creamMuted,
                     textAlign = TextAlign.Center,

@@ -13,16 +13,23 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.launch
+import com.hinvr.app.HinvrApplication
+import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.push.PushRegistrationEffect
 import com.hinvr.app.ui.auth.AccountScreen
 import com.hinvr.app.ui.auth.ProfileSetupScreen
+import com.hinvr.app.ui.auth.ResetPasswordScreen
 import com.hinvr.app.ui.concierge.ConciergeScreen
 import com.hinvr.app.ui.concierge.FaqArticleScreen
 import com.hinvr.app.ui.desk.PoojaScreen
@@ -36,8 +43,8 @@ import com.hinvr.app.ui.onboarding.OnboardingScreen
 import com.hinvr.app.ui.pass.HowPassWorksScreen
 import com.hinvr.app.ui.pass.PlanVisitScreen
 import com.hinvr.app.ui.plans.PlansScreen
+import com.hinvr.app.ui.notifications.NotificationsScreen
 import com.hinvr.app.ui.profile.LegalScreen
-import com.hinvr.app.ui.profile.NotificationsScreen
 import com.hinvr.app.ui.profile.ProfileScreen
 import com.hinvr.app.ui.splash.SplashScreen
 import com.hinvr.app.ui.vr.VrListScreen
@@ -46,7 +53,13 @@ import com.hinvr.app.ui.vr.VrPlayerScreen
 @Composable
 fun HinvrNavHost() {
     val nav = rememberNavController()
+    val context = LocalContext.current
+    val app = context.applicationContext as HinvrApplication
+    val openPush by app.openNotifications.collectAsStateWithLifecycle()
+    val backStack by nav.currentBackStackEntryAsState()
+    PushRegistrationEffect()
     val session = LocalSessionRepository.current
+    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, session) {
@@ -57,6 +70,22 @@ fun HinvrNavHost() {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(snap.mustResetPassword) {
+        if (!snap.mustResetPassword) return@LaunchedEffect
+        val route = nav.currentDestination?.route ?: return@LaunchedEffect
+        if (route == Destinations.Splash || route == Destinations.Reset) return@LaunchedEffect
+        nav.navigate(Destinations.Reset) {
+            popUpTo(nav.graph.id) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+    LaunchedEffect(openPush, snap.isLoggedIn, backStack?.destination?.route) {
+        if (!openPush || !snap.isLoggedIn) return@LaunchedEffect
+        val route = backStack?.destination?.route
+        if (route == null || route == Destinations.Splash || route == Destinations.Onboarding) return@LaunchedEffect
+        nav.navigate(Destinations.Notifications) { launchSingleTop = true }
+        app.consumeOpenNotifications()
     }
 
     fun go(route: String) = nav.navigate(route)
@@ -130,7 +159,7 @@ fun HinvrNavHost() {
             }
         }
         composable(
-            Destinations.Phone,
+            Destinations.Account,
             arguments = listOf(navArgument("mode") { type = NavType.StringType }),
         ) { entry ->
             val signIn = entry.arguments?.getString("mode") == "signin"
@@ -142,7 +171,22 @@ fun HinvrNavHost() {
                             popUpTo(nav.graph.id) { inclusive = true }
                         }
                     } else {
-                        replace(Destinations.Setup, Destinations.Phone)
+                        replace(Destinations.Setup, Destinations.Account)
+                    }
+                },
+            )
+        }
+        composable(Destinations.Reset) {
+            ResetPasswordScreen(
+                onPasswordSaved = { profileComplete ->
+                    val next = if (profileComplete) Destinations.Main else Destinations.Setup
+                    nav.navigate(next) {
+                        popUpTo(nav.graph.id) { inclusive = true }
+                    }
+                },
+                onBackToSignIn = {
+                    nav.navigate(Destinations.account(signIn = true)) {
+                        popUpTo(nav.graph.id) { inclusive = true }
                     }
                 },
             )

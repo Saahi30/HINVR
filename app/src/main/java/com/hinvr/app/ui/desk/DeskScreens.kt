@@ -14,12 +14,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -44,13 +42,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hinvr.app.R
 import com.hinvr.app.data.MemberPlace
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.catalog.TileScene
@@ -74,29 +76,32 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-private val PujaDateFormat: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.ENGLISH)
+private data class PujaOption(val key: String, val labelRes: Int)
 
 private val HomePujas = listOf(
-    "Satyanarayan Katha",
-    "Griha Pravesh",
-    "Vastu Shanti",
-    "Ganesh Puja",
-    "Lakshmi Puja",
-    "Navagraha Shanti",
-    "Havan",
-    "Rudrabhishek",
-    "Namkaran",
-    "Annaprashan",
-    "Mundan",
-    "Shraddha",
-    "Custom",
+    PujaOption("Satyanarayan Katha", R.string.puja_satyanarayan),
+    PujaOption("Griha Pravesh", R.string.puja_griha),
+    PujaOption("Vastu Shanti", R.string.puja_vastu),
+    PujaOption("Ganesh Puja", R.string.puja_ganesh),
+    PujaOption("Lakshmi Puja", R.string.puja_lakshmi),
+    PujaOption("Navagraha Shanti", R.string.puja_navagraha),
+    PujaOption("Havan", R.string.puja_havan),
+    PujaOption("Rudrabhishek", R.string.puja_rudra),
+    PujaOption("Namkaran", R.string.puja_namkaran),
+    PujaOption("Annaprashan", R.string.puja_annaprashan),
+    PujaOption("Mundan", R.string.puja_mundan),
+    PujaOption("Shraddha", R.string.puja_shraddha),
+    PujaOption("Custom", R.string.puja_custom),
 )
+
+private fun pujaDateFormat(): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     val session = LocalSessionRepository.current
+    val context = LocalContext.current
     val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
@@ -110,17 +115,27 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     var placeError by remember { mutableStateOf<String?>(null) }
     var submitted by remember { mutableStateOf(false) }
     val place = selectedPlace ?: snap.places.firstOrNull()
-    val pujaName = if (puja == "Custom") customPuja.trim() else puja.orEmpty()
-    val ready = pujaName.isNotBlank() && preferredDate != null && place != null
+    val pujaLabel = when {
+        puja == "Custom" -> customPuja.trim()
+        puja != null -> stringResource(HomePujas.first { it.key == puja }.labelRes)
+        else -> ""
+    }
+    val timeLabel = if (timeOfDay == "Evening") {
+        stringResource(R.string.evening)
+    } else {
+        stringResource(R.string.morning)
+    }
+    val noSpecial = stringResource(R.string.no_special)
+    val ready = pujaLabel.isNotBlank() && preferredDate != null && place != null
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
-            SabhaTopBar(title = "Book a pandit", onBack = onBack)
+            SabhaTopBar(title = stringResource(R.string.pooja_title), onBack = onBack)
             if (submitted && preferredDate != null) {
                 PujaSent(
-                    puja = pujaName,
+                    puja = pujaLabel,
                     date = preferredDate!!,
-                    timeOfDay = timeOfDay,
+                    timeOfDay = timeLabel,
                     specialRequest = specialRequest.trim(),
                     place = place,
                     onBack = onBack,
@@ -136,33 +151,33 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                         .padding(bottom = 28.dp),
                 ) {
                     Text(
-                        "The desk will call to confirm.",
+                        stringResource(R.string.pooja_lead),
                         style = HinvrTypography.bodyLarge,
                         color = colors.inkMuted,
                     )
 
                     Spacer(Modifier.height(28.dp))
-                    QuietLabel("POOJA")
+                    QuietLabel(stringResource(R.string.pooja_label))
                     Spacer(Modifier.height(12.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        HomePujas.forEach { name ->
+                        HomePujas.forEach { option ->
                             QuietChip(
-                                label = name,
-                                selected = puja == name,
-                                onClick = { puja = name },
+                                label = stringResource(option.labelRes),
+                                selected = puja == option.key,
+                                onClick = { puja = option.key },
                             )
                         }
                     }
                     if (puja == "Custom") {
                         Spacer(Modifier.height(12.dp))
-                        SabhaSearchField(customPuja, { customPuja = it }, "Name the puja")
+                        SabhaSearchField(customPuja, { customPuja = it }, stringResource(R.string.name_puja))
                     }
 
                     Spacer(Modifier.height(28.dp))
-                    QuietLabel("WHEN")
+                    QuietLabel(stringResource(R.string.when_label))
                     Spacer(Modifier.height(12.dp))
                     WhenCard(
                         date = preferredDate,
@@ -172,9 +187,9 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                     )
 
                     Spacer(Modifier.height(28.dp))
-                    QuietLabel("NOTE")
+                    QuietLabel(stringResource(R.string.note_label))
                     Spacer(Modifier.height(12.dp))
-                    SabhaSearchField(specialRequest, { specialRequest = it }, "A special request, if any")
+                    SabhaSearchField(specialRequest, { specialRequest = it }, stringResource(R.string.special_request))
 
                     Spacer(Modifier.height(28.dp))
                     ServicePlacePicker(
@@ -186,7 +201,9 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                                 placeError = null
                                 runCatching { session.addPlace(newPlace) }
                                     .onSuccess { selectedPlace = newPlace }
-                                    .onFailure { placeError = it.message ?: "Couldn’t save that place." }
+                                    .onFailure {
+                                        placeError = context.userMessage(it.message, R.string.err_save_place)
+                                    }
                             }
                         },
                         onLocated = { },
@@ -199,17 +216,17 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
 
                     Spacer(Modifier.height(28.dp))
                     HinvrPrimaryButton(
-                        text = "Send request",
+                        text = stringResource(R.string.send_request),
                         enabled = ready,
                         onClick = {
                             val date = preferredDate ?: return@HinvrPrimaryButton
                             val chosen = place ?: return@HinvrPrimaryButton
-                            val note = specialRequest.trim().ifBlank { "No special request" }
+                            val note = specialRequest.trim().ifBlank { noSpecial }
                             val city = snap.city.trim().let { if (it.isBlank()) "" else " · $it" }
                             scope.launch {
                                 session.addLocalRequest(
                                     "POOJA",
-                                    "$pujaName · ${date.format(PujaDateFormat)} · $timeOfDay$city · ${chosen.label}: ${chosen.address} · $note",
+                                    "$pujaLabel · ${date.format(pujaDateFormat())} · $timeLabel$city · ${chosen.label}: ${chosen.address} · $note",
                                 )
                                 submitted = true
                             }
@@ -239,10 +256,10 @@ fun YatraScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
         Column(Modifier.fillMaxSize()) {
             SabhaTopBar(onBack = onBack)
             Column(Modifier.padding(horizontal = HinvrSideInset)) {
-                SectionTitle("Club desk, not a portal.")
+                SectionTitle(stringResource(R.string.yatra_title))
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Enquire first. We arrange the host, not a packaged tour dump.",
+                    stringResource(R.string.yatra_body),
                     style = HinvrTypography.bodyLarge,
                     color = colors.inkMuted,
                 )
@@ -258,6 +275,7 @@ fun YatraScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                         place = row.city,
                         scene = if (row.id == "kedarnath") TileScene.YatraRoad else row.scene,
                         live = false,
+                        mandirId = row.id,
                         onClick = onConcierge,
                     )
                 }
@@ -289,10 +307,10 @@ private fun PujaSent(
             .padding(horizontal = HinvrSideInset)
             .padding(top = 12.dp, bottom = 28.dp),
     ) {
-        Text("Request sent.", style = HinvrTypography.headlineLarge, color = colors.ink)
+        Text(stringResource(R.string.request_sent), style = HinvrTypography.headlineLarge, color = colors.ink)
         Spacer(Modifier.height(10.dp))
         Text(
-            "The desk will call this phone to confirm.",
+            stringResource(R.string.puja_sent_body),
             style = HinvrTypography.bodyLarge,
             color = colors.inkMuted,
         )
@@ -301,7 +319,7 @@ private fun PujaSent(
             Text(puja, style = HinvrTypography.titleMedium, color = colors.ink)
             Spacer(Modifier.height(6.dp))
             Text(
-                "${date.format(PujaDateFormat)} · $timeOfDay",
+                "${date.format(pujaDateFormat())} · $timeOfDay",
                 style = HinvrTypography.bodyLarge,
                 color = colors.ink,
             )
@@ -314,7 +332,7 @@ private fun PujaSent(
             }
         }
         Spacer(Modifier.height(22.dp))
-        HinvrPrimaryButton("Back", onBack)
+        HinvrPrimaryButton(stringResource(R.string.back), onBack)
     }
 }
 
@@ -365,6 +383,9 @@ private fun WhenCard(
 ) {
     val colors = HinvrTheme.colors
     val shape = RoundedCornerShape(24.dp)
+    val morning = stringResource(R.string.morning)
+    val evening = stringResource(R.string.evening)
+    val dayCd = stringResource(R.string.cd_day)
     Column(
         Modifier
             .fillMaxWidth()
@@ -378,12 +399,12 @@ private fun WhenCard(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .clickable(onClick = onDateClick)
-                .semantics { contentDescription = "Choose a preferred day" }
+                .semantics { contentDescription = dayCd }
                 .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                if (date == null) "Choose a day" else date.format(PujaDateFormat),
+                if (date == null) stringResource(R.string.choose_day) else date.format(pujaDateFormat()),
                 style = HinvrTypography.bodyLarge,
                 color = if (date == null) colors.inkMuted else colors.ink,
                 modifier = Modifier.weight(1f),
@@ -402,8 +423,8 @@ private fun WhenCard(
                 .clip(RoundedCornerShape(16.dp))
                 .background(colors.linen),
         ) {
-            listOf("Morning", "Evening").forEach { label ->
-                val selected = timeOfDay == label
+            listOf("Morning" to morning, "Evening" to evening).forEach { (key, label) ->
+                val selected = timeOfDay == key
                 Text(
                     label,
                     style = HinvrTypography.bodyMedium,
@@ -416,7 +437,7 @@ private fun WhenCard(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { onTimeClick(label) },
+                            onClick = { onTimeClick(key) },
                         )
                         .padding(vertical = 10.dp),
                     textAlign = TextAlign.Center,
@@ -454,9 +475,9 @@ private fun PujaDateDialog(
                     Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                 } ?: return@TextButton
                 onConfirm(picked)
-            }) { Text("Choose this day") }
+            }) { Text(stringResource(R.string.choose_this_day)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     ) {
         DatePicker(state = state)
     }
@@ -470,28 +491,29 @@ private fun WaitlistForm(kind: String, defaultCity: String?) {
     val colors = HinvrTheme.colors
     var city by remember(defaultCity, snap.city) { mutableStateOf(defaultCity ?: snap.city) }
     var submitted by remember { mutableStateOf(false) }
+    val cityConfirm = stringResource(R.string.city_confirm)
 
     if (submitted) {
         Text(
-            "You’re on the ${kind.lowercase()} desk list. We’ll contact you before this opens.",
+            stringResource(R.string.waitlist_done, kind.lowercase()),
             style = HinvrTypography.bodyLarge,
             color = colors.gold,
         )
         return
     }
     Text(
-        if (kind == "POOJA") "Bring verified pandits to my city" else "Tell me when the club desk opens",
+        if (kind == "POOJA") stringResource(R.string.waitlist_pooja) else stringResource(R.string.waitlist_yatra),
         style = HinvrTypography.titleMedium,
         color = colors.ink,
     )
     Spacer(Modifier.height(10.dp))
-    SabhaSearchField(city, { city = it }, "Your city")
+    SabhaSearchField(city, { city = it }, stringResource(R.string.your_city))
     Spacer(Modifier.height(12.dp))
     HinvrPrimaryButton(
-        text = "Join waitlist",
+        text = stringResource(R.string.join_waitlist),
         onClick = {
             scope.launch {
-                session.addLocalRequest(kind, city.ifBlank { "City to confirm" })
+                session.addLocalRequest(kind, city.ifBlank { cityConfirm })
                 submitted = true
             }
         },

@@ -16,7 +16,8 @@ val LocalCatalogRepository = staticCompositionLocalOf<CatalogRepository> {
 object Destinations {
     const val Splash = "splash"
     const val Onboarding = "onboarding"
-    const val Phone = "auth/phone/{mode}"
+    const val Account = "auth/account/{mode}"
+    const val Reset = "auth/reset"
     const val Setup = "auth/setup"
     const val Main = "main"
     const val Home = "home"
@@ -39,7 +40,7 @@ object Destinations {
     const val Pooja = "pooja"
     const val Yatra = "yatra"
 
-    fun account(signIn: Boolean = false) = "auth/phone/${if (signIn) "signin" else "signup"}"
+    fun account(signIn: Boolean = false) = "auth/account/${if (signIn) "signin" else "signup"}"
     fun mandir(id: String) = "mandirs/$id"
     fun livePlayer(id: String) = "live/$id"
     fun vrPlayer(id: String) = "vr/$id"
@@ -48,6 +49,7 @@ object Destinations {
 }
 
 fun SessionSnapshot.startRoute(): String = when {
+    mustResetPassword -> Destinations.Reset
     isLoggedIn && profileComplete -> Destinations.Main
     isLoggedIn -> Destinations.Setup
     !hasOnboarded -> Destinations.Onboarding

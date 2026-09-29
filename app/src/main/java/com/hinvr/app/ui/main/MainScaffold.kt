@@ -47,12 +47,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -82,11 +76,6 @@ import com.hinvr.app.ui.pass.PassScreen
 import com.hinvr.app.ui.theme.HinvrPillRadius
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 
 private data class TabSpec(
     val route: String,
@@ -115,7 +104,6 @@ fun MainScaffold(
     val currentRoute = current?.destination?.route
     val colors = HinvrTheme.colors
     val onPass = currentRoute == Destinations.Pass
-    val hazeState = rememberHazeState()
     LaunchedEffect(pendingTab) {
         if (pendingTab.isBlank()) return@LaunchedEffect
         tabNav.navigateToTab(pendingTab)
@@ -133,7 +121,6 @@ fun MainScaffold(
             HinvrTabDock(
                 tabs = tabs,
                 currentRoute = currentRoute,
-                hazeState = hazeState,
                 onSelect = { route ->
                     if (route == currentRoute) return@HinvrTabDock
                     tabNav.navigateToTab(route)
@@ -145,7 +132,7 @@ fun MainScaffold(
             NavHost(
                 navController = tabNav,
                 startDestination = Destinations.Home,
-                modifier = Modifier.hazeSource(hazeState),
+                modifier = Modifier,
                 enterTransition = {
                     val from = tabIndex(initialState.destination.route)
                     val to = tabIndex(targetState.destination.route)
@@ -217,19 +204,15 @@ fun MainScaffold(
 
 private val DockHeight = 62.dp
 private val DockOrbSize = 48.dp
-private val DockGlass = Color(0xFF17100B)
-private val DockText = Color(0xFFF7EFE4)
 
 /**
- * A pill of smoked glass floating over the page, which blurs through it. The
- * active tab sits in a lighter inner pill with its icon lit in its own color;
- * the Pass seal rides in the bar as a glossy orb.
+ * A restrained, lacquered navigation dock. It deliberately uses an opaque
+ * surface rather than a blur treatment so Sabha stays editorial, not glassy.
  */
 @Composable
 private fun HinvrTabDock(
     tabs: List<TabSpec>,
     currentRoute: String?,
-    hazeState: HazeState,
     onSelect: (String) -> Unit,
 ) {
     val shape = RoundedCornerShape(HinvrPillRadius)
@@ -241,30 +224,14 @@ private fun HinvrTabDock(
     ) {
         // Every tab keeps its label when there is room; on narrow phones only the active one does.
         val roomy = maxWidth >= 376.dp
+        val colors = HinvrTheme.colors
         Row(
             Modifier
                 .fillMaxWidth()
                 .height(DockHeight)
-                .shadow(
-                    20.dp,
-                    shape,
-                    ambientColor = Color.Black.copy(alpha = 0.28f),
-                    spotColor = Color.Black.copy(alpha = 0.34f),
-                )
                 .clip(shape)
-                .hazeEffect(state = hazeState) {
-                    blurRadius = 24.dp
-                    noiseFactor = 0.05f
-                    tints = listOf(HazeTint(DockGlass.copy(alpha = 0.84f)))
-                    fallbackTint = HazeTint(DockGlass.copy(alpha = 0.94f))
-                }
-                .border(
-                    1.dp,
-                    Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.04f)),
-                    ),
-                    shape,
-                )
+                .background(colors.burgundy)
+                .border(1.dp, colors.gold, shape)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (roomy) Arrangement.SpaceBetween else Arrangement.SpaceAround,
@@ -299,15 +266,6 @@ private fun HinvrTabDock(
     }
 }
 
-/** Each tab lights its icon in its own glaze, like the enamel on a temple bell. */
-private fun tabGlaze(route: String): Brush = Brush.verticalGradient(
-    when (route) {
-        Destinations.Home -> listOf(Color(0xFFFFC46B), Color(0xFFEE5F27))
-        Destinations.Mandirs -> listOf(Color(0xFFFFE391), Color(0xFFD49A18))
-        else -> listOf(Color(0xFFD2B4FF), Color(0xFF7C4DEB))
-    },
-)
-
 @Composable
 private fun DockTab(
     tab: TabSpec,
@@ -329,7 +287,7 @@ private fun DockTab(
         animationSpec = tween(HinvrMotion.Standard, easing = HinvrMotion.EnterEasing),
         label = "${tab.route} lit",
     )
-    val glaze = remember(tab.route) { tabGlaze(tab.route) }
+    val colors = HinvrTheme.colors
     val shape = RoundedCornerShape(HinvrPillRadius)
 
     Row(
@@ -340,8 +298,7 @@ private fun DockTab(
                 scaleY = press
             }
             .clip(shape)
-            .background(Color.White.copy(alpha = 0.13f * lit))
-            .border(1.dp, Color.White.copy(alpha = 0.07f * lit), shape)
+            .border(1.dp, colors.gold.copy(alpha = lit), shape)
             .selectable(
                 selected = selected,
                 onClick = onClick,
@@ -358,27 +315,12 @@ private fun DockTab(
             animationSpec = tween(HinvrMotion.Quick),
             label = "${tab.route} icon",
         ) { on ->
-            if (on) {
-                Icon(
-                    tab.selectedIcon ?: icon,
-                    contentDescription = if (showLabel) null else label,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(23.dp)
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(glaze, blendMode = BlendMode.SrcIn)
-                        },
-                )
-            } else {
-                Icon(
-                    icon,
-                    contentDescription = if (showLabel) null else label,
-                    tint = DockText.copy(alpha = 0.86f),
-                    modifier = Modifier.size(23.dp),
-                )
-            }
+            Icon(
+                if (on) tab.selectedIcon ?: icon else icon,
+                contentDescription = if (showLabel) null else label,
+                tint = if (on) colors.gold else colors.cream.copy(alpha = 0.72f),
+                modifier = Modifier.size(23.dp),
+            )
         }
         AnimatedVisibility(
             visible = showLabel,
@@ -392,7 +334,7 @@ private fun DockTab(
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     letterSpacing = 0.1.sp,
                 ),
-                color = DockText.copy(alpha = if (selected) 1f else 0.86f),
+                color = if (selected) colors.cream else colors.cream.copy(alpha = 0.72f),
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier.padding(start = 7.dp),
