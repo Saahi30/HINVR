@@ -42,7 +42,8 @@ fun SlotCard(slot: Int) {
     when (Ring.stage) {
         Stage.Splash, Stage.Pair, Stage.Profile -> return
         Stage.Menu -> ChoiceCard(MenuChoices[index], index)
-        Stage.Live -> RingCardContent(Ring.cards[index], index)
+        Stage.States -> RingCardContent(Ring.states[index], index)
+        Stage.Live -> RingCardContent(Ring.mandirsInState[index], index)
         Stage.Tour -> ChoiceCard(TourChoices[index], index)
     }
 }
@@ -112,7 +113,7 @@ private fun ChoiceCard(choice: HomeChoice, cardIndex: Int) {
                 ),
         )
         BadgeChip(choice.badge, onTop = Ring.stage == Stage.Menu)
-        if (Ring.stage == Stage.Tour) MenuChip()
+        if (Ring.stage == Stage.Tour) BackChip("Menu")
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -167,9 +168,9 @@ private fun BoxScope.BadgeChip(badge: ChoiceBadge, onTop: Boolean) {
 }
 
 @Composable
-private fun BoxScope.MenuChip() {
+private fun BoxScope.BackChip(label: String) {
     Text(
-        "Menu",
+        label,
         color = Stone,
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
@@ -200,7 +201,7 @@ private fun MandirCard(card: RingCard, selected: Boolean) {
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
-        MenuChip()
+        BackChip(if (Ring.stage == Stage.States) "Menu" else "States")
         card.photo?.let { photo ->
             Image(
                 painter = painterResource(photo),

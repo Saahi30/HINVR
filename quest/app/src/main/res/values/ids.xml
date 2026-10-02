@@ -7,6 +7,12 @@
     <item name="ring_sphere" type="id" />
     <item name="ring_tour_end" type="id" />
     <item name="ring_pair" type="id" />
+    <item name="ring_air_0" type="id" />
+    <item name="ring_air_1" type="id" />
+    <item name="ring_air_2" type="id" />
+    <item name="ring_air_3" type="id" />
+    <item name="ring_air_4" type="id" />
+    <item name="ring_air_5" type="id" />
     <item name="ring_profile" type="id" />
     <item name="ring_profile_chip" type="id" />
     <item name="ring_slot_0" type="id" />
@@ -14,6 +20,17 @@
     <item name="ring_slot_2" type="id" />
     <item name="ring_slot_3" type="id" />
     <item name="ring_slot_4" type="id" />
+    <item name="ring_slot_5" type="id" />
+    <item name="ring_slot_6" type="id" />
+    <item name="ring_slot_7" type="id" />
+    <item name="ring_slot_8" type="id" />
+    <item name="ring_slot_9" type="id" />
+    <item name="ring_slot_10" type="id" />
+    <item name="ring_slot_11" type="id" />
+    <item name="ring_slot_12" type="id" />
+    <item name="ring_slot_13" type="id" />
+    <item name="ring_slot_14" type="id" />
+    <item name="ring_slot_15" type="id" />
     <item name="ring_namaste" type="id" />
     <item name="ring_tirupati" type="id" />
     <item name="ring_kashi" type="id" />

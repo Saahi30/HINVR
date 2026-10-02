@@ -16,7 +16,6 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
-import kotlin.math.roundToInt
 import kotlin.math.sin
 
 class RingInputSystem : SystemBase() {
@@ -27,6 +26,13 @@ class RingInputSystem : SystemBase() {
     private var streamPresence = 0f
     private var lastFrameNs = 0L
     private var lastStage = Stage.Splash
+    private var grabSpin = 0f
+    private var idleSpin = 0f
+    private var introAge = 0f
+    private var grabbing = false
+    private var lastGrabAngle = 0f
+    private val cardPoseByIndex = HashMap<Int, Pose>()
+    private var dt = 0.016f
 
     override fun execute() {
         readControllers()
@@ -38,6 +44,10 @@ class RingInputSystem : SystemBase() {
         val controllers = Query.where { has(Controller.id) }.eval().filter { it.isLocal() }
         var scroll = 0
         var select = false
+        var squeeze = false
+        var grabAngle: Float? = null
+        var aimed = -1
+        val viewer = getScene().getViewerPose().removePitchAndRoll()
         for (controllerEntity in controllers) {
             val controller = controllerEntity.getComponent<Controller>()
             if (!controller.isActive) continue
@@ -51,11 +61,20 @@ class RingInputSystem : SystemBase() {
                 controller.isDown(ButtonBits.ButtonThumbLR)
             if (left || (holdLeft && now >= nextScrollAtMs)) scroll -= 1
             if (right || (holdRight && now >= nextScrollAtMs)) scroll += 1
+            val gripping = controller.isDown(ButtonBits.ButtonSqueezeL) ||
+                controller.isDown(ButtonBits.ButtonSqueezeR)
+            if (gripping) {
+                squeeze = true
+                controllerEntity.tryGetComponent<Transform>()?.transform?.let { pose ->
+                    grabAngle = orbitAngle(viewer, pose)
+                }
+            }
+            val pointed = aimedCard(controllerEntity)
+            if (pointed >= 0) aimed = pointed
             if (
                 controller.isPressed(ButtonBits.ButtonTriggerR) ||
                 controller.isPressed(ButtonBits.ButtonTriggerL)
             ) {
-                // The toggle and profile chip handle their own clicks; don't also open the centered card.
                 if (!aimsAt(togglePose, controllerEntity, 0.28f, 0.09f) &&
                     !aimsAt(chipPose, controllerEntity, 0.26f, 0.07f)
                 ) {
@@ -75,6 +94,13 @@ class RingInputSystem : SystemBase() {
                 Ring.back()
             }
         }
+        if (squeeze && grabAngle != null) {
+            if (grabbing) grabSpin += wrapDegrees(grabAngle!! - lastGrabAngle)
+            grabbing = true
+            lastGrabAngle = grabAngle!!
+        } else {
+            grabbing = false
+        }
         if (Ring.isWatching || Ring.inSphere) return
         if (Ring.stage == Stage.Splash) {
             if (splashGreeting != Ring.greeting) {
@@ -86,30 +112,81 @@ class RingInputSystem : SystemBase() {
             return
         }
         if (!Ring.showsCards) return
-        if (scroll != 0) {
-            Ring.scroll(scroll.coerceIn(-1, 1))
+        val count = Ring.deckSize
+        if (scroll != 0 && count > 0) {
+            grabSpin -= scroll.coerceIn(-1, 1) * (360f / count)
             nextScrollAtMs = now + 420L
         }
-        if (select) Ring.selectCentered()
+        if (aimed >= 0) {
+            aimedNoneLast = false
+            Ring.lookAt(aimed)
+            if (select) Ring.focus(aimed)
+        } else {
+            aimedNoneLast = true
+            if (select) Ring.selectCentered()
+        }
+    }
+
+    private fun aimedCard(controllerEntity: Entity): Int {
+        var best = -1
+        var bestScore = Float.MAX_VALUE
+        val aim = controllerEntity.tryGetComponent<Transform>()?.transform
+        val origin = aim?.t
+        val dir = aim?.forward()
+        for ((index, pose) in cardPoseByIndex) {
+            val along = hitDistance(pose, controllerEntity, 0.32f, 0.44f)
+            if (along != null && along < bestScore) {
+                bestScore = along
+                best = index
+                continue
+            }
+            if (origin == null || dir == null) continue
+            val dx = pose.t.x - origin.x
+            val dy = pose.t.y - origin.y
+            val dz = pose.t.z - origin.z
+            val depth = dx * dir.x + dy * dir.y + dz * dir.z
+            if (depth < 0.25f) continue
+            val px = origin.x + dir.x * depth - pose.t.x
+            val py = origin.y + dir.y * depth - pose.t.y
+            val pz = origin.z + dir.z * depth - pose.t.z
+            val dist = kotlin.math.sqrt((px * px + py * py + pz * pz).toDouble()).toFloat()
+            val score = 8f + dist
+            if (dist < 0.45f && score < bestScore) {
+                bestScore = score
+                best = index
+            }
+        }
+        return best
     }
 
     private fun layout() {
         val now = System.nanoTime()
-        val dt = if (lastFrameNs == 0L) 0.016f else ((now - lastFrameNs) / 1_000_000_000f).coerceIn(0f, 0.05f)
+        dt = if (lastFrameNs == 0L) 0.016f else ((now - lastFrameNs) / 1_000_000_000f).coerceIn(0f, 0.05f)
         lastFrameNs = now
         if (Ring.stage != lastStage) {
             lastStage = Ring.stage
             displayedCenter = Ring.index.toFloat()
+            introAge = 0f
+            grabSpin = 0f
+            idleSpin = 0f
+            grabbing = false
             slotOfCard.clear()
             for (slot in RingSlots.shown.indices) RingSlots.shown[slot] = -1
         }
         val count = Ring.deckSize
         val glide = 1f - exp(-7.5f * dt)
         val approach = 1f - exp(-4.2f * dt)
-        displayedCenter = wrapUnit(
-            displayedCenter + wrapDelta(Ring.index - displayedCenter, count.toFloat()) * glide,
-            count.toFloat(),
-        )
+        if (count > 0) {
+            displayedCenter = wrapUnit(
+                displayedCenter + wrapDelta(Ring.index - displayedCenter, count.toFloat()) * glide,
+                count.toFloat(),
+            )
+        }
+        if (Ring.showsCards) {
+            introAge += dt
+            if (!grabbing && aimedNoneLast) idleSpin += 8f * dt
+        }
+        val introT = (1f - exp(-3.4f * introAge)).coerceIn(0f, 1f)
         val streamTarget = if (Ring.isWatching && !Ring.leaving) 1f else 0f
         streamPresence += (streamTarget - streamPresence) * approach
         if (Ring.leaving && streamPresence < 0.03f) Ring.finishLeave()
@@ -136,6 +213,7 @@ class RingInputSystem : SystemBase() {
         placeHall(head, viewer, show = !splash && !pairing && !Ring.usePassthrough)
         placeEnvironment(head, show = Ring.stage == Stage.Menu && !Ring.isWatching)
         placePair(head, show = pairing)
+        placeCourtyard(head, show = splash || pairing)
         placeProfile(head, show = Ring.stage == Stage.Profile)
         placeChip(head, show = Ring.stage == Stage.Menu && !Ring.isWatching && QuestAccount.isPaired)
         RingWorld.stream?.let { stream ->
@@ -150,7 +228,17 @@ class RingInputSystem : SystemBase() {
                 stream.setComponent(Scale(Vector3(scale, scale, scale)))
             }
         }
-        assignSlots(count)
+        placeRing(head, count, ringPresence, introT)
+    }
+
+    private var aimedNoneLast = true
+
+    private fun placeRing(head: Pose, count: Int, ringPresence: Float, introT: Float) {
+        cardPoseByIndex.clear()
+        if (count > 0) assignSlots(count)
+        val spacing = if (count > 0) 360f / count else 360f
+        val spin = grabSpin + idleSpin + (1f - introT) * 160f
+        val radius = (1.78f + streamPresence * 0.35f) * (0.38f + 0.62f * introT)
         RingWorld.slots.forEachIndexed { slot, entity ->
             if (entity == null) return@forEachIndexed
             if (!Ring.showsCards) {
@@ -162,24 +250,13 @@ class RingInputSystem : SystemBase() {
                 entity.setComponent(Visible(false))
                 return@forEachIndexed
             }
-            val menu = Ring.stage == Stage.Menu || Ring.stage == Stage.Tour
-            val delta = when (Ring.stage) {
-                Stage.Splash, Stage.Pair, Stage.Profile -> 0f
-                Stage.Menu -> if (cardIndex == 0) -1.05f else 1.05f
-                Stage.Tour -> (cardIndex - 1) * 1.15f
-                Stage.Live -> wrapDelta(cardIndex - displayedCenter, count.toFloat())
-            }
-            val onArc = abs(delta) <= 2.6f && ringPresence > 0.04f
-            entity.setComponent(Visible(onArc))
-            if (!onArc) return@forEachIndexed
-            val distance = 1.85f + streamPresence * 0.45f
+            val yaw = wrapDegrees(cardIndex * spacing + spin)
+            val pose = placeOnCircle(head, yaw, radius, -0.12f)
+            cardPoseByIndex[cardIndex] = pose
             val focused = cardIndex == Ring.index
-            val scale = if (menu) {
-                (if (focused) 1.08f else 0.92f) * ringPresence
-            } else {
-                ((1.05f - abs(delta) * 0.12f).coerceAtLeast(0.72f)) * ringPresence
-            }
-            entity.setComponent(Transform(placeInFront(head, delta, distance, -0.12f)))
+            val scale = (if (focused) 1.10f else 0.90f) * ringPresence * (0.72f + 0.28f * introT)
+            entity.setComponent(Visible(ringPresence > 0.04f))
+            entity.setComponent(Transform(pose))
             entity.setComponent(Scale(Vector3(scale, scale, scale)))
         }
     }
@@ -206,7 +283,7 @@ class RingInputSystem : SystemBase() {
         }
         val watching = Ring.isWatching || Ring.inSphere
         val screenChanged = anchoredStage != Ring.stage || anchoredWatching != watching
-        val away = !Ring.inSphere && abs(wrapDegrees(viewerYaw - targetYaw)) > 62f
+        val away = !Ring.inSphere && !Ring.showsCards && abs(wrapDegrees(viewerYaw - targetYaw)) > 62f
         if (away) {
             if (lookingAwaySinceNs == 0L) lookingAwaySinceNs = now
         } else {
@@ -258,6 +335,7 @@ class RingInputSystem : SystemBase() {
             RingWorld.pair,
             RingWorld.profile,
             RingWorld.chip,
+            *RingWorld.air,
         ).forEach {
             it.setComponent(Visible(false))
         }
@@ -353,6 +431,40 @@ class RingInputSystem : SystemBase() {
         pair.setComponent(Transform(placeInFront(head, 0f, 1.5f, 0.30f)))
     }
 
+    /** Six overlapping walls, so the rain wraps all the way around the member. */
+    private fun placeCourtyard(head: Pose, show: Boolean) {
+        RingWorld.air.forEachIndexed { index, entity ->
+            placeAirAround(entity, head, yawDeg = index * 60f, distance = 2.02f, yOffset = 0.32f, show = show)
+        }
+    }
+
+    private fun placeAirAround(
+        entity: Entity?,
+        head: Pose,
+        yawDeg: Float,
+        distance: Float,
+        yOffset: Float,
+        show: Boolean,
+    ) {
+        val air = entity ?: return
+        air.setComponent(Visible(show))
+        if (!show) {
+            air.setComponent(Scale(Vector3(0f, 0f, 0f)))
+            return
+        }
+        val theta = Math.toRadians(yawDeg.toDouble()).toFloat()
+        val local = Vector3(sin(theta) * distance, yOffset, cos(theta) * distance)
+        air.setComponent(
+            Transform(
+                Pose(
+                    head.t + head.q.times(local),
+                    head.q.times(Quaternion(0f, yawDeg, 0f)),
+                ),
+            ),
+        )
+        air.setComponent(Scale(Vector3(1f, 1f, 1f)))
+    }
+
     private fun placeProfile(head: Pose, show: Boolean) {
         val profile = RingWorld.profile ?: return
         profile.setComponent(Visible(show))
@@ -374,17 +486,40 @@ class RingInputSystem : SystemBase() {
         chip.setComponent(Transform(pose))
     }
 
-    private fun aimsAt(target: Pose?, controllerEntity: Entity, halfWidth: Float, halfHeight: Float): Boolean {
-        val panel = target ?: return false
-        val aim = controllerEntity.tryGetComponent<Transform>()?.transform ?: return false
+    private fun aimsAt(target: Pose?, controllerEntity: Entity, halfWidth: Float, halfHeight: Float): Boolean =
+        hitDistance(target, controllerEntity, halfWidth, halfHeight) != null
+
+    private fun hitDistance(
+        target: Pose?,
+        controllerEntity: Entity,
+        halfWidth: Float,
+        halfHeight: Float,
+    ): Float? {
+        val panel = target ?: return null
+        val aim = controllerEntity.tryGetComponent<Transform>()?.transform ?: return null
         val toLocal = panel.inverse()
         val origin = toLocal.times(aim.t)
         val direction = toLocal.times(aim.t + aim.forward()) - origin
-        if (abs(direction.z) < 1e-4f) return false
+        if (abs(direction.z) < 1e-4f) return null
         val along = -origin.z / direction.z
-        if (along <= 0f) return false
+        if (along <= 0f) return null
         val hit = origin + direction * along
-        return abs(hit.x) < halfWidth && abs(hit.y) < halfHeight
+        if (abs(hit.x) >= halfWidth || abs(hit.y) >= halfHeight) return null
+        return along
+    }
+
+    private fun orbitAngle(head: Pose, controller: Pose): Float {
+        val d = controller.t - head.t
+        return Math.toDegrees(atan2(d.x, d.z).toDouble()).toFloat()
+    }
+
+    private fun placeOnCircle(head: Pose, yawDeg: Float, distance: Float, yOffset: Float): Pose {
+        val theta = Math.toRadians(yawDeg.toDouble()).toFloat()
+        val local = Vector3(sin(theta) * distance, yOffset, cos(theta) * distance)
+        return Pose(
+            head.t + head.q.times(local),
+            head.q.times(Quaternion(0f, yawDeg, 0f)),
+        )
     }
 
     private fun placeInFront(head: Pose, delta: Float, distance: Float, yOffset: Float): Pose {
@@ -401,8 +536,12 @@ class RingInputSystem : SystemBase() {
     private val slotOfCard = HashMap<Int, Int>()
 
     private fun assignSlots(count: Int) {
-        val nearest = displayedCenter.roundToInt()
-        val wanted = (-2..2).map { wrapIndex(nearest + it, count) }.toSet()
+        val wanted = if (count <= RingSlots.COUNT) {
+            (0 until count).toSet()
+        } else {
+            val half = RingSlots.COUNT / 2
+            (0 until RingSlots.COUNT).map { wrapIndex(Ring.index + it - half, count) }.toSet()
+        }
         val free = ArrayList<Int>(RingSlots.COUNT)
         for (slot in 0 until RingSlots.COUNT) {
             val card = RingSlots.shown[slot]
@@ -413,6 +552,7 @@ class RingInputSystem : SystemBase() {
         }
         for (card in wanted) {
             if (card in slotOfCard) continue
+            if (free.isEmpty()) break
             val slot = free.removeAt(0)
             RingSlots.shown[slot] = card
             slotOfCard[card] = slot
@@ -447,6 +587,7 @@ object RingWorld {
     var sphere: Entity? = null
     var tourEnd: Entity? = null
     var pair: Entity? = null
+    val air: Array<Entity?> = arrayOfNulls(6)
     var profile: Entity? = null
     var chip: Entity? = null
 }

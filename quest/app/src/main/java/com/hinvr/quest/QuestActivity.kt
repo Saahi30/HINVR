@@ -43,6 +43,7 @@ class QuestActivity : AppSystemActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         QuestAccount.attach(this)
+        QuestCatalog.refresh()
         PairScanner.attach(this)
         SanctumSound.attach(this)
         Tour360.attach(this)
@@ -112,13 +113,7 @@ class QuestActivity : AppSystemActivity() {
             sunDirection = -Vector3(0.15f, 1f, -0.35f),
             environmentIntensity = 0.12f,
         )
-        val slotIds = intArrayOf(
-            R.id.ring_slot_0,
-            R.id.ring_slot_1,
-            R.id.ring_slot_2,
-            R.id.ring_slot_3,
-            R.id.ring_slot_4,
-        )
+        val slotIds = slotIds()
         slotIds.forEachIndexed { index, panelId ->
             RingWorld.slots[index] = Entity.createPanelEntity(panelId, Transform(Pose()))
         }
@@ -157,6 +152,16 @@ class QuestActivity : AppSystemActivity() {
             R.id.ring_pair,
             Transform(Pose()),
         ).also { it.setComponent(Visible(false)) }
+        fun airEntity(panelId: Int) = Entity.createPanelEntity(
+            panelId,
+            Transform(Pose()),
+        ).also {
+            it.setComponent(Visible(false))
+            it.setComponent(Hittable(MeshCollision.NoCollision))
+        }
+        airIds().forEachIndexed { index, panelId ->
+            RingWorld.air[index] = airEntity(panelId)
+        }
         RingWorld.profile = Entity.createPanelEntity(
             R.id.ring_profile,
             Transform(Pose()),
@@ -168,13 +173,7 @@ class QuestActivity : AppSystemActivity() {
     }
 
     override fun registerPanels(): List<PanelRegistration> {
-        val slotIds = intArrayOf(
-            R.id.ring_slot_0,
-            R.id.ring_slot_1,
-            R.id.ring_slot_2,
-            R.id.ring_slot_3,
-            R.id.ring_slot_4,
-        )
+        val slotIds = slotIds()
         val cards = slotIds.mapIndexed { index, panelId ->
             ComposeViewPanelRegistration(
                 panelId,
@@ -277,10 +276,42 @@ class QuestActivity : AppSystemActivity() {
             },
         )
         val pair = composePanel(R.id.ring_pair, width = 1.05f, height = 0.62f) { PairPanel() }
+        val air = airIds().mapIndexed { index, panelId ->
+            composePanel(panelId, width = 2.50f, height = 2.20f) { SanctumAir(index) }
+        }
         val profile = composePanel(R.id.ring_profile, width = 1.20f, height = 0.86f) { ProfilePanel() }
         val chip = composePanel(R.id.ring_profile_chip, width = 0.46f, height = 0.09f) { ProfileChip() }
-        return cards + stream + opening + hall + environment + sphere + tourEnd + pair + profile + chip
+        return cards + stream + opening + hall + environment + sphere + tourEnd + pair +
+            air + profile + chip
     }
+
+    private fun slotIds() = intArrayOf(
+        R.id.ring_slot_0,
+        R.id.ring_slot_1,
+        R.id.ring_slot_2,
+        R.id.ring_slot_3,
+        R.id.ring_slot_4,
+        R.id.ring_slot_5,
+        R.id.ring_slot_6,
+        R.id.ring_slot_7,
+        R.id.ring_slot_8,
+        R.id.ring_slot_9,
+        R.id.ring_slot_10,
+        R.id.ring_slot_11,
+        R.id.ring_slot_12,
+        R.id.ring_slot_13,
+        R.id.ring_slot_14,
+        R.id.ring_slot_15,
+    )
+
+    private fun airIds() = intArrayOf(
+        R.id.ring_air_0,
+        R.id.ring_air_1,
+        R.id.ring_air_2,
+        R.id.ring_air_3,
+        R.id.ring_air_4,
+        R.id.ring_air_5,
+    )
 
     private fun composePanel(
         panelId: Int,

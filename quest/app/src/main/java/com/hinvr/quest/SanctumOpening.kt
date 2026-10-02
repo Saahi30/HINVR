@@ -303,12 +303,12 @@ private data class Petal(val x: Float, val speed: Float, val phase: Float, val s
 private fun MarigoldShower(modifier: Modifier = Modifier) {
     val petals = remember {
         val random = java.util.Random(108)
-        List(26) {
+        List(40) {
             Petal(
                 x = random.nextFloat(),
                 speed = 0.55f + random.nextFloat() * 0.6f,
                 phase = random.nextFloat(),
-                size = 7f + random.nextFloat() * 9f,
+                size = 10f + random.nextFloat() * 12f,
                 tint = if (random.nextBoolean()) Marigold else Saffron,
             )
         }
