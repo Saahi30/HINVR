@@ -28,7 +28,7 @@ class CatalogRepository(
                 remoteById[bundled.id]?.let { row ->
                     row.copy(
                         photoUrl = row.photoUrl.ifBlank { bundled.photoUrl },
-                        liveUrl = row.liveUrl.ifBlank { bundled.liveUrl },
+                        liveUrl = if (row.live) row.liveUrl.ifBlank { bundled.liveUrl } else row.liveUrl,
                         vrUrl = row.vrUrl.ifBlank { bundled.vrUrl },
                         deity = row.deity.ifBlank { bundled.deity },
                         summary = row.summary.ifBlank { bundled.summary },

@@ -1,6 +1,7 @@
 package com.hinvr.app.i18n
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -49,7 +50,14 @@ fun ProvideAppLanguage(languageTag: String, content: @Composable () -> Unit) {
             setLayoutDirection(locale)
         }
     }
-    val localized = remember(tag) { root.createConfigurationContext(config) }
+    // Keep the Activity in the context chain. createConfigurationContext() on newer
+    // Android returns a detached context, which drops the activity-result owner.
+    val localized = remember(tag) {
+        object : ContextWrapper(root) {
+            private val resourcesOverride = root.createConfigurationContext(config).resources
+            override fun getResources() = resourcesOverride
+        }
+    }
     CompositionLocalProvider(
         LocalAppLanguage provides tag,
         LocalContext provides localized,

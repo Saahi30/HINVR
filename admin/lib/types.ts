@@ -35,7 +35,27 @@ export type Mandir = {
   contact_phone: string;
   sort_order: number;
   published: boolean;
+  live_checked_at?: string | null;
   updated_at?: string;
+};
+
+export type LiveSource = {
+  id: string;
+  mandir_id: string;
+  video_id: string;
+  channel_id: string;
+  channel_name: string;
+  official: boolean;
+  follow_channel: boolean;
+  title_match: string;
+  priority: number;
+  enabled: boolean;
+  note: string;
+  last_checked_at: string | null;
+  last_live: boolean;
+  last_title: string;
+  last_viewers: number | null;
+  last_error: string;
 };
 
 export type HomeService = {
@@ -53,6 +73,25 @@ export type HomeService = {
 export type HomeSettings = {
   headline: string;
   eyebrow: string;
+};
+
+export const YOUTUBE_DAILY_LIMIT = 10_000;
+
+export type YoutubeQuota = {
+  day: string;
+  used: number;
+  limit: number;
+  runs: number;
+  last?: {
+    at: string;
+    units: number;
+    videos: number;
+    playlists: number;
+    channels: number;
+    searches: number;
+    live?: number;
+    replaced?: number;
+  };
 };
 
 export type MemberPlace = {

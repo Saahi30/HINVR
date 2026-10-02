@@ -8,7 +8,15 @@ import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/client";
 import { MANDIR_SCENES, type Mandir } from "@/lib/types";
 
-export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean }) {
+export function MandirForm({
+  initial,
+  isNew,
+  liveManaged = false,
+}: {
+  initial: Mandir;
+  isNew: boolean;
+  liveManaged?: boolean;
+}) {
   const router = useRouter();
   const [row, setRow] = useState(initial);
   const [message, setMessage] = useState("");
@@ -34,13 +42,17 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
       city: row.city.trim(),
       scene: row.scene,
       photo_url: row.photo_url.trim(),
-      live: row.live,
+      ...(liveManaged
+        ? {}
+        : {
+            live: row.live,
+            live_url: row.live_url.trim(),
+            updated_label: row.updated_label.trim() || "Updated just now",
+          }),
       vr: row.vr,
       pass_accepted: row.pass_accepted,
       next_aarti: row.next_aarti?.trim() || null,
       timings: row.timings.trim(),
-      updated_label: row.updated_label.trim() || "Updated just now",
-      live_url: row.live_url.trim(),
       vr_url: row.vr_url.trim(),
       deity: row.deity.trim(),
       summary: row.summary.trim(),
@@ -220,12 +232,16 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
           </Field>
         </div>
         <SectionHeading eyebrow="Media" title="Official streams" />
-        <Field label="Live stream URL">
+        <Field
+          label="Live stream URL"
+          hint={liveManaged ? "Set by the live checker from the sources below. Edits are overwritten." : undefined}
+        >
           <input
             value={row.live_url}
             onChange={(event) => patch("live_url", event.target.value)}
             placeholder="https://youtube.com/watch?v="
-            className={fieldClass}
+            readOnly={liveManaged}
+            className={`${fieldClass} ${liveManaged ? "bg-zinc-50 text-zinc-500" : ""}`}
           />
         </Field>
         <Field label="VR / 360 URL">
@@ -246,7 +262,12 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
             />
           </Field>
           <Field label="Freshness label">
-            <input value={row.updated_label} onChange={(event) => patch("updated_label", event.target.value)} className={fieldClass} />
+            <input
+              value={row.updated_label}
+              onChange={(event) => patch("updated_label", event.target.value)}
+              readOnly={liveManaged}
+              className={`${fieldClass} ${liveManaged ? "bg-zinc-50 text-zinc-500" : ""}`}
+            />
           </Field>
         </div>
       </Card>
@@ -261,7 +282,12 @@ export function MandirForm({ initial, isNew }: { initial: Mandir; isNew: boolean
         </Card>
         <Card className="space-y-3 p-5 text-sm">
           <Toggle label="Published" checked={row.published} onChange={(value) => patch("published", value)} />
-          <Toggle label="Live now" checked={row.live} onChange={(value) => patch("live", value)} />
+          <Toggle
+            label={liveManaged ? "Live now · auto" : "Live now"}
+            checked={row.live}
+            disabled={liveManaged}
+            onChange={(value) => patch("live", value)}
+          />
           <Toggle label="VR available" checked={row.vr} onChange={(value) => patch("vr", value)} />
           <Toggle label="Pass accepted" checked={row.pass_accepted} onChange={(value) => patch("pass_accepted", value)} />
           <Field label="Sort order">
@@ -299,16 +325,23 @@ function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) 
 function Toggle({
   label,
   checked,
+  disabled,
   onChange,
 }: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (value: boolean) => void;
 }) {
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-zinc-700">{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
     </label>
   );
 }

@@ -14,7 +14,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -47,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -66,8 +66,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.hinvr.app.R
 import com.hinvr.app.navigation.Destinations
+import com.hinvr.app.ui.components.ClayGlassState
 import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.PassSeal
+import com.hinvr.app.ui.components.clayGlass
+import com.hinvr.app.ui.components.clayGlassSource
 import com.hinvr.app.ui.concierge.ConciergeScreen
 import com.hinvr.app.ui.home.HomeScreen
 import com.hinvr.app.ui.mandirs.MandirsScreen
@@ -76,6 +79,7 @@ import com.hinvr.app.ui.pass.PassScreen
 import com.hinvr.app.ui.theme.HinvrPillRadius
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
+import com.hinvr.app.ui.theme.ServiceClay
 
 private data class TabSpec(
     val route: String,
@@ -103,6 +107,7 @@ fun MainScaffold(
     val current by tabNav.currentBackStackEntryAsState()
     val currentRoute = current?.destination?.route
     val colors = HinvrTheme.colors
+    val glass = remember { ClayGlassState() }
     val onPass = currentRoute == Destinations.Pass
     LaunchedEffect(pendingTab) {
         if (pendingTab.isBlank()) return@LaunchedEffect
@@ -119,6 +124,7 @@ fun MainScaffold(
         containerColor = scaffoldColor,
         bottomBar = {
             HinvrTabDock(
+                glass = glass,
                 tabs = tabs,
                 currentRoute = currentRoute,
                 onSelect = { route ->
@@ -132,7 +138,7 @@ fun MainScaffold(
             NavHost(
                 navController = tabNav,
                 startDestination = Destinations.Home,
-                modifier = Modifier,
+                modifier = Modifier.clayGlassSource(glass),
                 enterTransition = {
                     val from = tabIndex(initialState.destination.route)
                     val to = tabIndex(targetState.destination.route)
@@ -206,11 +212,12 @@ private val DockHeight = 62.dp
 private val DockOrbSize = 48.dp
 
 /**
- * A restrained, lacquered navigation dock. It deliberately uses an opaque
- * surface rather than a blur treatment so Sabha stays editorial, not glassy.
+ * Clay-tinted glass. The blur stays gentle and the tint is the service-card clay,
+ * so the bar reads as smoked parchment rather than grey glass.
  */
 @Composable
 private fun HinvrTabDock(
+    glass: ClayGlassState,
     tabs: List<TabSpec>,
     currentRoute: String?,
     onSelect: (String) -> Unit,
@@ -224,14 +231,17 @@ private fun HinvrTabDock(
     ) {
         // Every tab keeps its label when there is room; on narrow phones only the active one does.
         val roomy = maxWidth >= 376.dp
-        val colors = HinvrTheme.colors
         Row(
             Modifier
                 .fillMaxWidth()
                 .height(DockHeight)
                 .clip(shape)
-                .background(colors.burgundy)
-                .border(1.dp, colors.gold, shape)
+                .clayGlass(
+                    state = glass,
+                    blurRadius = 16.dp,
+                    tint = ServiceClay.copy(alpha = 0.9f),
+                )
+                .border(1.dp, Color(0xFFF3EEE2).copy(alpha = 0.34f), shape)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (roomy) Arrangement.SpaceBetween else Arrangement.SpaceAround,

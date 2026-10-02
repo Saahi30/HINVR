@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { DeskShell, GateMessage } from "@/components/desk-shell";
 import { Badge, ButtonLink, Card, PageHeader } from "@/components/ui";
 import { isMissingRelation, requireDesk } from "@/lib/auth";
-import { attachMembers, catalogHealth, formatWhen, isPaying } from "@/lib/ops";
+import { YoutubeQuotaCard } from "@/components/youtube-quota-card";
+import { attachMembers, catalogHealth, formatWhen, isPaying, parseYoutubeQuota } from "@/lib/ops";
 import type { DeskRequest, Mandir, MemberRow } from "@/lib/types";
 
 export default async function OverviewPage() {
@@ -18,7 +19,7 @@ export default async function OverviewPage() {
     );
   }
 
-  const [mandirsRes, membersRes, requestsRes] = await Promise.all([
+  const [mandirsRes, membersRes, requestsRes, quotaRes] = await Promise.all([
     desk.supabase
       .from("mandirs")
       .select("id,name,live,vr,published,photo_url,city,place,live_url")
@@ -29,7 +30,9 @@ export default async function OverviewPage() {
       .select("id,user_id,kind,summary,city,mandir_id,status,staff_note,created_at")
       .order("created_at", { ascending: false })
       .limit(40),
+    desk.supabase.from("app_settings").select("value").eq("key", "youtube_quota").maybeSingle(),
   ]);
+  const quota = parseYoutubeQuota(quotaRes.data?.value);
 
   const rows = (mandirsRes.data ?? []) as Pick<
     Mandir,
@@ -79,6 +82,9 @@ export default async function OverviewPage() {
           </>
         }
       />
+      <div className="mb-3">
+        <YoutubeQuotaCard quota={quota} />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Stat
           label="Members"

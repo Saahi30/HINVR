@@ -45,8 +45,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -71,6 +73,9 @@ import com.hinvr.app.ui.theme.HinvrPillRadius
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import com.hinvr.app.ui.theme.LocalAtmosphere
+import com.hinvr.app.ui.theme.ServiceClay
+import com.hinvr.app.ui.theme.ServiceClayDeep
+import com.hinvr.app.ui.theme.ServiceClayLift
 import com.hinvr.app.ui.motion.HinvrMotion
 
 private data class PressMotion(
@@ -316,7 +321,7 @@ fun BentoTile(
     photoUrl: String = "",
 ) {
     val colors = HinvrTheme.colors
-    val tone = Color(0xFF8A6756)
+    val shape = RoundedCornerShape(12.dp)
     val press = rememberPressMotion()
     Box(
         modifier = modifier
@@ -326,9 +331,15 @@ fun BentoTile(
                 scaleX = press.scale
                 scaleY = press.scale
             }
-            .clip(RoundedCornerShape(HinvrCardRadius))
-            .background(tone)
-            .border(1.dp, colors.gold.copy(alpha = 0.45f), RoundedCornerShape(HinvrCardRadius))
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    0f to ServiceClayLift,
+                    0.55f to ServiceClay,
+                    1f to ServiceClayDeep,
+                ),
+            )
+            .border(1.dp, colors.gold.copy(alpha = 0.45f), shape)
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
@@ -338,14 +349,27 @@ fun BentoTile(
         CatalogPhoto(
             photoUrl = "",
             fallback = scene.serviceDrawable(),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0.00f to Color.Black,
+                            0.38f to Color.Black,
+                            0.66f to Color.Transparent,
+                            1.00f to Color.Transparent,
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
             alignment = Alignment.TopCenter,
         )
         Column(
             Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .background(tone)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Box(
