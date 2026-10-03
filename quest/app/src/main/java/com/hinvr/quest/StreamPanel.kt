@@ -118,6 +118,11 @@ fun StreamPanel() {
     }
 }
 
+@Composable
+fun LivePlayer(url: String, spherical: Boolean, modifier: Modifier) {
+    YoutubeWebView(url, spherical, modifier)
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YoutubeWebView(url: String, spherical: Boolean, modifier: Modifier) {

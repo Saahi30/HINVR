@@ -40,7 +40,7 @@ fun SlotCard(slot: Int) {
     val index = RingSlots.shown[slot]
     if (index !in 0 until Ring.deckSize) return
     when (Ring.stage) {
-        Stage.Splash, Stage.Pair, Stage.Profile -> return
+        Stage.Splash, Stage.Pair, Stage.Profile, Stage.Mandir -> return
         Stage.Menu -> ChoiceCard(MenuChoices[index], index)
         Stage.States -> RingCardContent(Ring.states[index], index)
         Stage.Live -> RingCardContent(Ring.mandirsInState[index], index)
@@ -158,6 +158,18 @@ private fun BoxScope.BadgeChip(badge: ChoiceBadge, onTop: Boolean) {
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.4.sp,
+            modifier = Modifier
+                .align(if (onTop) Alignment.TopCenter else Alignment.TopStart)
+                .padding(top = 14.dp, start = if (onTop) 0.dp else 14.dp, end = if (onTop) 0.dp else 14.dp)
+                .background(Gold, RoundedCornerShape(999.dp))
+                .padding(horizontal = 12.dp, vertical = 5.dp),
+        )
+        ChoiceBadge.Sanctum -> Text(
+            "SANCTUM",
+            color = Stone,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.3.sp,
             modifier = Modifier
                 .align(if (onTop) Alignment.TopCenter else Alignment.TopStart)
                 .padding(top = 14.dp, start = if (onTop) 0.dp else 14.dp, end = if (onTop) 0.dp else 14.dp)

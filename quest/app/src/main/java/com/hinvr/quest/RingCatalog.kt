@@ -71,9 +71,9 @@ private val StatePhotos = mapOf(
     "Telangana" to R.drawable.state_telangana,
 )
 
-enum class Stage { Splash, Pair, Menu, States, Live, Tour, Profile }
+enum class Stage { Splash, Pair, Menu, States, Live, Tour, Profile, Mandir }
 
-enum class ChoiceBadge { Live, Vr360 }
+enum class ChoiceBadge { Live, Vr360, Sanctum }
 
 data class HomeChoice(
     val title: String,
@@ -87,6 +87,7 @@ data class HomeChoice(
 val MenuChoices = listOf(
     HomeChoice("Live Darshan", "THE MANDIRS", ChoiceBadge.Live, R.drawable.temple_tirupati),
     HomeChoice("Guided Tour", "THREE TEMPLES", ChoiceBadge.Vr360, R.drawable.temple_kedarnath),
+    HomeChoice("Enter Mandir", "HINVR SANCTUM", ChoiceBadge.Sanctum, R.drawable.temple_kashi),
 )
 
 val TourChoices = listOf(
@@ -146,6 +147,7 @@ object Ring {
 
     fun greetAgain() {
         if (inSphere || isWatching || handedOffToYoutube) return
+        if (Mandir.inside) Mandir.leave()
         stage = Stage.Splash
         index = 0
         selectedId = null
@@ -340,7 +342,7 @@ object Ring {
 
     val deckSize: Int
         get() = when (stage) {
-            Stage.Splash, Stage.Pair, Stage.Profile -> 1
+            Stage.Splash, Stage.Pair, Stage.Profile, Stage.Mandir -> 1
             Stage.Menu -> MenuChoices.size
             Stage.States -> states.size
             Stage.Live -> mandirsInState.size
@@ -382,8 +384,12 @@ object Ring {
         if (isWatching) return
         when (stage) {
             Stage.Splash -> openMenu()
-            Stage.Pair, Stage.Profile -> Unit
-            Stage.Menu -> if (index == 0) openStates() else openTour()
+            Stage.Pair, Stage.Profile, Stage.Mandir -> Unit
+            Stage.Menu -> when (index) {
+                0 -> openStates()
+                1 -> openTour()
+                else -> openMandir()
+            }
             Stage.States -> {
                 val card = states.getOrNull(index) ?: return
                 stateName = card.state
@@ -438,7 +444,10 @@ object Ring {
         when (stage) {
             Stage.Splash -> openMenu()
             Stage.Pair, Stage.Menu -> Unit
-            Stage.States, Stage.Tour, Stage.Profile -> openMenu()
+            Stage.States, Stage.Tour, Stage.Profile, Stage.Mandir -> {
+                if (stage == Stage.Mandir) Mandir.leave()
+                openMenu()
+            }
             Stage.Live -> {
                 val name = stateName
                 stage = Stage.States
@@ -452,7 +461,7 @@ object Ring {
         get() = stage == Stage.Menu || stage == Stage.States || stage == Stage.Live || stage == Stage.Tour
 
     fun openProfile() {
-        if (!QuestAccount.isPaired || isWatching || inSphere) return
+        if (!QuestAccount.isPaired || isWatching || inSphere || Mandir.inside) return
         stage = Stage.Profile
         index = 0
         selectedId = null
@@ -466,6 +475,7 @@ object Ring {
             tourEnded = false
         }
         if (isWatching) finishLeave()
+        if (Mandir.inside) Mandir.leave()
         if (stage == Stage.Splash) return
         stage = Stage.Pair
         index = 0
@@ -512,6 +522,15 @@ object Ring {
         stage = Stage.Tour
         index = 0
         selectedId = null
+    }
+
+    private fun openMandir() {
+        QuestCatalog.refresh()
+        stage = Stage.Mandir
+        index = 0
+        selectedId = null
+        Mandir.enter()
+        MandirScene.show()
     }
 
     private fun watch(url: String, title: String, spherical: Boolean) {

@@ -82,10 +82,16 @@ class RingInputSystem : SystemBase() {
                 }
             }
             if (
-                Ring.stage == Stage.Menu && !Ring.isWatching &&
+                Ring.stage == Stage.Menu && !Ring.isWatching && !Mandir.inside &&
                 (controller.isPressed(ButtonBits.ButtonA) || controller.isPressed(ButtonBits.ButtonX))
             ) {
                 Ring.setPassthrough(!Ring.usePassthrough)
+            }
+            if (
+                Ring.stage == Stage.Mandir &&
+                (controller.isPressed(ButtonBits.ButtonA) || controller.isPressed(ButtonBits.ButtonX))
+            ) {
+                MandirScene.nextTeleport()
             }
             if (
                 controller.isPressed(ButtonBits.ButtonB) ||
@@ -102,6 +108,7 @@ class RingInputSystem : SystemBase() {
             grabbing = false
         }
         if (Ring.isWatching || Ring.inSphere) return
+        if (Ring.stage == Stage.Mandir) return
         if (Ring.stage == Stage.Splash) {
             if (splashGreeting != Ring.greeting) {
                 splashGreeting = Ring.greeting
@@ -195,15 +202,20 @@ class RingInputSystem : SystemBase() {
         val splash = Ring.stage == Stage.Splash
         val pairing = Ring.stage == Stage.Pair
         val sphere = Ring.inSphere
-        // While pairing the member has to see their phone.
-        val passthrough = !sphere && (splash || pairing || Ring.usePassthrough)
+        val mandir = Ring.stage == Stage.Mandir
+        val passthrough = !sphere && !mandir && (splash || pairing || Ring.usePassthrough)
         applyPassthrough(passthrough)
         PairScanner.sync(pairing && QuestAccount.wantsCamera)
-        lightTheHall()
-        SanctumSound.onFrame(Ring.stage, Ring.isWatching || sphere, Ring.diyaLit)
+        if (!mandir) lightTheHall()
+        SanctumSound.onFrame(Ring.stage, Ring.isWatching || sphere || mandir, Ring.diyaLit)
         val viewer = getScene().getViewerPose().removePitchAndRoll()
         if (viewer.t.y < 0.5f) return
         val head = anchorFor(viewer, now, dt)
+        if (mandir) {
+            showMandir(head, viewer)
+            return
+        }
+        hideMandir()
         if (sphere) {
             showSphereTour(head, viewer)
             return
@@ -336,6 +348,14 @@ class RingInputSystem : SystemBase() {
             RingWorld.profile,
             RingWorld.chip,
             *RingWorld.air,
+            MandirWorld.darshan,
+            MandirWorld.sankalp,
+            MandirWorld.hint,
+            MandirWorld.blessing,
+            MandirWorld.courtyard,
+            MandirWorld.flame,
+            MandirWorld.smoke,
+            MandirWorld.tilak,
         ).forEach {
             it.setComponent(Visible(false))
         }
@@ -360,6 +380,94 @@ class RingInputSystem : SystemBase() {
         endPose = null
         RingWorld.sphere?.setComponent(Visible(false))
         RingWorld.tourEnd?.setComponent(Visible(false))
+    }
+
+    private fun showMandir(head: Pose, viewer: Pose) {
+        togglePose = null
+        chipPose = null
+        listOfNotNull(
+            RingWorld.opening,
+            RingWorld.hall,
+            RingWorld.environment,
+            RingWorld.stream,
+            RingWorld.pair,
+            RingWorld.profile,
+            RingWorld.chip,
+            RingWorld.sphere,
+            RingWorld.tourEnd,
+            *RingWorld.air,
+        ).forEach { it.setComponent(Visible(false)) }
+        RingWorld.slots.forEach { it?.setComponent(Visible(false)) }
+
+        MandirWorld.courtyard?.let { sky ->
+            sky.setComponent(Visible(true))
+            sky.setComponent(Scale(Vector3(1f, 1f, 1f)))
+            sky.setComponent(Transform(Pose(viewer.t, head.q)))
+        }
+        MandirWorld.darshan?.let { panel ->
+            val show = !Mandir.sankalpOpen
+            panel.setComponent(Visible(show))
+            if (show) {
+                panel.setComponent(
+                    Transform(
+                        Pose(
+                            MandirPlace.darshan,
+                            Quaternion(0f, 180f, 0f),
+                        ),
+                    ),
+                )
+            }
+        }
+        MandirWorld.sankalp?.let { panel ->
+            val show = Mandir.sankalpOpen
+            panel.setComponent(Visible(show))
+            if (show) panel.setComponent(Transform(placeInFront(head, 0f, 1.35f, -0.04f)))
+        }
+        MandirWorld.hint?.let { panel ->
+            val show = !Mandir.sankalpOpen && !Mandir.blessing
+            panel.setComponent(Visible(show))
+            if (show) panel.setComponent(Transform(placeInFront(head, 0f, 1.15f, -0.42f)))
+        }
+        MandirWorld.blessing?.let { panel ->
+            val show = Mandir.blessing
+            panel.setComponent(Visible(show))
+            if (show) panel.setComponent(Transform(placeInFront(head, 0f, 1.4f, -0.06f)))
+        }
+        MandirWorld.flame?.let { panel ->
+            val show = Mandir.diyaLit
+            panel.setComponent(Visible(show))
+            if (show) {
+                panel.setComponent(Transform(MandirScene.diyaPose))
+                panel.setComponent(Scale(Vector3(1f, 1f, 1f)))
+            }
+        }
+        MandirWorld.smoke?.let { panel ->
+            val show = Mandir.agarbattiLit
+            panel.setComponent(Visible(show))
+            if (show) {
+                panel.setComponent(Transform(MandirScene.incensePose))
+                panel.setComponent(Scale(Vector3(1f, 1f, 1f)))
+            }
+        }
+        MandirWorld.tilak?.let { panel ->
+            val show = Mandir.tilakOn
+            panel.setComponent(Visible(show))
+            if (show) panel.setComponent(Transform(placeInFront(head, 0f, 0.55f, 0.12f)))
+        }
+    }
+
+    private fun hideMandir() {
+        listOfNotNull(
+            MandirWorld.darshan,
+            MandirWorld.sankalp,
+            MandirWorld.hint,
+            MandirWorld.blessing,
+            MandirWorld.courtyard,
+            MandirWorld.flame,
+            MandirWorld.smoke,
+            MandirWorld.tilak,
+        ).forEach { it.setComponent(Visible(false)) }
+        MandirWorld.courtyard?.setComponent(Scale(Vector3(0f, 0f, 0f)))
     }
 
     private var passthroughOn: Boolean? = null

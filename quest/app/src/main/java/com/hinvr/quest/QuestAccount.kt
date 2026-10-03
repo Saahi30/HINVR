@@ -212,6 +212,11 @@ object QuestAccount {
         pairedAt = body.optString("paired_at"),
     )
 
+    fun deviceArgs(): JSONObject =
+        JSONObject().put("p_device_id", deviceId).put("p_secret", secret)
+
+    fun call(name: String, args: JSONObject = JSONObject()): String = rpc(name, args)
+
     /** Posts to a Postgres function. Returns the raw JSON body; throws with the server's message. */
     private fun rpc(name: String, args: JSONObject): String {
         val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/rest/v1/rpc/$name"

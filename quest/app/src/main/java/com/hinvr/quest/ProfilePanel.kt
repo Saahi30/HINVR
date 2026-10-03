@@ -91,6 +91,8 @@ fun ProfilePanel() {
                 Detail("PAIRED SINCE", shortDate(profile.pairedAt))
             }
         }
+        Spacer(Modifier.height(18.dp))
+        MandirCredits()
         Spacer(Modifier.weight(1f))
         QuestAccount.unpairError?.let {
             Text(it, color = Vermillion, fontSize = 16.sp)

@@ -49,7 +49,9 @@ class QuestActivity : AppSystemActivity() {
         Tour360.attach(this)
         SpherePlayer.attach(this)
         HallSphere.attach(this)
+        CourtyardSphere.attach(this)
         systemManager.registerSystem(RingInputSystem())
+        systemManager.registerSystem(OfferingSystem())
     }
 
     private var pausedAtMs = 0L
@@ -97,6 +99,7 @@ class QuestActivity : AppSystemActivity() {
         PairScanner.detach()
         SanctumSound.release()
         SpherePlayer.stop()
+        MandirSound.stopVisit()
         super.onDestroy()
     }
 
@@ -170,6 +173,29 @@ class QuestActivity : AppSystemActivity() {
             R.id.ring_profile_chip,
             Transform(Pose()),
         ).also { it.setComponent(Visible(false)) }
+        MandirSound.attach(this, scene)
+        MandirScene.attach(scene)
+        fun mandirPanel(id: Int, hittable: Boolean = true) = Entity.createPanelEntity(
+            id,
+            Transform(Pose()),
+        ).also {
+            it.setComponent(Visible(false))
+            if (!hittable) it.setComponent(Hittable(MeshCollision.NoCollision))
+        }
+        MandirWorld.darshan = mandirPanel(R.id.ring_darshan)
+        MandirWorld.sankalp = mandirPanel(R.id.ring_sankalp)
+        MandirWorld.hint = mandirPanel(R.id.ring_hint)
+        MandirWorld.blessing = mandirPanel(R.id.ring_blessing)
+        MandirWorld.flame = mandirPanel(R.id.ring_flame, hittable = false)
+        MandirWorld.smoke = mandirPanel(R.id.ring_smoke, hittable = false)
+        MandirWorld.tilak = mandirPanel(R.id.ring_tilak, hittable = false)
+        MandirWorld.courtyard = Entity.createPanelEntity(
+            R.id.ring_courtyard,
+            Transform(Pose()),
+        ).also {
+            it.setComponent(Visible(false))
+            it.setComponent(Hittable(MeshCollision.NoCollision))
+        }
     }
 
     override fun registerPanels(): List<PanelRegistration> {
@@ -281,8 +307,27 @@ class QuestActivity : AppSystemActivity() {
         }
         val profile = composePanel(R.id.ring_profile, width = 1.20f, height = 0.86f) { ProfilePanel() }
         val chip = composePanel(R.id.ring_profile_chip, width = 0.46f, height = 0.09f) { ProfileChip() }
+        val darshan = composePanel(R.id.ring_darshan, width = 0.95f, height = 1.18f) { DarshanPanel() }
+        val sankalp = composePanel(R.id.ring_sankalp, width = 1.12f, height = 0.78f) { SankalpPanel() }
+        val hint = composePanel(R.id.ring_hint, width = 0.92f, height = 0.16f) { OfferingHintPanel() }
+        val blessing = composePanel(R.id.ring_blessing, width = 1.08f, height = 0.58f) { BlessingPanel() }
+        val flame = composePanel(R.id.ring_flame, width = 0.14f, height = 0.18f) { FlamePanel() }
+        val smoke = composePanel(R.id.ring_smoke, width = 0.22f, height = 0.36f) { SmokePanel() }
+        val tilak = composePanel(R.id.ring_tilak, width = 0.42f, height = 0.42f) { TilakOverlay() }
+        val courtyard = VideoSurfacePanelRegistration(
+            R.id.ring_courtyard,
+            { _, surface -> CourtyardSphere.drawOn(surface) },
+            {
+                MediaPanelSettings(
+                    shape = Equirect360ShapeOptions(radius = 48f),
+                    display = PixelDisplayOptions(width = 2048, height = 1024),
+                    rendering = MediaPanelRenderOptions(stereoMode = StereoMode.None, zIndex = -12),
+                )
+            },
+        )
         return cards + stream + opening + hall + environment + sphere + tourEnd + pair +
-            air + profile + chip
+            air + profile + chip + darshan + sankalp + hint + blessing + flame + smoke +
+            tilak + courtyard
     }
 
     private fun slotIds() = intArrayOf(

@@ -15,6 +15,14 @@
     <item name="ring_air_5" type="id" />
     <item name="ring_profile" type="id" />
     <item name="ring_profile_chip" type="id" />
+    <item name="ring_darshan" type="id" />
+    <item name="ring_sankalp" type="id" />
+    <item name="ring_hint" type="id" />
+    <item name="ring_blessing" type="id" />
+    <item name="ring_flame" type="id" />
+    <item name="ring_smoke" type="id" />
+    <item name="ring_tilak" type="id" />
+    <item name="ring_courtyard" type="id" />
     <item name="ring_slot_0" type="id" />
     <item name="ring_slot_1" type="id" />
     <item name="ring_slot_2" type="id" />
