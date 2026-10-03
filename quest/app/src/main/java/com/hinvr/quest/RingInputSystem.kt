@@ -22,15 +22,11 @@ class RingInputSystem : SystemBase() {
     private var nextScrollAtMs = 0L
     private var splashUntilMs = 0L
     private var splashGreeting = 0
-    private var displayedCenter = 0f
     private var streamPresence = 0f
     private var lastFrameNs = 0L
     private var lastStage = Stage.Splash
-    private var grabSpin = 0f
-    private var idleSpin = 0f
     private var introAge = 0f
-    private var grabbing = false
-    private var lastGrabAngle = 0f
+    private var bodyYaw = 0f
     private val cardPoseByIndex = HashMap<Int, Pose>()
     private var dt = 0.016f
 
@@ -44,10 +40,7 @@ class RingInputSystem : SystemBase() {
         val controllers = Query.where { has(Controller.id) }.eval().filter { it.isLocal() }
         var scroll = 0
         var select = false
-        var squeeze = false
-        var grabAngle: Float? = null
         var aimed = -1
-        val viewer = getScene().getViewerPose().removePitchAndRoll()
         for (controllerEntity in controllers) {
             val controller = controllerEntity.getComponent<Controller>()
             if (!controller.isActive) continue
@@ -61,14 +54,6 @@ class RingInputSystem : SystemBase() {
                 controller.isDown(ButtonBits.ButtonThumbLR)
             if (left || (holdLeft && now >= nextScrollAtMs)) scroll -= 1
             if (right || (holdRight && now >= nextScrollAtMs)) scroll += 1
-            val gripping = controller.isDown(ButtonBits.ButtonSqueezeL) ||
-                controller.isDown(ButtonBits.ButtonSqueezeR)
-            if (gripping) {
-                squeeze = true
-                controllerEntity.tryGetComponent<Transform>()?.transform?.let { pose ->
-                    grabAngle = orbitAngle(viewer, pose)
-                }
-            }
             val pointed = aimedCard(controllerEntity)
             if (pointed >= 0) aimed = pointed
             if (
@@ -100,13 +85,6 @@ class RingInputSystem : SystemBase() {
                 Ring.back()
             }
         }
-        if (squeeze && grabAngle != null) {
-            if (grabbing) grabSpin += wrapDegrees(grabAngle!! - lastGrabAngle)
-            grabbing = true
-            lastGrabAngle = grabAngle!!
-        } else {
-            grabbing = false
-        }
         if (Ring.isWatching || Ring.inSphere) return
         if (Ring.stage == Stage.Mandir) return
         if (Ring.stage == Stage.Splash) {
@@ -114,23 +92,27 @@ class RingInputSystem : SystemBase() {
                 splashGreeting = Ring.greeting
                 splashUntilMs = 0L
             }
+            if (!Ring.splashShown) return
             if (splashUntilMs == 0L) splashUntilMs = now + OpeningLengthMs
-            if (select || now >= splashUntilMs) Ring.openMenu()
+            if (now >= splashUntilMs) Ring.openMenu()
             return
         }
         if (!Ring.showsCards) return
         val count = Ring.deckSize
         if (scroll != 0 && count > 0) {
-            grabSpin -= scroll.coerceIn(-1, 1) * (360f / count)
+            val delta = scroll.coerceIn(-1, 1)
+            Ring.scroll(delta)
+            if (usesFullRing(count)) {
+                bodyYaw = wrapDegrees(bodyYaw + delta * (360f / count))
+                getScene().setViewOrigin(0f, 0f, 0f, bodyYaw)
+            }
             nextScrollAtMs = now + 420L
         }
         if (aimed >= 0) {
-            aimedNoneLast = false
             Ring.lookAt(aimed)
             if (select) Ring.focus(aimed)
-        } else {
-            aimedNoneLast = true
-            if (select) Ring.selectCentered()
+        } else if (select) {
+            Ring.selectCentered()
         }
     }
 
@@ -171,28 +153,16 @@ class RingInputSystem : SystemBase() {
         dt = if (lastFrameNs == 0L) 0.016f else ((now - lastFrameNs) / 1_000_000_000f).coerceIn(0f, 0.05f)
         lastFrameNs = now
         if (Ring.stage != lastStage) {
+            val fromMandir = lastStage == Stage.Mandir
             lastStage = Ring.stage
-            displayedCenter = Ring.index.toFloat()
             introAge = 0f
-            grabSpin = 0f
-            idleSpin = 0f
-            grabbing = false
             slotOfCard.clear()
             for (slot in RingSlots.shown.indices) RingSlots.shown[slot] = -1
+            if (fromMandir || Ring.stage == Stage.Mandir) bodyYaw = 0f
         }
         val count = Ring.deckSize
-        val glide = 1f - exp(-7.5f * dt)
         val approach = 1f - exp(-4.2f * dt)
-        if (count > 0) {
-            displayedCenter = wrapUnit(
-                displayedCenter + wrapDelta(Ring.index - displayedCenter, count.toFloat()) * glide,
-                count.toFloat(),
-            )
-        }
-        if (Ring.showsCards) {
-            introAge += dt
-            if (!grabbing && aimedNoneLast) idleSpin += 8f * dt
-        }
+        if (Ring.showsCards) introAge += dt
         val introT = (1f - exp(-3.4f * introAge)).coerceIn(0f, 1f)
         val streamTarget = if (Ring.isWatching && !Ring.leaving) 1f else 0f
         streamPresence += (streamTarget - streamPresence) * approach
@@ -212,7 +182,7 @@ class RingInputSystem : SystemBase() {
         if (viewer.t.y < 0.5f) return
         val head = anchorFor(viewer, now, dt)
         if (mandir) {
-            showMandir(head, viewer)
+            showMandir(head)
             return
         }
         hideMandir()
@@ -240,17 +210,13 @@ class RingInputSystem : SystemBase() {
                 stream.setComponent(Scale(Vector3(scale, scale, scale)))
             }
         }
-        placeRing(head, count, ringPresence, introT)
+        placeRing(head, viewer, count, ringPresence, introT)
     }
 
-    private var aimedNoneLast = true
-
-    private fun placeRing(head: Pose, count: Int, ringPresence: Float, introT: Float) {
+    private fun placeRing(head: Pose, viewer: Pose, count: Int, ringPresence: Float, introT: Float) {
         cardPoseByIndex.clear()
-        if (count > 0) assignSlots(count)
-        val spacing = if (count > 0) 360f / count else 360f
-        val spin = grabSpin + idleSpin + (1f - introT) * 160f
-        val radius = (1.78f + streamPresence * 0.35f) * (0.38f + 0.62f * introT)
+        if (count > 0) assignSlots(count, head, viewer)
+        val radius = 1.78f + streamPresence * 0.35f
         RingWorld.slots.forEachIndexed { slot, entity ->
             if (entity == null) return@forEachIndexed
             if (!Ring.showsCards) {
@@ -262,7 +228,7 @@ class RingInputSystem : SystemBase() {
                 entity.setComponent(Visible(false))
                 return@forEachIndexed
             }
-            val yaw = wrapDegrees(cardIndex * spacing + spin)
+            val yaw = cardYaw(cardIndex, count)
             val pose = placeOnCircle(head, yaw, radius, -0.12f)
             cardPoseByIndex[cardIndex] = pose
             val focused = cardIndex == Ring.index
@@ -382,7 +348,7 @@ class RingInputSystem : SystemBase() {
         RingWorld.tourEnd?.setComponent(Visible(false))
     }
 
-    private fun showMandir(head: Pose, viewer: Pose) {
+    private fun showMandir(head: Pose) {
         togglePose = null
         chipPose = null
         listOfNotNull(
@@ -399,10 +365,10 @@ class RingInputSystem : SystemBase() {
         ).forEach { it.setComponent(Visible(false)) }
         RingWorld.slots.forEach { it?.setComponent(Visible(false)) }
 
+        // This equirect covers the cameras. Leaving it up hides the sanctum and the offerings.
         MandirWorld.courtyard?.let { sky ->
-            sky.setComponent(Visible(true))
-            sky.setComponent(Scale(Vector3(1f, 1f, 1f)))
-            sky.setComponent(Transform(Pose(viewer.t, head.q)))
+            sky.setComponent(Visible(false))
+            sky.setComponent(Scale(Vector3(0f, 0f, 0f)))
         }
         MandirWorld.darshan?.let { panel ->
             val show = !Mandir.sankalpOpen
@@ -426,7 +392,16 @@ class RingInputSystem : SystemBase() {
         MandirWorld.hint?.let { panel ->
             val show = !Mandir.sankalpOpen && !Mandir.blessing
             panel.setComponent(Visible(show))
-            if (show) panel.setComponent(Transform(placeInFront(head, 0f, 1.15f, -0.42f)))
+            if (show) {
+                panel.setComponent(
+                    Transform(
+                        Pose(
+                            MandirPlace.stand + Vector3(0f, 0.48f, -0.42f),
+                            Quaternion(0f, 180f, 0f),
+                        ),
+                    ),
+                )
+            }
         }
         MandirWorld.blessing?.let { panel ->
             val show = Mandir.blessing
@@ -506,6 +481,7 @@ class RingInputSystem : SystemBase() {
         if (!show) return
         opening.setComponent(Transform(placeInFront(head, 0f, 1.05f, -0.08f)))
         opening.setComponent(Scale(Vector3(1f, 1f, 1f)))
+        Ring.markSplashShown()
     }
 
     private fun placeHall(head: Pose, viewer: Pose, show: Boolean) {
@@ -616,11 +592,6 @@ class RingInputSystem : SystemBase() {
         return along
     }
 
-    private fun orbitAngle(head: Pose, controller: Pose): Float {
-        val d = controller.t - head.t
-        return Math.toDegrees(atan2(d.x, d.z).toDouble()).toFloat()
-    }
-
     private fun placeOnCircle(head: Pose, yawDeg: Float, distance: Float, yOffset: Float): Pose {
         val theta = Math.toRadians(yawDeg.toDouble()).toFloat()
         val local = Vector3(sin(theta) * distance, yOffset, cos(theta) * distance)
@@ -643,12 +614,15 @@ class RingInputSystem : SystemBase() {
 
     private val slotOfCard = HashMap<Int, Int>()
 
-    private fun assignSlots(count: Int) {
+    private fun assignSlots(count: Int, head: Pose, viewer: Pose) {
         val wanted = if (count <= RingSlots.COUNT) {
             (0 until count).toSet()
         } else {
+            val facing = wrapDegrees(yawOf(viewer) - yawOf(head))
+            val spacing = 360f / count
+            val nearest = kotlin.math.round(facing / spacing).toInt()
             val half = RingSlots.COUNT / 2
-            (0 until RingSlots.COUNT).map { wrapIndex(Ring.index + it - half, count) }.toSet()
+            (0 until RingSlots.COUNT).map { wrapIndex(nearest + it - half, count) }.toSet()
         }
         val free = ArrayList<Int>(RingSlots.COUNT)
         for (slot in 0 until RingSlots.COUNT) {
@@ -672,17 +646,20 @@ class RingInputSystem : SystemBase() {
         return if (wrapped < 0) wrapped + count else wrapped
     }
 
-    private fun wrapDelta(delta: Float, count: Float): Float {
-        var value = delta % count
-        if (value > count / 2f) value -= count
-        if (value < -count / 2f) value += count
-        return value
+    private fun usesFullRing(count: Int): Boolean = count > ArcCardLimit
+
+    private fun cardYaw(cardIndex: Int, count: Int): Float {
+        if (count <= 0) return 0f
+        if (!usesFullRing(count)) {
+            val start = -((count - 1) * ArcSpacingDeg) / 2f
+            return start + cardIndex * ArcSpacingDeg
+        }
+        return wrapDegrees(cardIndex * (360f / count))
     }
 
-    private fun wrapUnit(value: Float, count: Float): Float {
-        var wrapped = value % count
-        if (wrapped < 0f) wrapped += count
-        return wrapped
+    companion object {
+        private const val ArcCardLimit = 5
+        private const val ArcSpacingDeg = 38f
     }
 }
 

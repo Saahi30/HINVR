@@ -58,7 +58,12 @@ class QuestActivity : AppSystemActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        Ring.greetAgain()
+        setIntent(intent)
+        if (intent.getBooleanExtra(OpenMandirExtra, false)) {
+            Ring.openMandir(explore = true)
+        } else {
+            Ring.greetAgain()
+        }
     }
 
     override fun onPause() {
@@ -196,6 +201,13 @@ class QuestActivity : AppSystemActivity() {
             it.setComponent(Visible(false))
             it.setComponent(Hittable(MeshCollision.NoCollision))
         }
+        if (intent?.getBooleanExtra(OpenMandirExtra, false) == true) {
+            Ring.openMandir(explore = true)
+        }
+    }
+
+    companion object {
+        const val OpenMandirExtra = "open_mandir"
     }
 
     override fun registerPanels(): List<PanelRegistration> {

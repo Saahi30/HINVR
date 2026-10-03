@@ -114,8 +114,8 @@ object MandirScene {
                 Light(
                     type = LightType.POINT,
                     color = Vector3(1f, 0.72f, 0.42f),
-                    intensity = 1.6f,
-                    range = 9f,
+                    intensity = 4.5f,
+                    range = 12f,
                 ),
             ),
         )
@@ -164,10 +164,10 @@ object MandirScene {
             )
         }
         world.setLightingEnvironment(
-            ambientColor = Vector3(0.09f, 0.05f, 0.03f),
-            sunColor = Vector3(0.55f, 0.32f, 0.14f),
+            ambientColor = Vector3(0.38f, 0.28f, 0.18f),
+            sunColor = Vector3(1.15f, 0.78f, 0.46f),
             sunDirection = -Vector3(0.2f, 1f, 0.15f),
-            environmentIntensity = 0.22f,
+            environmentIntensity = 1.05f,
         )
     }
 

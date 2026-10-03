@@ -120,7 +120,8 @@ object Mandir {
 
 /** Positions from markers.json (glTF / headset space). */
 object MandirPlace {
-    val spawn = Vector3(0f, 0f, 1.55f)
+    // Just in front of the offering stand, so a seated guest can reach the props.
+    val spawn = Vector3(0f, 0f, 0.05f)
     val garbha = Vector3(0f, 0f, -5.2f)
     val darshan = Vector3(0f, 1.45f, -5.68f)
     val stand = Vector3(0f, 0.78f, -0.85f)
@@ -128,7 +129,7 @@ object MandirPlace {
     val peti = Vector3(1.55f, 0.16f, -1.35f)
     val feet = Vector3(0f, 0.82f, -3.85f)
     val incense = Vector3(0.38f, 0.81f, -0.85f)
-    val teleportMandap = Vector3(0f, 0f, 1.55f)
+    val teleportMandap = Vector3(0f, 0f, 0.05f)
     val teleportThreshold = Vector3(0f, 0f, -2.05f)
     val teleportPradakshina = Vector3(1.55f, 0f, -0.4f)
 

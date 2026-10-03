@@ -13,7 +13,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -77,7 +76,7 @@ private val GoldKnockout = ColorFilter.colorMatrix(
     ),
 )
 
-const val OpeningLengthMs = 5200L
+const val OpeningLengthMs = 6000L
 
 private data class Greeting(val hindi: String, val english: String)
 
@@ -93,7 +92,8 @@ private fun greetingForNow(): Greeting {
 
 @Composable
 fun SanctumOpening() {
-    key(Ring.greeting) { OpeningSequence() }
+    if (Ring.stage != Stage.Splash || !Ring.splashShown) return
+    key(Ring.greeting, Ring.splashShown) { OpeningSequence() }
 }
 
 @Composable
@@ -117,8 +117,10 @@ private fun OpeningSequence() {
         showGreeting = true
         delay(650)
         showMark = true
-        delay(OpeningLengthMs - 2100 - 600)
+        delay(OpeningLengthMs - 2750)
         leaving = true
+        delay(650)
+        if (Ring.stage == Stage.Splash) Ring.openMenu()
     }
 
     val haloAlpha by animateFloatAsState(if (showHalo) 1f else 0f, tween(1400), label = "halo")
@@ -158,8 +160,7 @@ private fun OpeningSequence() {
                 alpha = exit
                 scaleX = 1f + 0.05f * (1f - exit)
                 scaleY = 1f + 0.05f * (1f - exit)
-            }
-            .clickable { Ring.openMenu() },
+            },
         contentAlignment = Alignment.Center,
     ) {
         MarigoldShower(Modifier.fillMaxSize().alpha(haloAlpha * 0.9f))

@@ -138,6 +138,13 @@ object Ring {
     var greeting by mutableIntStateOf(0)
         private set
 
+    var splashShown by mutableStateOf(false)
+        private set
+
+    fun markSplashShown() {
+        if (stage == Stage.Splash) splashShown = true
+    }
+
     var usePassthrough by mutableStateOf(false)
         private set
 
@@ -154,6 +161,7 @@ object Ring {
         stateName = null
         flame = 0.04f
         diyaLit = false
+        splashShown = false
         greeting++
     }
 
@@ -418,6 +426,7 @@ object Ring {
 
     /** Past the greeting only once this headset is paired with a member. */
     fun openMenu() {
+        splashShown = false
         if (!QuestAccount.isPaired) {
             stage = Stage.Pair
             index = 0
@@ -442,8 +451,7 @@ object Ring {
             return
         }
         when (stage) {
-            Stage.Splash -> openMenu()
-            Stage.Pair, Stage.Menu -> Unit
+            Stage.Splash, Stage.Pair, Stage.Menu -> Unit
             Stage.States, Stage.Tour, Stage.Profile, Stage.Mandir -> {
                 if (stage == Stage.Mandir) Mandir.leave()
                 openMenu()
@@ -524,12 +532,13 @@ object Ring {
         selectedId = null
     }
 
-    private fun openMandir() {
+    fun openMandir(explore: Boolean = false) {
         QuestCatalog.refresh()
         stage = Stage.Mandir
         index = 0
         selectedId = null
         Mandir.enter()
+        if (explore) Mandir.beginVisit()
         MandirScene.show()
     }
 

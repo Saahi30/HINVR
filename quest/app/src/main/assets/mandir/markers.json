@@ -2,7 +2,7 @@
   "spawn": [
     0.0,
     0.0,
-    1.55
+    0.05
   ],
   "garbha": [
     0.0,
@@ -37,7 +37,7 @@
   "teleport_mandap": [
     0.0,
     0.0,
-    1.55
+    0.05
   ],
   "teleport_threshold": [
     0.0,
