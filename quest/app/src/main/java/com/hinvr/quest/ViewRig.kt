@@ -66,6 +66,10 @@ object ViewRig {
 
     val busy: Boolean get() = phase != Phase.Idle
 
+    /** Raises the whole room under the member, in metres: seated mode in the sanctum. */
+    var lift = 0f
+        private set
+
     /** Counts finished moves, so head-anchored panels know to re-anchor. */
     var moves = 0
         private set
@@ -111,6 +115,13 @@ object ViewRig {
     }
 
     val roomYaw: Float get() = originYaw
+
+    /** Seated or standing: the room's floor moves at once, without a fade. */
+    fun setLift(metres: Float) {
+        if (lift == metres) return
+        lift = metres
+        apply(originX, originZ, originYaw)
+    }
 
     /** Run each frame with the viewer's current pose. */
     fun tick(viewer: Pose, dt: Float) {
@@ -208,6 +219,6 @@ object ViewRig {
         originX = x
         originZ = z
         originYaw = wrapDegrees(yaw)
-        scene.get()?.let { runCatching { it.setViewOrigin(x, 0f, z, originYaw) } }
+        scene.get()?.let { runCatching { it.setViewOrigin(x, lift, z, originYaw) } }
     }
 }

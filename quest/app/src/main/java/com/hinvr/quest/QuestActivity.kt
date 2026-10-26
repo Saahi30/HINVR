@@ -42,7 +42,14 @@ class QuestActivity : AppSystemActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // First, so a crash anywhere after this is kept for the next launch.
+        CrashReports.install(this)
         AudioMix.attach(this)
+        QuestLocale.attach(this)
+        Comfort.attach(this)
+        Tutorial.attach(this)
+        CastTip.attach(this)
+        readFestivalOverride(intent)
         QuestAccount.attach(this)
         MandirPlace.load(this)
         PhotoCredits.load(this)
@@ -63,6 +70,7 @@ class QuestActivity : AppSystemActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        readFestivalOverride(intent)
         if (intent.getBooleanExtra(OpenMandirExtra, false)) {
             // Members only; whatever was playing stops first (Ring.go handles both).
             Ring.openMandir(explore = true)
@@ -91,6 +99,7 @@ class QuestActivity : AppSystemActivity() {
         pausedAtMs = 0L
         PairScanner.onResume()
         QuestAccount.onResume()
+        CrashReports.sendLater()
         releaseMedia()
     }
 
@@ -177,6 +186,8 @@ class QuestActivity : AppSystemActivity() {
         RingWorld.chip = Panel.create(R.id.ring_profile_chip)
         RingWorld.credits = Panel.create(R.id.ring_credits)
         RingWorld.fade = Panel.create(R.id.ring_fade, hittable = false)
+        RingWorld.handoff = Panel.create(R.id.ring_handoff, hittable = false)
+        RingWorld.castTip = Panel.create(R.id.ring_cast_tip)
         MandirSound.attach(this, scene)
         MandirScene.attach(scene, systemManager)
         MandirWorld.darshan = Panel.create(R.id.ring_darshan)
@@ -186,6 +197,14 @@ class QuestActivity : AppSystemActivity() {
         MandirWorld.flame = Panel.create(R.id.ring_flame, hittable = false)
         MandirWorld.smoke = Panel.create(R.id.ring_smoke, hittable = false)
         MandirWorld.tilak = Panel.create(R.id.ring_tilak, hittable = false)
+        MandirWorld.jyoti = Panel.create(R.id.ring_jyoti, hittable = false)
+        MandirWorld.thaliFlame = Panel.create(R.id.ring_thali_flame, hittable = false)
+        MandirWorld.label = Panel.create(R.id.ring_prop_label, hittable = false)
+        MandirWorld.japa = Panel.create(R.id.ring_japa)
+        MandirWorld.tutorial = Panel.create(R.id.ring_tutorial, hittable = false)
+        haloIds().forEachIndexed { index, panelId ->
+            MandirWorld.halos[index] = Panel.create(panelId, hittable = false)
+        }
         if (intent?.getBooleanExtra(OpenMandirExtra, false) == true) {
             Ring.openMandir(explore = true)
         }
@@ -193,6 +212,9 @@ class QuestActivity : AppSystemActivity() {
 
     companion object {
         const val OpenMandirExtra = "open_mandir"
+
+        /** Debug builds only: adb ... --es festival deepmala|abhishek|modak|hibiscus tries a festival puja. */
+        const val FestivalExtra = "festival"
         private const val GreetAgainAfterMs = 10 * 60_000L
     }
 
@@ -223,10 +245,13 @@ class QuestActivity : AppSystemActivity() {
                 )
             },
         )
+        val halos = haloIds().mapIndexed { index, panelId ->
+            composePanel(panelId, width = 0.55f, height = 0.55f) { HaloPanel(index) }
+        }
         val air = airIds().mapIndexed { index, panelId ->
             composePanel(panelId, width = 2.50f, height = 2.20f) { SanctumAir(index) }
         }
-        return cards + air + listOf(
+        return cards + air + halos + listOf(
             hall,
             sphere,
             composePanel(R.id.ring_stream, width = 1.72f, height = 1.08f) { StreamPanel() },
@@ -239,13 +264,21 @@ class QuestActivity : AppSystemActivity() {
             composePanel(R.id.ring_profile_chip, width = 0.56f, height = 0.11f) { ProfileChip() },
             composePanel(R.id.ring_credits, width = 1.20f, height = 0.92f) { CreditsPanel() },
             composePanel(R.id.ring_fade, width = 1.60f, height = 1.60f) { FadePanel() },
-            composePanel(R.id.ring_darshan, width = 0.95f, height = 1.18f) { DarshanPanel() },
-            composePanel(R.id.ring_sankalp, width = 1.12f, height = 0.78f) { SankalpPanel() },
-            composePanel(R.id.ring_guide, width = 1.10f, height = 0.34f) { GuidePanel() },
+            composePanel(R.id.ring_darshan, width = 1.60f, height = 0.90f) { DarshanPanel() },
+            composePanel(R.id.ring_sankalp, width = 1.16f, height = 0.98f) { SankalpPanel() },
+            composePanel(R.id.ring_guide, width = 1.40f, height = 0.46f) { GuidePanel() },
             composePanel(R.id.ring_blessing, width = 1.08f, height = 0.58f) { BlessingPanel() },
-            composePanel(R.id.ring_flame, width = 0.14f, height = 0.18f) { FlamePanel() },
+            composePanel(R.id.ring_flame, width = FlamePanelWidth, height = FlamePanelHeight) { FlamePanel() },
             composePanel(R.id.ring_smoke, width = 0.22f, height = 0.36f) { SmokePanel() },
             composePanel(R.id.ring_tilak, width = 0.60f, height = 0.40f) { TilakOverlay() },
+            composePanel(R.id.ring_jyoti, width = FlamePanelWidth, height = FlamePanelHeight) { JyotiFlamePanel() },
+            composePanel(R.id.ring_thali_flame, width = FlamePanelWidth, height = FlamePanelHeight) { ThaliFlamePanel() },
+            composePanel(R.id.ring_prop_label, width = 0.70f, height = 0.10f) { PropLabel() },
+            composePanel(R.id.ring_japa, width = 0.66f, height = 0.30f) { JapaPanel() },
+            composePanel(R.id.ring_handoff, width = 0.90f, height = 0.10f) { HandoffNotice() },
+            composePanel(R.id.ring_cast_tip, width = 0.70f, height = 0.22f) { CastTipPanel() },
+            // About 12 cm across: a ring around a diya or a flame.
+            composePanel(R.id.ring_tutorial, width = 0.14f, height = 0.14f) { TutorialRing() },
         )
     }
 
@@ -268,6 +301,23 @@ class QuestActivity : AppSystemActivity() {
         R.id.ring_slot_15,
     )
 
+    private fun haloIds() = intArrayOf(
+        R.id.ring_halo_0,
+        R.id.ring_halo_1,
+        R.id.ring_halo_2,
+        R.id.ring_halo_3,
+        R.id.ring_halo_4,
+        R.id.ring_halo_5,
+        R.id.ring_halo_6,
+        R.id.ring_halo_7,
+    )
+
+    private fun readFestivalOverride(intent: Intent?) {
+        if (!BuildConfig.DEBUG) return
+        val wire = intent?.getStringExtra(FestivalExtra) ?: return
+        Festivals.override = FestivalKind.from(wire)
+    }
+
     private fun airIds() = intArrayOf(
         R.id.ring_air_0,
         R.id.ring_air_1,
@@ -286,7 +336,7 @@ class QuestActivity : AppSystemActivity() {
         ComposeViewPanelRegistration(
             panelId,
             composeViewCreator = { _, context ->
-                ComposeView(context).apply { setContent { content() } }
+                ComposeView(context).apply { setContent { ProvideQuestLanguage { content() } } }
             },
             settingsCreator = {
                 UIPanelSettings(

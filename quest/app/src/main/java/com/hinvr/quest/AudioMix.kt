@@ -14,6 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 enum class SoundLevel(val gain: Float, @StringRes val label: Int) {
@@ -67,6 +69,7 @@ class LoopPlayer(
     private val assets: AssetManager,
     private val assetPath: String,
     private val crossfadeMs: Int,
+    private val balance: () -> Float = { 0f },
     private val volume: () -> Float,
 ) {
     private val main = Handler(Looper.getMainLooper())
@@ -177,16 +180,15 @@ class LoopPlayer(
             }
             fadeStartedAt = SystemClock.elapsedRealtime()
         }
+        val pan = balance().coerceIn(-1f, 1f)
         if (fadeStartedAt == 0L) {
-            runCatching { player.setVolume(level, level) }
+            setPanned(player, level, pan)
             return
         }
         val t = ((SystemClock.elapsedRealtime() - fadeStartedAt) / crossfadeMs.toFloat()).coerceIn(0f, 1f)
         // Equal power, so the overlap doesn't swell.
-        val out = level * sqrt(1f - t)
-        val into = level * sqrt(t)
-        runCatching { player.setVolume(out, out) }
-        runCatching { next?.setVolume(into, into) }
+        setPanned(player, level * sqrt(1f - t), pan)
+        next?.let { setPanned(it, level * sqrt(t), pan) }
         if (t >= 1f || !player.isPlaying) {
             runCatching {
                 player.pause()
@@ -195,5 +197,17 @@ class LoopPlayer(
             current = 1 - current
             fadeStartedAt = 0L
         }
+    }
+
+    /** Equal-power pan: -1 is all left, 1 all right, 0 both ears at [gain]. */
+    private fun setPanned(player: MediaPlayer, gain: Float, pan: Float) {
+        val angle = (pan + 1f) * (Math.PI / 4.0)
+        val left = (gain * cos(angle) * Sqrt2).toFloat().coerceIn(0f, 1f)
+        val right = (gain * sin(angle) * Sqrt2).toFloat().coerceIn(0f, 1f)
+        runCatching { player.setVolume(left, right) }
+    }
+
+    private companion object {
+        val Sqrt2 = sqrt(2.0)
     }
 }

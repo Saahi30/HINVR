@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HINVR</string>
+
+    <!-- Greeting -->
+    <string name="greet_morning_hi">सुप्रभात</string>
+    <string name="greet_morning_en">आपके दर्शन तैयार हैं।</string>
+    <string name="greet_day_hi">नमस्ते</string>
+    <string name="greet_day_en">स्वागत है। आपके दर्शन तैयार हैं।</string>
+    <string name="greet_evening_hi">शुभ संध्या</string>
+    <string name="greet_evening_en">आरती के दीप जल चुके हैं।</string>
+    <string name="greet_night_hi">शुभ रात्रि</string>
+    <string name="greet_night_en">गर्भगृह शांत है। आपके दर्शन तैयार हैं।</string>
+
+    <!-- Menu and cards -->
+    <string name="menu_live">लाइव दर्शन</string>
+    <string name="menu_live_place">मंदिर</string>
+    <string name="menu_tour">निर्देशित यात्रा</string>
+    <string name="menu_tour_place">तीन मंदिर</string>
+    <string name="menu_mandir">मंदिर में प्रवेश करें</string>
+    <string name="menu_mandir_place">HINVR गर्भगृह</string>
+    <string name="badge_darshan">आधिकारिक प्रसारण</string>
+    <string name="badge_live">लाइव</string>
+    <string name="badge_not_live">अभी लाइव नहीं</string>
+    <string name="badge_stream">आधिकारिक प्रसारण</string>
+    <string name="badge_recorded_360">रिकॉर्डेड 360 · लाइव नहीं</string>
+    <string name="badge_sanctum">गर्भगृह</string>
+    <string name="chip_menu">मेनू</string>
+    <string name="chip_states">राज्य</string>
+    <string name="card_no_stream">कोई आधिकारिक प्रसारण नहीं</string>
+    <string name="toggle_sanctum">गर्भगृह</string>
+    <string name="toggle_passthrough">पासथ्रू</string>
+    <string name="sound_label">ध्वनि: %1$s</string>
+    <string name="sound_full">चालू</string>
+    <string name="sound_low">धीमी</string>
+    <string name="sound_off">बंद</string>
+    <string name="catalog_loading">देख रहे हैं कि अभी कौन‑से मंदिर लाइव हैं…</string>
+    <string name="catalog_offline">ऑफ़लाइन। सहेजे गए मंदिर दिखा रहे हैं; लाइव स्थिति ज्ञात नहीं।</string>
+
+    <!-- Streams -->
+    <string name="stream_heading_live">लाइव दर्शन</string>
+    <string name="stream_heading_recorded">रिकॉर्डेड · लाइव नहीं</string>
+    <string name="stream_heading_official">मंदिर का आधिकारिक प्रसारण</string>
+    <string name="stream_heading_360">रिकॉर्डेड 360 · लाइव नहीं</string>
+    <string name="stream_credit_official">मंदिर का आधिकारिक प्रसारण, YouTube से दिखाया गया। HINVR मंदिर नहीं है।</string>
+    <string name="stream_credit_360">रिकॉर्ड किया गया 360 वीडियो, YouTube से दिखाया गया।</string>
+    <string name="stream_untitled">दर्शन</string>
+    <string name="stream_drag_hint">चारों ओर देखने के लिए चित्र के भीतर खींचें।</string>
+    <string name="stream_loading">दर्शन लोड हो रहे हैं…</string>
+    <string name="stream_none_title">कोई आधिकारिक प्रसारण नहीं</string>
+    <string name="stream_none_body">इस मंदिर के लाइव दर्शन अभी उपलब्ध नहीं हैं।</string>
+    <string name="stream_error_title">यह प्रसारण अभी नहीं चल पा रहा</string>
+    <string name="stream_error_gone">मंदिर का प्रसारण समाप्त हो गया है या निजी है।</string>
+    <string name="stream_error_embed">मंदिर इस प्रसारण को YouTube के बाहर चलाने की अनुमति नहीं देता।</string>
+    <string name="stream_error_generic">प्लेयर में कुछ गड़बड़ हुई।</string>
+
+    <!-- Tours -->
+    <string name="tour_done_title">दर्शन पूर्ण हुए</string>
+    <string name="tour_again">वापस दर्शन करें</string>
+    <string name="tour_failed_title">यह यात्रा नहीं चल सकी</string>
+    <string name="tour_failed_body">इस हेडसेट पर वीडियो मौजूद नहीं है या ख़राब हो गया है।</string>
+
+    <!-- Pairing -->
+    <string name="pair_heading">इस हेडसेट को जोड़ें</string>
+    <string name="pair_title">अपना फ़ोन जोड़ें</string>
+    <string name="pair_step_1">अपने फ़ोन पर HINVR खोलें → प्रोफ़ाइल → VR हेडसेट → हेडसेट जोड़ें।</string>
+    <string name="pair_step_2">फ़ोन को सामने पकड़ें और उसके QR कोड की ओर देखें।</string>
+    <string name="pair_offline">यह बिल्ड HINVR से जुड़ा नहीं है।</string>
+    <string name="pair_need_camera">कैमरे की अनुमति दें ताकि हेडसेट कोड पढ़ सके।</string>
+    <string name="pair_looking">कोड खोज रहे हैं…</string>
+    <string name="pair_claiming">जोड़ रहे हैं…</string>
+    <string name="pair_welcome">नमस्ते</string>
+    <string name="pair_welcome_name">नमस्ते, %1$s</string>
+    <string name="pair_done">आपका हेडसेट जुड़ गया है।</string>
+    <string name="pair_note_not_code">यह HINVR का जोड़ने वाला कोड नहीं है। फ़ोन पर प्रोफ़ाइल → VR हेडसेट खोलें।</string>
+    <string name="err_network">नेटवर्क नहीं है। हेडसेट का Wi‑Fi जाँचें और फिर कोशिश करें।</string>
+    <string name="err_code_expired">इस कोड की अवधि समाप्त हो गई। फ़ोन पर नया कोड दिखाएँ।</string>
+    <string name="err_other_account">यह हेडसेट किसी दूसरे खाते से जुड़ा है। पहले वहाँ से अलग करें।</string>
+    <string name="err_headset_id">इस हेडसेट की पहचान नहीं हो सकी। HINVR फिर से शुरू करें और कोशिश करें।</string>
+    <string name="err_generic">HINVR तक नहीं पहुँच सके। फिर कोशिश करें।</string>
+
+    <!-- Profile -->
+    <string name="profile_heading">HINVR सदस्य</string>
+    <string name="profile_member">सदस्य</string>
+    <string name="profile_membership">सदस्यता</string>
+    <string name="profile_member_id">सदस्य आईडी</string>
+    <string name="profile_valid_until">मान्य तिथि तक</string>
+    <string name="profile_city">शहर</string>
+    <string name="profile_headset">हेडसेट</string>
+    <string name="profile_paired_since">जोड़ने की तिथि</string>
+    <string name="profile_no_membership">अभी कोई सदस्यता नहीं</string>
+    <string name="profile_unpair_warning">इस हेडसेट को फिर से जोड़ने के लिए आपको अपना फ़ोन चाहिए होगा।</string>
+    <string name="profile_unpairing">अलग कर रहे हैं…</string>
+    <string name="profile_unpair_confirm">अलग करने के लिए फिर से दबाएँ</string>
+    <string name="profile_unpair">इस हेडसेट को अलग करें</string>
+
+    <!-- Actions -->
+    <string name="action_back">वापस</string>
+    <string name="action_back_to_menu">मेनू पर वापस</string>
+    <string name="action_begin">आरंभ करें</string>
+    <string name="action_leave">बाहर जाएँ</string>
+    <string name="action_leave_sanctum">गर्भगृह से बाहर जाएँ</string>
+    <string name="action_cancel">रद्द करें</string>
+    <string name="action_allow_camera">कैमरे की अनुमति दें</string>
+    <string name="action_credits">आभार और लाइसेंस</string>
+    <string name="action_more">और</string>
+    <string name="action_next_stream">अगला</string>
+    <string name="action_darshan_close">पास से देखें</string>
+    <string name="action_darshan_back">गर्भगृह में</string>
+    <string name="action_try_again">फिर कोशिश करें</string>
+
+    <!-- Mandir -->
+    <string name="honesty">HINVR में प्रतीकात्मक अर्पण। किसी मंदिर में संपन्न नहीं।</string>
+    <string name="mandir_loading">गर्भगृह तैयार हो रहा है…</string>
+    <string name="sankalp_heading">संकल्प</string>
+    <string name="sankalp_guest">अतिथि</string>
+    <string name="sankalp_private">यह दर्शन HINVR में ही रहता है। किसी मंदिर को कुछ नहीं भेजा जाता।</string>
+    <string name="sankalp_intention">भाव</string>
+    <string name="sankalp_window">दर्शन खिड़की</string>
+    <string name="intention_family">परिवार के लिए</string>
+    <string name="intention_health">स्वास्थ्य के लिए</string>
+    <string name="intention_peace">शांति के लिए</string>
+    <string name="intention_thanks">कृतज्ञता</string>
+    <string name="intention_none">कोई विशेष भाव नहीं</string>
+    <string name="darshan_murti">गर्भगृह की मूर्ति</string>
+    <string name="darshan_caption">%1$s, मंदिर का आधिकारिक प्रसारण</string>
+    <string name="darshan_no_stream">मूर्ति इसी गर्भगृह में है।</string>
+    <string name="hint_threshold">देहरी। फूल और नैवेद्य आगे चरणों के पास पटिया पर रखें।</string>
+    <string name="hint_mandap">पूजा की चौकी पर वापस। अर्पण की सामग्री उसी पर है।</string>
+    <string name="hint_prasad">आशीर्वाद ग्रहण करें। जाते समय प्रसाद मिलता है।</string>
+    <string name="hint_aarti_count">आरती · 7 में से %1$d</string>
+    <string name="hint_light_incense">पहले इसे ज्योति की लौ से जलाएँ।</string>
+    <string name="hint_incense_lit">अगरबत्ती जल गई। इसे स्टैंड में लगाएँ।</string>
+    <string name="guide_next">आगे · %1$s</string>
+    <string name="next_diya">दीया उठाएँ और उसकी बाती ज्योति की लौ से छुआएँ।</string>
+    <string name="next_agarbatti">अगरबत्ती लौ से जलाएँ, फिर उसे स्टैंड में लगाएँ।</string>
+    <string name="next_pushp">फूल गर्भगृह की ओर अर्पित करें, या पास जाकर चरणों में रखें।</string>
+    <string name="next_prasad">नारियल या लड्डू भी इसी तरह अर्पित करें।</string>
+    <string name="next_ghanta">दाईं ओर लटकी घंटी बजाएँ।</string>
+    <string name="next_tilak">कुमकुम की कटोरी अपने माथे से छुआएँ।</string>
+    <string name="next_daan">दाईं ओर रखी दान पेटी में सिक्का डालें।</string>
+    <string name="next_aarti">आरती की थाली सात बार दक्षिणावर्त घुमाएँ। इससे दर्शन पूर्ण होंगे।</string>
+    <string name="step_diya">दीया</string>
+    <string name="step_agarbatti">अगरबत्ती</string>
+    <string name="step_pushp">पुष्प</string>
+    <string name="step_prasad">नैवेद्य</string>
+    <string name="step_ghanta">घंटा</string>
+    <string name="step_tilak">तिलक</string>
+    <string name="step_daan">दान</string>
+    <string name="step_aarti">आरती</string>
+    <string name="step_closer">A / X · पास जाएँ</string>
+    <string name="step_back">A / X · पीछे आएँ</string>
+    <string name="prop_label">%1$s · %2$s</string>
+    <string name="prop_diya">दीया</string>
+    <string name="prop_thali">आरती की थाली</string>
+    <string name="prop_agarbatti">अगरबत्ती</string>
+    <string name="prop_marigold">गेंदा</string>
+    <string name="prop_lotus">कमल</string>
+    <string name="prop_coconut">नारियल</string>
+    <string name="prop_laddoo">लड्डू</string>
+    <string name="prop_kumkum">कुमकुम</string>
+    <string name="prop_coin">सिक्का</string>
+    <string name="prop_ghanta">घंटा</string>
+    <string name="verb_diya">ज्योति की लौ से छुआएँ</string>
+    <string name="verb_diya_lit">नीचे रखें, या चरणों में अर्पित करें</string>
+    <string name="verb_agarbatti">लौ से जलाएँ</string>
+    <string name="verb_agarbatti_lit">स्टैंड में लगाएँ</string>
+    <string name="verb_thali">सात बार घुमाएँ</string>
+    <string name="verb_flower">गर्भगृह की ओर अर्पित करें</string>
+    <string name="verb_naivedya">गर्भगृह की ओर अर्पित करें</string>
+    <string name="verb_prasad">प्रसाद के रूप में अपने पास लाएँ</string>
+    <string name="verb_kumkum">माथे से छुआएँ</string>
+    <string name="verb_coin">पेटी में डालें</string>
+    <string name="verb_ghanta">बजाएँ</string>
+    <string name="offer_ghanta">घंटा बज उठा।</string>
+    <string name="offer_diya">दीया जल गया।</string>
+    <string name="offer_aarti">आरती पूर्ण हुई।</string>
+    <string name="offer_pushp">पुष्प चरणों में अर्पित।</string>
+    <string name="offer_agarbatti">अगरबत्ती लगा दी गई।</string>
+    <string name="offer_prasad">नैवेद्य अर्पित हुआ।</string>
+    <string name="offer_tilak">तिलक लगा।</string>
+    <string name="offer_daan">दान पेटी में पहुँचा।</string>
+    <plurals name="diyas_today">
+        <item quantity="one">आज %1$d दीया जला</item>
+        <item quantity="other">आज %1$d दीये जले</item>
+    </plurals>
+    <string name="blessing_heading">आशीर्वाद</string>
+    <string name="blessing_title">दर्शन पूर्ण हुए।</string>
+    <string name="blessing_body">आगे के संस्करण में वास्तविक सेवा बुक की जा सकेगी। यह अर्पण किसी मंदिर में संपन्न नहीं हुआ।</string>
+
+    <!-- Sankalp: whom the visit is for, comfort, language -->
+    <string name="sankalp_for">किसके लिए</string>
+    <string name="for_self">स्वयं</string>
+    <string name="for_family">मेरा परिवार</string>
+    <string name="for_parents">मेरे माता‑पिता</string>
+    <string name="for_children">मेरी संतान</string>
+    <string name="for_ancestors">मेरे पूर्वज</string>
+    <string name="for_friend">एक मित्र</string>
+    <string name="for_teacher">एक गुरु</string>
+    <string name="blessing_for_self">स्वयं के लिए अर्पित।</string>
+    <string name="blessing_for_family">आपके परिवार के लिए अर्पित।</string>
+    <string name="blessing_for_parents">आपके माता‑पिता के लिए अर्पित।</string>
+    <string name="blessing_for_children">आपकी संतान के लिए अर्पित।</string>
+    <string name="blessing_for_ancestors">आपके पूर्वजों के लिए अर्पित।</string>
+    <string name="blessing_for_friend">एक मित्र के लिए अर्पित।</string>
+    <string name="blessing_for_teacher">एक गुरु के लिए अर्पित।</string>
+    <string name="blessing_for_member">%1$s के लिए अर्पित।</string>
+    <string name="tutorial_again">फिर से दिखाएँ</string>
+    <string name="tutorial_again_on">मार्गदर्शन चालू</string>
+    <string name="tutorial_take">हाथ बढ़ाकर दीया उठाएँ, या उसकी ओर इशारा करके ट्रिगर दबाएँ (या चुटकी लें)।</string>
+    <string name="tutorial_light">इसकी बाती को इस लौ से छुआएँ: यह अखंड ज्योति है।</string>
+    <string name="tutorial_done">हर अर्पण ऐसे ही होता है। आगे क्या करना है, मार्गदर्शिका बताएगी।</string>
+    <string name="tutorial_skip">छोड़ें</string>
+    <string name="cast_title">साथ में देखें</string>
+    <string name="cast_body">Meta बटन दबाएँ, कैमरा खोलें, फिर Cast चुनें और यह दर्शन फ़ोन या टीवी पर दिखाएँ।</string>
+    <string name="cast_got_it">ठीक है</string>
+    <string name="comfort_seated">बैठकर</string>
+    <string name="comfort_standing">खड़े होकर</string>
+    <string name="language_switch">English</string>
+
+    <!-- Live aarti -->
+    <string name="aarti_live_now">%1$s में अभी आरती लाइव है</string>
+    <string name="action_watch">देखें</string>
+
+    <!-- Festival pujas -->
+    <string name="festival_today">आज: %1$s · %2$s</string>
+    <string name="step_festival">पर्व</string>
+    <string name="step_deepmala">दीपमाला</string>
+    <string name="step_abhishek">अभिषेक</string>
+    <string name="step_modak">मोदक</string>
+    <string name="step_hibiscus">गुड़हल</string>
+    <string name="step_japa">जप</string>
+    <string name="next_deepmala">अपने जलते दीये से बगल की थाली के हर छोटे दीये को छुआएँ।</string>
+    <string name="next_abhishek">बगल की चौकी से लोटा उठाएँ और शिवलिंग की ओर झुकाकर जल चढ़ाएँ।</string>
+    <string name="next_modak">मोदक गर्भगृह की ओर अर्पित करें, या चरणों में रखें।</string>
+    <string name="next_hibiscus">लाल गुड़हल गर्भगृह की ओर अर्पित करें, या चरणों में रखें।</string>
+    <string name="offer_deepmala">दीपमाला जगमगा उठी।</string>
+    <string name="offer_abhishek">अभिषेक अर्पित हुआ।</string>
+    <string name="offer_modak">मोदक अर्पित हुआ।</string>
+    <string name="offer_hibiscus">गुड़हल चरणों में अर्पित।</string>
+    <string name="prop_lota">लोटा</string>
+    <string name="verb_lota">शिवलिंग की ओर झुकाएँ</string>
+    <string name="prop_modak">मोदक</string>
+    <string name="prop_hibiscus">गुड़हल</string>
+
+    <!-- Japa -->
+    <string name="japa_heading">जप · ऐच्छिक</string>
+    <string name="japa_count">%1$d / %2$d</string>
+    <plurals name="japa_rounds">
+        <item quantity="one">माला का %1$d चक्र</item>
+        <item quantity="other">माला के %1$d चक्र</item>
+    </plurals>
+    <string name="japa_hint_take">गिनने के लिए माला उठाएँ। केवल पाठ; आपके लिए कुछ उच्चारित नहीं किया जाता।</string>
+    <string name="japa_hint_counting">हर मनके पर दबाएँ। रखने के लिए दबाए रखें, या चौकी के ऊपर दबाएँ।</string>
+    <string name="action_mantra">मंत्र</string>
+    <string name="mantra_shiva">ॐ नमः शिवाय</string>
+    <string name="mantra_gayatri">गायत्री मंत्र</string>
+    <string name="mantra_hare_krishna">हरे कृष्ण महामंत्र</string>
+    <string name="mantra_om">ॐ</string>
+    <string name="prop_mala">जप माला</string>
+    <string name="verb_mala">गिनने के लिए उठाएँ</string>
+    <string name="verb_mala_counting">हर मनके पर दबाएँ</string>
+
+    <!-- Credits -->
+    <string name="credits_heading">आभार और लाइसेंस</string>
+    <string name="credits_sanctum_heading">गर्भगृह</string>
+    <string name="credits_sanctum_body">कक्ष, मूर्ति, शिवलिंग और अर्पण की सामग्री HINVR ने बनाई है। टेक्सचर और मॉडल: Poly Haven, CC0 (Charlotte Baglioni, Rob Tuytel, Amal Kumar, Bhargav Kubal, Rico Cilliers)। मुख्य द्वार से दिखने वाला आँगन Gaurav Dhwaj Khadka की “Ram Mandir 360.jpg” (CC BY-SA 4.0) से काटकर और कोमल करके लिया गया है; वह दृश्य भी इसी लाइसेंस के अंतर्गत साझा है। ध्वनियाँ: घंटा, Subhashish Panigrahi, CC BY-SA 4.0 (काटा और स्तर मिलाया गया); शंख, Dbolton, CC BY 2.5 (छोटा किया गया); आरती का पाठ, Aarti Shri Radha Govind Dev Ji, Jaipur, CC0; हाथ की घंटी, qubodup, CC0; सिक्के, नारियल और लौ, ezwa और stephan, सार्वजनिक डोमेन। सभी Wikimedia Commons से।</string>
+    <string name="credits_streams">लाइव दर्शन के प्रसारण उन्हें प्रकाशित करने वाले मंदिरों के हैं और YouTube से चलाए जाते हैं। HINVR कोई मंदिर बोर्ड नहीं है।</string>
+    <string name="credits_photos_heading">कार्ड के छायाचित्र</string>
+    <string name="credits_photo_line">%1$s · %2$s</string>
+    <string name="credits_photo_line_modified">%1$s · %2$s · संशोधित</string>
+    <string name="credits_unknown_author">अज्ञात लेखक</string>
+    <string name="credits_page">%2$d में से %1$d</string>
+    <!-- View in VR: opened from the member's phone -->
+    <string name="handoff_opening">आपके फ़ोन से %1$s खोला जा रहा है</string>
+    <string name="handoff_sanctum">आपके फ़ोन से गर्भगृह खोला जा रहा है</string>
+    <string name="handoff_unavailable">%1$s में अभी VR में खोलने के लिए कुछ नहीं है</string>
+</resources>

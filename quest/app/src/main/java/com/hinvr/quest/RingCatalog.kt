@@ -22,6 +22,8 @@ data class RingCard(
     val liveUrl: String = "",
     val live: LiveState = LiveState.Unknown,
     val state: String = "",
+    /** Aarti start times, minutes after midnight India time. Empty when the server has none. */
+    val aartiTimes: List<Int> = emptyList(),
 ) {
     val region: String
         get() = state.ifBlank { KnownStates[mandirId].orEmpty() }.ifBlank { "Other" }
@@ -95,6 +97,8 @@ data class HomeChoice(
     @DrawableRes val photo: Int,
     val url: String = "",
     val localFile: String = "",
+    /** The catalog mandir this walk is of, so the phone's "View in VR" can find it. */
+    val mandirId: String? = null,
 )
 
 val MenuChoices = listOf(
@@ -110,6 +114,7 @@ val TourChoices = listOf(
         R.drawable.temple_mahakal,
         url = "https://www.youtube.com/embed/A5YdinFdV54",
         localFile = "mahakaleshwar.mkv",
+        mandirId = "mahakal",
     ),
     HomeChoice(
         "Badrinath Temple",
@@ -117,6 +122,7 @@ val TourChoices = listOf(
         R.drawable.temple_badrinath,
         url = "https://www.youtube.com/embed/VDNIuBQBSmk",
         localFile = "badrinath.mkv",
+        mandirId = "badrinath",
     ),
     HomeChoice(
         "Ayodhya",
@@ -124,6 +130,7 @@ val TourChoices = listOf(
         R.drawable.temple_ram_lalla,
         url = "https://www.youtube.com/embed/tkCsr4LT5yQ",
         localFile = "ayodhya.mkv",
+        mandirId = "ram-lalla",
     ),
 )
 
@@ -429,6 +436,34 @@ object Ring {
             selectCentered()
         } else {
             nav = nav.copy(index = wrapped, selectedId = null)
+        }
+    }
+
+    /** The phone asked for this mandir's official stream: open its state and play it. */
+    fun openLiveFrom(card: RingCard) {
+        if (!card.hasStream) return
+        QuestCatalog.refresh()
+        val rows = CatalogRules.inState(mandirs, card.region)
+        val at = rows.indexOfFirst { it.mandirId == card.mandirId }.coerceAtLeast(0)
+        val base = NavState(stage = Stage.Live, stateName = card.region, index = at, selectedId = card.mandirId)
+        go(base.copy(overlay = Overlay.Stream(StreamSource(card.liveUrl, card.title, spherical = false, live = card.live))))
+    }
+
+    /** The phone asked for a recorded 360 walk: open the tour list on it and start it. */
+    fun openTourFrom(tour: HomeChoice) {
+        val at = TourChoices.indexOf(tour)
+        if (at < 0) return
+        go(NavState(stage = Stage.Tour, index = at))
+        selectCentered()
+    }
+
+    /** The phone asked for the sanctum, its darshan window on [darshanId] when that mandir streams. */
+    fun openSanctumFrom(darshanId: String?) {
+        if (stage != Stage.Mandir) openMandir()
+        if (stage != Stage.Mandir || darshanId == null) return
+        repeat(Mandir.liveChoices.size) {
+            if (Mandir.darshan?.mandirId == darshanId) return
+            Mandir.cycleDarshan(1)
         }
     }
 

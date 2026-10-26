@@ -51,9 +51,11 @@ private data class MoteSpec(
 
 @Composable
 fun SanctumAir(slot: Int) {
-    // Only the greeting and pairing show the rain; anywhere else these six canvases stop animating.
-    if (Ring.stage != Stage.Splash && Ring.stage != Stage.Pair) return
-    val blessing = Ring.stage == Stage.Pair && QuestAccount.step == PairStep.Welcome
+    // Only the greeting, pairing and the aarti moment show the rain; elsewhere these six canvases stop animating.
+    // The sanctum borrows them for the moment aarti completes.
+    val celebrating = Ring.stage == Stage.Mandir && MandirCelebration.showering
+    if (Ring.stage != Stage.Splash && Ring.stage != Stage.Pair && !celebrating) return
+    val blessing = celebrating || (Ring.stage == Stage.Pair && QuestAccount.step == PairStep.Welcome)
     val claiming = Ring.stage == Stage.Pair && QuestAccount.step == PairStep.Claiming
     val swell by animateFloatAsState(
         targetValue = when {
@@ -106,7 +108,7 @@ private fun bloomField(slot: Int): List<Bloom> {
     val random = java.util.Random(108L * (slot + 1))
     val yellow = listOf(PetalMarigold, PetalSaffron, PetalGold, PetalMarigold)
     val pink = listOf(PetalLotus, PetalPink, PetalRose, PetalLotus)
-    return List(62) {
+    return List(90) {
         val wantPink = random.nextBoolean()
         val kind = when {
             wantPink && random.nextFloat() < 0.55f -> BloomKind.Lotus
@@ -114,9 +116,10 @@ private fun bloomField(slot: Int): List<Bloom> {
             else -> BloomKind.Petal
         }
         val scale = when (kind) {
-            BloomKind.Petal -> 0.012f + random.nextFloat() * 0.012f
-            BloomKind.Marigold -> 0.018f + random.nextFloat() * 0.014f
-            BloomKind.Lotus -> 0.020f + random.nextFloat() * 0.012f
+            // Life-size at the walls' 2 m: petals 1-2 cm, whole flowers 3.5-5 cm across.
+            BloomKind.Petal -> 0.005f + random.nextFloat() * 0.004f
+            BloomKind.Marigold -> 0.011f + random.nextFloat() * 0.005f
+            BloomKind.Lotus -> 0.012f + random.nextFloat() * 0.005f
         }
         Bloom(
             x = random.nextFloat(),

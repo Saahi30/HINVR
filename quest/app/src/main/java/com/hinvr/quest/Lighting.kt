@@ -13,8 +13,9 @@ import kotlin.math.sin
  * leaving it always restores the hall.
  */
 object Lighting {
-    /** ambient rgb, sun rgb, sun direction xyz, environment intensity. */
+    /** ambient rgb, sun rgb, sun direction xyz, environment intensity. Lamplit evening, then daylight. */
     private val MandirLook = floatArrayOf(0.38f, 0.28f, 0.18f, 1.15f, 0.78f, 0.46f, -0.2f, -1f, -0.15f, 1.05f)
+    private val MandirDayLook = floatArrayOf(0.42f, 0.38f, 0.32f, 1.05f, 0.95f, 0.82f, -0.1f, -1f, 0.35f, 1.15f)
 
     private var scene = WeakReference<Scene>(null)
     private val current = FloatArray(10)
@@ -30,7 +31,15 @@ object Lighting {
     /** [mandir] picks the sanctum; otherwise the hall breathes with the greeting's flame. */
     fun tick(mandir: Boolean, flame: Float, dt: Float) {
         if (mandir) {
-            MandirLook.copyInto(target)
+            (if (MandirScene.daytime) MandirDayLook else MandirLook).copyInto(target)
+            // The aarti moment: a touch warmer and lower, then back.
+            val warm = MandirCelebration.level()
+            if (warm > 0f) {
+                for (i in 0..5) target[i] *= 1f - 0.22f * warm
+                target[0] += 0.05f * warm
+                target[3] += 0.08f * warm
+                target[5] -= 0.08f * warm
+            }
         } else {
             val breath = 0.5f + 0.5f * sin((System.nanoTime() / 1_000_000_000f) * 2.2f)
             val lit = (flame * (0.86f + 0.14f * breath)).coerceIn(0f, 1f)
