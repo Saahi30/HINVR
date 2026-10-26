@@ -95,5 +95,26 @@ Deno.serve(withCors(async (req: Request) => {
     console.error("desk_check_in", error?.message);
     return json({ error: "Couldn't record this check-in." }, 500);
   }
-  return json(data as Record<string, unknown>);
+  const result = data as Record<string, unknown>;
+  const member = result.member as ({ user_id?: string; tier?: string } & Record<string, unknown>) | undefined;
+  if (member?.user_id) {
+    try {
+      member.family = await familyFor(admin, member.user_id, member.tier ?? "None");
+    } catch (error) {
+      // The check-in stands; the desk just doesn't see the family this time.
+      console.error("family", (error as Error).message);
+    }
+  }
+  return json(result);
 }));
+
+/** Who comes with this member: the family their plan covers, oldest first, names and relations only. */
+async function familyFor(admin: ReturnType<typeof serviceClient>, userId: string, tier: string) {
+  const [limits, family] = await Promise.all([
+    admin.from("app_settings").select("value").eq("key", "family_limits").maybeSingle(),
+    admin.from("family_members").select("name,relation").eq("user_id", userId).order("created_at").limit(12),
+  ]);
+  if (family.error) throw family.error;
+  const allowed = Number((limits.data?.value as Record<string, unknown> | undefined)?.[tier] ?? 0);
+  return (family.data ?? []).slice(0, Number.isFinite(allowed) ? allowed : 0);
+}
