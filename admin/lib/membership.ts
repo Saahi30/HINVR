@@ -1,4 +1,6 @@
-export function tierLabel(tier: string) {
+// Keep tierLabel / formatInr in step with membership/lib/membership.ts.
+
+export function tierLabel(tier: string | null | undefined) {
   if (tier === "Nri") return "NRI";
   if (!tier || tier === "None") return "No plan";
   return tier;
@@ -12,31 +14,34 @@ export function formatInr(amount: number) {
   }).format(amount);
 }
 
-export function nextSerial(existing: string[], prefix: string, year = new Date().getFullYear()) {
-  const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
-  let max = 0;
-  for (const value of existing) {
-    const match = value.match(pattern);
-    if (match) max = Math.max(max, Number(match[1]));
-  }
-  return `${prefix}-${year}-${String(max + 1).padStart(4, "0")}`;
+/** "28 Sep 2027" for a YYYY-MM-DD date, or "—". */
+export function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function isoDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+/** Today in India, YYYY-MM-DD. */
+export function todayIst(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
-export function membershipWindow(from = new Date()) {
-  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  const end = new Date(start);
-  end.setFullYear(end.getFullYear() + 1);
-  return {
-    purchasedOn: isoDate(start),
-    validFrom: isoDate(start),
-    validUntilIso: isoDate(end),
-    validUntilLabel: end.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-  };
+/** Same rule as approve_membership_request: one calendar year from the start date. */
+export function oneYearFrom(isoDate: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return "";
+  const date = new Date(Date.UTC(Number(match[1]) + 1, Number(match[2]) - 1, Number(match[3])));
+  return date.toISOString().slice(0, 10);
+}
+
+/** True while the membership has not passed 23:59:59 IST on valid_until. */
+export function isActiveMembership(validUntil: string | null | undefined, now = new Date()) {
+  if (!validUntil) return false;
+  return validUntil.slice(0, 10) >= todayIst(now);
 }

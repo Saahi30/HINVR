@@ -7,7 +7,7 @@ const ROWS: { label: string; cells: [string, string, string, string] }[] = [
   { label: "Recorded VR darshan", cells: ["—", "Included", "Included", "Included"] },
   { label: "Family on the profile", cells: ["—", "—", "Included", "Included"] },
   { label: "Physical card request", cells: ["—", "—", "Included", "Included"] },
-  { label: "Partner assist", cells: ["—", "—", "Priority", "Priority"] },
+  { label: "Partner Priority Assist", cells: ["—", "—", "Included", "Included"] },
 ];
 
 const STEPS = [
@@ -42,7 +42,7 @@ const QUESTIONS = [
     a: "On this page, after the desk confirms the request you sent from the app.",
   },
   {
-    q: "What is partner assist?",
+    q: "What is Priority Assist?",
     a: "Official entry and help at a partner mandir: access, a buggy, a wheelchair, a host. It depends on that mandir. It is not an unofficial queue-jump.",
   },
 ];

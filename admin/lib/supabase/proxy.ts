@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/redirect";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -33,15 +34,15 @@ export async function updateSession(request: NextRequest) {
   if (!signedIn && !publicPath) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", path);
+    redirectUrl.search = "";
+    const next = safeNextPath(`${path}${request.nextUrl.search}`, "");
+    if (next && next !== "/") redirectUrl.searchParams.set("next", next);
     return NextResponse.redirect(redirectUrl);
   }
 
   if (signedIn && path.startsWith("/login")) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl);
+    const target = new URL(safeNextPath(request.nextUrl.searchParams.get("next")), request.nextUrl.origin);
+    return NextResponse.redirect(target);
   }
 
   return supabaseResponse;

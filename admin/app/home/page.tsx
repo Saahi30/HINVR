@@ -1,16 +1,14 @@
-import { redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
 import { HomeForm } from "@/components/home-form";
 import { PageHeader } from "@/components/ui";
-import { requireDesk } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import type { HomeService, HomeSettings } from "@/lib/types";
 
 export default async function HomeEditorPage() {
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
-  }
+  const gate = await requireStaff("catalog");
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
 
   const { data: services } = await desk.supabase
     .from("home_services")

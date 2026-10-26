@@ -1,9 +1,11 @@
-import { notFound, redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
+import { notFound } from "next/navigation";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
 import { LiveSources } from "@/components/live-sources";
 import { MandirForm } from "@/components/mandir-form";
 import { ButtonLink, PageHeader } from "@/components/ui";
-import { requireDesk } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
+import { can } from "@/lib/roles";
 import type { LiveSource, Mandir } from "@/lib/types";
 
 export default async function EditMandirPage({
@@ -12,11 +14,9 @@ export default async function EditMandirPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
-  }
+  const gate = await requireStaff("catalog");
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
 
   const [{ data }, { data: sourceRows }] = await Promise.all([
     desk.supabase.from("mandirs").select("*").eq("id", id).maybeSingle(),
@@ -34,7 +34,12 @@ export default async function EditMandirPage({
         description={mandir.city || mandir.place || mandir.id}
         actions={<ButtonLink href="/mandirs" variant="secondary">Back to list</ButtonLink>}
       />
-      <MandirForm initial={{ ...mandir, next_aarti: mandir.next_aarti ?? "" }} isNew={false} liveManaged={managed} />
+      <MandirForm
+        initial={{ ...mandir, next_aarti: mandir.next_aarti ?? "" }}
+        isNew={false}
+        liveManaged={managed}
+        canDelete={can(desk.staff.role, "deleteMandir")}
+      />
       <LiveSources mandirId={mandir.id} initial={sources} />
     </DeskShell>
   );

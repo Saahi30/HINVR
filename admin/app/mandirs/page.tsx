@@ -1,16 +1,15 @@
-import { redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
 import { MandirsTable } from "@/components/mandirs-table";
 import { ButtonLink, PageHeader } from "@/components/ui";
-import { requireDesk } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
+import { can } from "@/lib/roles";
 import type { Mandir } from "@/lib/types";
 
 export default async function MandirsPage() {
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
-  }
+  const gate = await requireStaff("catalog");
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
 
   const { data } = await desk.supabase
     .from("mandirs")
@@ -26,7 +25,7 @@ export default async function MandirsPage() {
         description="Add, unpublish, or delete temples. Unpublished rows stay hidden in the app."
         actions={<ButtonLink href="/mandirs/new">Add mandir</ButtonLink>}
       />
-      <MandirsTable initial={(data ?? []) as Mandir[]} />
+      <MandirsTable initial={(data ?? []) as Mandir[]} canDelete={can(desk.staff.role, "deleteMandir")} />
     </DeskShell>
   );
 }

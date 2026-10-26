@@ -1,6 +1,16 @@
 import { LoginForm } from "@/components/login-form";
+import { safeNextPath } from "@/lib/redirect";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  const next = safeNextPath(first(params.next));
+  const error = (first(params.error) ?? "").slice(0, 200);
+
   return (
     <div className="min-h-full lg:grid lg:grid-cols-2">
       <div className="hidden bg-sidebar px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between">
@@ -21,10 +31,10 @@ export default function LoginPage() {
           <ul className="mt-8 space-y-3 text-sm text-zinc-400">
             <li>Add or remove mandirs, photos, and stream URLs</li>
             <li>Edit the home grid — tiles appear in the same order</li>
-            <li>Set membership tiers and pass dates</li>
+            <li>Confirm memberships and check members in at the desk</li>
           </ul>
         </div>
-        <p className="text-xs text-zinc-600">Staff only. First account becomes owner.</p>
+        <p className="text-xs text-zinc-600">Staff only. An owner adds you to the team.</p>
       </div>
       <div className="flex min-h-full items-center justify-center bg-zinc-50 px-6 py-16">
         <div className="w-full max-w-sm">
@@ -32,7 +42,7 @@ export default function LoginPage() {
           <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">Sign in</h2>
           <p className="mt-1 text-sm text-zinc-500">Use the desk account for this project.</p>
           <div className="mt-6">
-            <LoginForm />
+            <LoginForm next={next} initialError={error} />
           </div>
         </div>
       </div>

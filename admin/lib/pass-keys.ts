@@ -1,38 +1,51 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const STORAGE_KEY = "hinvr.pass.publicKeys";
+const STORAGE_KEY = "hinvr.pass.publicKeys.v2";
+/** How long cached public keys count as fresh. The scanner refreshes on this interval. */
+export const KEY_REFRESH_MS = 30 * 60 * 1000;
 
-type StoredKey = { kid: string; public_jwk: JsonWebKey };
+type StoredKeys = { fetchedAt: number; keys: Array<{ kid: string; public_jwk: JsonWebKey }> };
 
-function readCache(): Map<string, JsonWebKey> {
-  if (typeof window === "undefined") return new Map();
+function readStored(): StoredKeys | null {
+  if (typeof window === "undefined") return null;
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]") as StoredKey[];
-    return new Map(parsed.filter((row) => row.kid && row.public_jwk).map((row) => [row.kid, row.public_jwk]));
+    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "null") as StoredKeys | null;
+    if (!parsed || !Array.isArray(parsed.keys)) return null;
+    return parsed;
   } catch {
-    return new Map();
+    return null;
   }
 }
 
-function writeCache(keys: Map<string, JsonWebKey>) {
+function writeStored(value: StoredKeys) {
   if (typeof window === "undefined") return;
-  const rows = [...keys.entries()].map(([kid, public_jwk]) => ({ kid, public_jwk }));
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // Private mode or full storage: keys stay in memory for this tab.
+  }
 }
 
-export async function loadPassPublicKeys(
-  supabase: SupabaseClient,
-): Promise<{ keys: Map<string, JsonWebKey>; missing: boolean }> {
-  const cached = readCache();
-  const { data, error } = await supabase.from("pass_signing_keys").select("kid, public_jwk, active").eq("active", true);
-  const missing = Boolean(
-    error && (error.code === "PGRST205" || error.code === "42P01" || /schema cache|does not exist|could not find/i.test(error.message)),
-  );
-  if (error || !data) return { keys: cached, missing };
-  const next = new Map<string, JsonWebKey>();
-  for (const row of data) {
-    if (row.kid && row.public_jwk) next.set(row.kid, row.public_jwk as JsonWebKey);
-  }
-  if (next.size > 0) writeCache(next);
-  return { keys: next.size > 0 ? next : cached, missing: false };
+function toMap(stored: StoredKeys | null) {
+  return new Map((stored?.keys ?? []).filter((row) => row.kid && row.public_jwk).map((row) => [row.kid, row.public_jwk]));
+}
+
+/** Cached public keys, for verifying a pass while offline. */
+export function cachedPassKeys(): { keys: Map<string, JsonWebKey>; fetchedAt: number } {
+  const stored = readStored();
+  return { keys: toMap(stored), fetchedAt: stored?.fetchedAt ?? 0 };
+}
+
+/** Fetches the public keys desks may verify with and caches them. Keeps the cache on failure. */
+export async function refreshPassKeys(supabase: SupabaseClient): Promise<{ keys: Map<string, JsonWebKey>; fetchedAt: number }> {
+  const { data, error } = await supabase.from("pass_signing_keys").select("kid, public_jwk");
+  if (error || !data) return cachedPassKeys();
+  const stored: StoredKeys = {
+    fetchedAt: Date.now(),
+    keys: data
+      .filter((row) => row.kid && row.public_jwk)
+      .map((row) => ({ kid: String(row.kid), public_jwk: row.public_jwk as JsonWebKey })),
+  };
+  if (stored.keys.length > 0) writeStored(stored);
+  return { keys: toMap(stored.keys.length > 0 ? stored : readStored()), fetchedAt: stored.fetchedAt };
 }

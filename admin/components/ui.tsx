@@ -129,6 +129,34 @@ export function Card({ children, className }: { children: React.ReactNode; class
 
 export function Alert({ children, tone = "error" }: { children: React.ReactNode; tone?: "error" | "ok" }) {
   return (
-    <p className={cx("text-sm", tone === "error" ? "text-red-600" : "text-emerald-700")}>{children}</p>
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      aria-live={tone === "error" ? "assertive" : "polite"}
+      className={cx("text-sm", tone === "error" ? "text-red-600" : "text-emerald-700")}
+    >
+      {children}
+    </p>
+  );
+}
+
+/** A toggle chip in a filter row. */
+export function FilterChip({
+  active,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      className={
+        active
+          ? "rounded-md bg-zinc-900 px-3 py-2 text-sm text-white"
+          : "rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600"
+      }
+      {...props}
+    >
+      {children}
+    </button>
   );
 }

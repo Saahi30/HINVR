@@ -74,6 +74,30 @@ export function LiveSources({ mandirId, initial }: { mandirId: string; initial: 
     if (saved) setRows((current) => current.filter((item) => item.id !== row.id));
   }
 
+  const clearedReview = {
+    review_video_id: "",
+    review_channel_id: "",
+    review_channel_name: "",
+    review_title: "",
+    review_found_at: null,
+  };
+
+  async function approveReview(row: LiveSource) {
+    if (!confirm(`Use "${row.review_title || row.review_video_id}" from ${row.review_channel_name || "this channel"} as this mandir's live feed?`)) {
+      return;
+    }
+    await patch(row.id, {
+      video_id: row.review_video_id ?? "",
+      channel_id: row.review_channel_id ?? row.channel_id,
+      channel_name: row.review_channel_name || row.channel_name,
+      ...clearedReview,
+    });
+  }
+
+  async function dismissReview(row: LiveSource) {
+    await patch(row.id, clearedReview);
+  }
+
   const enabled = rows.filter((row) => row.enabled).length;
 
   return (
@@ -90,11 +114,15 @@ export function LiveSources({ mandirId, initial }: { mandirId: string; initial: 
       <ul className="divide-y divide-zinc-100">
         {rows.map((row) => (
           <li key={row.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-            <span
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                !row.enabled ? "bg-zinc-300" : row.last_error ? "bg-red-500" : row.last_live ? "bg-emerald-500" : "bg-zinc-400"
-              }`}
-            />
+            <span className="flex w-20 shrink-0 items-center gap-1.5 text-xs text-zinc-600">
+              <span
+                aria-hidden
+                className={`h-2.5 w-2.5 rounded-full ${
+                  !row.enabled ? "bg-zinc-300" : row.last_error ? "bg-red-500" : row.last_live ? "bg-emerald-500" : "bg-zinc-400"
+                }`}
+              />
+              {!row.enabled ? "Off" : row.last_error ? "Problem" : row.last_live ? "Live" : "Idle"}
+            </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <a href={watchUrl(row)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium hover:underline">
@@ -112,6 +140,30 @@ export function LiveSources({ mandirId, initial }: { mandirId: string; initial: 
               </p>
               {row.note && (row.last_error || row.last_title) ? (
                 <p className="truncate text-xs text-amber-700">{row.note}</p>
+              ) : null}
+              {row.review_video_id ? (
+                <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                  <p>
+                    Search found{" "}
+                    <a
+                      href={`https://www.youtube.com/watch?v=${row.review_video_id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium underline"
+                    >
+                      {row.review_title || row.review_video_id}
+                    </a>{" "}
+                    from {row.review_channel_name || "an unlisted channel"}. It is not shown in the app until you approve it.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <Button type="button" variant="secondary" disabled={busy} onClick={() => approveReview(row)}>
+                      Use this stream
+                    </Button>
+                    <Button type="button" variant="ghost" disabled={busy} onClick={() => dismissReview(row)}>
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
               ) : null}
             </div>
             <input

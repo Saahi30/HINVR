@@ -1,4 +1,7 @@
-export type StaffRole = "owner" | "editor";
+// Hand-written to match supabase/migrations (no linked project for `supabase gen types`).
+import type { StaffRole } from "./roles";
+
+export type { StaffRole };
 
 export type Staff = {
   user_id: string;
@@ -56,6 +59,12 @@ export type LiveSource = {
   last_title: string;
   last_viewers: number | null;
   last_error: string;
+  /** A search hit from a channel that is not an official source; waits for staff review. */
+  review_video_id?: string;
+  review_channel_id?: string;
+  review_channel_name?: string;
+  review_title?: string;
+  review_found_at?: string | null;
 };
 
 export type HomeService = {
@@ -105,7 +114,8 @@ export type MemberRow = {
   city: string;
   tier: string;
   member_id: string;
-  valid_until: string;
+  /** YYYY-MM-DD; the membership ends 23:59:59 IST that day. */
+  valid_until: string | null;
   audience: string;
   profile_complete: boolean;
   phone_e164: string;
@@ -117,6 +127,19 @@ export type MemberRow = {
   purchased_on?: string;
   valid_from?: string;
   invoice_valid_until?: string;
+};
+
+export const TIERS = ["None", "Darshan", "Gold", "Platinum", "Nri"] as const;
+export type Tier = (typeof TIERS)[number];
+
+export const PASS_TIERS: readonly string[] = ["Gold", "Platinum", "Nri"];
+
+export type MembershipPrice = {
+  tier: Exclude<Tier, "None">;
+  amount_inr: number;
+  currency: string;
+  amount_minor: number;
+  active: boolean;
 };
 
 export const DESK_KINDS = ["VISIT", "CONCIERGE", "POOJA", "YATRA"] as const;
@@ -154,6 +177,19 @@ export type NoticeRow = {
 
 export type BuyRequestStatus = "pending" | "approved" | "declined";
 
+export type ApprovedMembership = {
+  request_id: string;
+  user_id: string;
+  tier: string;
+  member_id: string;
+  invoice_number: string;
+  purchase_id: string;
+  amount_inr: number;
+  valid_from: string;
+  valid_until: string;
+  status: "approved";
+};
+
 export type BuyRequestRow = {
   id: string;
   user_id: string;
@@ -180,7 +216,7 @@ export const MANDIR_SCENES = [
 export const SERVICE_ROUTES = [
   { value: "live", label: "Live Darshan" },
   { value: "vr", label: "VR Darshan" },
-  { value: "pass", label: "Priority Pass" },
+  { value: "pass", label: "Priority Assist" },
   { value: "pooja", label: "Book Pandit" },
   { value: "concierge", label: "Concierge" },
   { value: "yatra", label: "Yatra" },
@@ -225,3 +261,35 @@ export const emptyMandir = (sortOrder = 100): Mandir => ({
   sort_order: sortOrder,
   published: true,
 });
+
+export type CheckInMember = {
+  user_id: string;
+  display_name: string;
+  tier: string;
+  member_id: string;
+  valid_until: string | null;
+  city: string;
+};
+
+/** What desk-check-in answers. */
+export type CheckInResult = {
+  status: "ok" | "manual" | "duplicate" | "suspicious" | "invalid";
+  reason?: string;
+  recorded?: boolean;
+  flag?: "" | "duplicate" | "suspicious";
+  member?: CheckInMember;
+  checkin?: { id: string; created_at: string; place: string };
+  previous?: { at: string; place: string } | null;
+};
+
+export type AuditRow = {
+  id: number;
+  at: string;
+  actor: string | null;
+  actor_email: string;
+  action: string;
+  table_name: string;
+  row_id: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+};

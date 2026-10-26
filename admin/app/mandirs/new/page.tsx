@@ -1,16 +1,14 @@
-import { redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
 import { MandirForm } from "@/components/mandir-form";
 import { ButtonLink, PageHeader } from "@/components/ui";
-import { requireDesk } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { emptyMandir } from "@/lib/types";
 
 export default async function NewMandirPage() {
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
-  }
+  const gate = await requireStaff("catalog");
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
 
   const { data } = await desk.supabase
     .from("mandirs")

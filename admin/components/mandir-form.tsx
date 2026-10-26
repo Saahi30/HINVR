@@ -2,25 +2,29 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { PhotoField } from "@/components/photo-field";
+import { PhotoField, uploadPhoto } from "@/components/photo-field";
 import { Alert, Button, Card, Field, fieldClass } from "@/components/ui";
 import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/client";
 import { MANDIR_SCENES, type Mandir } from "@/lib/types";
+import { checkHttpsUrl, checkMediaUrl, mediaPathFromUrl } from "@/lib/urls";
 
 export function MandirForm({
   initial,
   isNew,
   liveManaged = false,
+  canDelete = false,
 }: {
   initial: Mandir;
   isNew: boolean;
   liveManaged?: boolean;
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [row, setRow] = useState(initial);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   function patch<K extends keyof Mandir>(key: K, value: Mandir[K]) {
     setRow((current) => ({ ...current, [key]: value }));
@@ -34,6 +38,15 @@ export function MandirForm({
       setMessage("Name and slug are required.");
       return;
     }
+    const urlProblem =
+      (liveManaged ? "" : checkMediaUrl(row.live_url, "Live stream URL")) ||
+      checkMediaUrl(row.vr_url, "VR URL") ||
+      checkHttpsUrl(row.official_website, "Official website") ||
+      (photoFile ? "" : checkHttpsUrl(row.photo_url, "Photo URL"));
+    if (urlProblem) {
+      setMessage(urlProblem);
+      return;
+    }
     setBusy(true);
     const payload = {
       id,
@@ -41,7 +54,7 @@ export function MandirForm({
       place: row.place.trim(),
       city: row.city.trim(),
       scene: row.scene,
-      photo_url: row.photo_url.trim(),
+      photo_url: photoFile ? (isNew ? "" : initial.photo_url) : row.photo_url.trim(),
       ...(liveManaged
         ? {}
         : {
@@ -76,6 +89,18 @@ export function MandirForm({
         : supabase.from("mandirs").update(payload).eq("id", id);
       const { error } = await query;
       if (error) throw error;
+      // The photo uploads only now, under the saved mandir's id: a cancelled form leaves no file behind.
+      let finalPhoto = payload.photo_url;
+      if (photoFile) {
+        finalPhoto = await uploadPhoto(photoFile, `mandirs/${id}`);
+        const { error: photoError } = await supabase.from("mandirs").update({ photo_url: finalPhoto }).eq("id", id);
+        if (photoError) throw photoError;
+        setPhotoFile(null);
+      }
+      const oldPath = mediaPathFromUrl(initial.photo_url);
+      if (!isNew && oldPath && finalPhoto !== initial.photo_url) {
+        await supabase.storage.from("media").remove([oldPath]);
+      }
       router.push("/mandirs");
       router.refresh();
     } catch (error) {
@@ -239,16 +264,18 @@ export function MandirForm({
           <input
             value={row.live_url}
             onChange={(event) => patch("live_url", event.target.value)}
-            placeholder="https://youtube.com/watch?v="
+            type="url"
+            placeholder="https://www.youtube.com/watch?v="
             readOnly={liveManaged}
             className={`${fieldClass} ${liveManaged ? "bg-zinc-50 text-zinc-500" : ""}`}
           />
         </Field>
-        <Field label="VR / 360 URL">
+        <Field label="VR / 360 URL" hint="YouTube links only.">
           <input
+            type="url"
             value={row.vr_url}
             onChange={(event) => patch("vr_url", event.target.value)}
-            placeholder="https://"
+            placeholder="https://www.youtube.com/watch?v="
             className={fieldClass}
           />
         </Field>
@@ -276,8 +303,10 @@ export function MandirForm({
           <PhotoField
             label="Card photo"
             value={row.photo_url}
-            folder={`mandirs/${row.id || "new"}`}
+            folder={`mandirs/${row.id}`}
             onChange={(url) => patch("photo_url", url)}
+            pendingFile={photoFile}
+            onPendingFile={setPhotoFile}
           />
         </Card>
         <Card className="space-y-3 p-5 text-sm">
@@ -303,7 +332,7 @@ export function MandirForm({
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? "Saving…" : isNew ? "Create mandir" : "Save changes"}
         </Button>
-        {!isNew ? (
+        {!isNew && canDelete ? (
           <Button type="button" variant="danger" onClick={onDelete} className="w-full">
             Delete mandir
           </Button>

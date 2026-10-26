@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Badge, Button, Card, fieldClass } from "@/components/ui";
+import { Alert, Badge, Button, Card, FilterChip, fieldClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { formatWhen } from "@/lib/ops";
 import { DESK_KINDS, DESK_STATUSES, type DeskRequestKind, type DeskRequestRow, type DeskRequestStatus } from "@/lib/types";
@@ -68,34 +68,16 @@ export function RequestsTable({ initial }: { initial: DeskRequestRow[] }) {
           className={`${fieldClass} max-w-xs`}
         />
         {(["all", ...DESK_KINDS] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setKind(item)}
-            className={
-              kind === item
-                ? "rounded-md bg-zinc-900 px-3 py-2 text-sm text-white"
-                : "rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600"
-            }
-          >
+          <FilterChip key={item} active={kind === item} onClick={() => setKind(item)}>
             {item === "all" ? "All kinds" : item}
-          </button>
+          </FilterChip>
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
         {(["all", ...DESK_STATUSES] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setStatus(item)}
-            className={
-              status === item
-                ? "rounded-md bg-zinc-900 px-3 py-2 text-sm text-white"
-                : "rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600"
-            }
-          >
+          <FilterChip key={item} active={status === item} onClick={() => setStatus(item)}>
             {item === "all" ? "All status" : item}
-          </button>
+          </FilterChip>
         ))}
       </div>
       {message ? <Alert tone={ok ? "ok" : "error"}>{message}</Alert> : null}
