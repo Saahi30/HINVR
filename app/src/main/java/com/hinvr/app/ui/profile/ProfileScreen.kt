@@ -92,6 +92,8 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onLegal: () -> Unit,
     onHeadsets: () -> Unit,
+    onJournal: () -> Unit,
+    onFamily: () -> Unit,
     onPlans: () -> Unit,
     onSignedOut: () -> Unit,
 ) {
@@ -362,6 +364,28 @@ fun ProfileScreen(
                             .fillMaxWidth()
                             .heightIn(min = 48.dp)
                             .clickable(role = Role.Button, onClick = onHeadsets)
+                            .padding(vertical = 12.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.journal_title),
+                        style = HinvrTypography.titleMedium,
+                        color = colors.ink,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable(role = Role.Button, onClick = onJournal)
+                            .padding(vertical = 12.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.family_title),
+                        style = HinvrTypography.titleMedium,
+                        color = colors.ink,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable(role = Role.Button, onClick = onFamily)
                             .padding(vertical = 12.dp),
                     )
                     Spacer(Modifier.height(8.dp))

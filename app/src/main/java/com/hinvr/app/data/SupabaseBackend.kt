@@ -583,14 +583,140 @@ class SupabaseBackend {
         }
     }
 
-    suspend fun fetchVrDevices(): List<VrDeviceRow> = io {
+    /** Asks the member's paired headset to open [target]; the headset picks it up within seconds. */
+    suspend fun requestVrHandoff(target: String, mandirId: String?): VrHandoff = io {
+        try {
+            requireClient().postgrest.rpc("request_vr_handoff", VrHandoffArg(target, mandirId)).decodeAs<VrHandoff>()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    /** Null when the request isn't the member's, or is gone. */
+    suspend fun vrHandoffStatus(id: String): VrHandoffStatus? = io {
+        try {
+            requireClient().postgrest.rpc("vr_handoff_status", VrHandoffIdArg(id)).decodeAs<VrHandoffStatus?>()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    /** The member's family, oldest first. */
+    suspend fun fetchFamily(): List<FamilyMemberRow> = io {
         val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
         try {
-            sb.from("vr_devices").select(Columns.list("device_id", "name", "paired_at", "last_seen_at")) {
+            sb.from("family_members").select(Columns.list("id", "name", "relation", "created_at")) {
+                filter { eq("user_id", userId) }
+                order("created_at", Order.ASCENDING)
+            }.decodeList()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    /** How many family members each plan carries, by tier name. Null when the server hasn't said. */
+    suspend fun fetchFamilyLimits(): Map<String, Int>? = io {
+        val sb = client ?: return@io null
+        attempt {
+            sb.from("app_settings").select(Columns.list("value")) {
+                filter { eq("key", "family_limits") }
+            }.decodeSingleOrNull<FamilyLimitsRow>()?.value
+        }.getOrNull()
+    }
+
+    suspend fun addFamilyMember(name: String, relation: String) = io {
+        val sb = requireClient()
+        val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
+        try {
+            sb.from("family_members").insert(FamilyMemberInsert(userId = userId, name = name, relation = relation))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    suspend fun updateFamilyMember(id: String, name: String, relation: String) = io {
+        val sb = requireClient()
+        try {
+            sb.from("family_members").update(FamilyMemberUpdate(name = name, relation = relation)) {
+                filter { eq("id", id) }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    suspend fun removeFamilyMember(id: String) = io {
+        val sb = requireClient()
+        try {
+            sb.from("family_members").delete { filter { eq("id", id) } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    suspend fun fetchVrDevices(): List<VrDeviceRow> = io {
+        val sb = requireClient()
+        val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
+        val base = listOf("device_id", "name", "paired_at", "last_seen_at")
+        suspend fun select(columns: List<String>): List<VrDeviceRow> =
+            sb.from("vr_devices").select(Columns.list(columns)) {
                 filter { eq("user_id", userId) }
                 order("paired_at", Order.DESCENDING)
             }.decodeList()
+        try {
+            // A server without the battery columns yet still lists the headsets.
+            try {
+                select(base + listOf("battery_pct", "charging", "status_at"))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isTransient(e)) throw e
+                select(base)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
+    }
+
+    /** The member's sanctum offerings since [sinceIso], newest first. */
+    suspend fun fetchOfferings(sinceIso: String): List<OfferingRow> = io {
+        val sb = requireClient()
+        val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
+        val base = listOf("kind", "device_id", "mandir_id", "sankalp", "dedicated_to", "created_at")
+        suspend fun select(columns: List<String>): List<OfferingRow> =
+            sb.from("offerings").select(Columns.list(columns)) {
+                filter {
+                    eq("user_id", userId)
+                    gte("created_at", sinceIso)
+                }
+                order("created_at", Order.DESCENDING)
+                limit(2000)
+            }.decodeList()
+        try {
+            // A server without family yet still shows the journal.
+            try {
+                select(base + "family_member_id")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isTransient(e)) throw e
+                select(base)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -720,6 +846,10 @@ private fun humanize(e: Throwable): String {
             (message.contains("least", ignoreCase = true) || message.contains("weak", ignoreCase = true)) ->
             "Choose a stronger password. At least 6 characters."
         status == 429 || message.contains("rate limit", ignoreCase = true) ->
+            "Too many tries. Wait a minute, then try again."
+        message.contains("Pair a headset first", ignoreCase = true) -> NoHeadsetMessage
+        message.contains("family members", ignoreCase = true) -> FamilyLimitMessage
+        message.contains("Too many requests", ignoreCase = true) ->
             "Too many tries. Wait a minute, then try again."
         status == 401 || code.contains("session_not_found", ignoreCase = true) ->
             "Sign in again."

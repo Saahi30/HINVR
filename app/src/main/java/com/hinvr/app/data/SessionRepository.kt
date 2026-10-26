@@ -12,6 +12,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.hinvr.app.i18n.AppLocale
 import com.hinvr.app.push.PushTokens
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -318,7 +320,36 @@ class SessionRepository(
 
     suspend fun vrDevices(): List<VrDeviceRow> = supabase.fetchVrDevices()
 
+    suspend fun requestVrHandoff(target: VrTarget, mandirId: String?): VrHandoff =
+        supabase.requestVrHandoff(target.wire, mandirId)
+
+    suspend fun vrHandoffStatus(id: String): VrHandoffStatus? = supabase.vrHandoffStatus(id)
+
     suspend fun unlinkVrDevice(deviceId: String) = supabase.unlinkVrDevice(deviceId)
+
+    /** The last [days] days of the member's sanctum offerings. */
+    suspend fun sanctumOfferings(days: Long = 90): List<SanctumOffering> {
+        val rows = supabase.fetchOfferings(Instant.now().minus(Duration.ofDays(days)).toString())
+        // Names for offerings made for one family member; a removed member just loses the name.
+        val names = if (rows.any { it.familyMemberId != null }) {
+            attempt { supabase.fetchFamily() }.getOrDefault(emptyList()).associate { it.id to it.name }
+        } else {
+            emptyMap()
+        }
+        return SanctumJournal.fromRows(rows, names)
+    }
+
+    suspend fun familyMembers(): List<FamilyMemberRow> = supabase.fetchFamily()
+
+    suspend fun familyLimits(): Map<String, Int>? = supabase.fetchFamilyLimits()
+
+    suspend fun addFamilyMember(name: String, relation: Relation) =
+        supabase.addFamilyMember(Family.cleanName(name), relation.wire)
+
+    suspend fun updateFamilyMember(id: String, name: String, relation: Relation) =
+        supabase.updateFamilyMember(id, Family.cleanName(name), relation.wire)
+
+    suspend fun removeFamilyMember(id: String) = supabase.removeFamilyMember(id)
 
     private suspend fun forgetPush() {
         val value = PushTokens.current(appContext)

@@ -30,6 +30,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
+import com.hinvr.app.data.VrTarget
+import com.hinvr.app.ui.vr.ViewInVrButton
+import com.hinvr.app.ui.vr.ViewInVrSheetFor
+import com.hinvr.app.ui.components.AartiReminderToggle
 import com.hinvr.app.data.MembershipTier
 import com.hinvr.app.i18n.localized
 import com.hinvr.app.navigation.LocalCatalogRepository
@@ -113,7 +117,13 @@ fun LiveListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit) {
 }
 
 @Composable
-fun LivePlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
+fun LivePlayerScreen(
+    id: String,
+    onBack: () -> Unit,
+    onPlans: () -> Unit = {},
+    onHeadsets: () -> Unit = {},
+    openViewInVr: Boolean = false,
+) {
     val catalog = LocalCatalogRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -126,6 +136,20 @@ fun LivePlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
     val stream = mandir?.takeIf { it.live }?.liveUrl.orEmpty()
     val portrait = isViewerPortrait()
     var watchUpright by rememberSaveable { mutableStateOf(false) }
+    // Opened from an aarti reminder's "View in VR": offer it once, over whatever is showing.
+    var askVr by rememberSaveable { mutableStateOf(openViewInVr) }
+    if (askVr && mandir != null) {
+        ViewInVrSheetFor(
+            target = VrTarget.Live,
+            mandirId = mandir.id,
+            title = mandir.name,
+            onDismiss = { askVr = false },
+            onHeadsets = {
+                askVr = false
+                onHeadsets()
+            },
+        )
+    }
     val showInfo = !portrait || watchUpright
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         Box(Modifier.fillMaxSize()) {
@@ -166,6 +190,12 @@ fun LivePlayerScreen(id: String, onBack: () -> Unit, onPlans: () -> Unit = {}) {
                             style = HinvrTypography.bodyMedium,
                             color = colors.creamMuted,
                         )
+                        Spacer(Modifier.height(12.dp))
+                        ViewInVrButton(VrTarget.Live, mandir.id, mandir.name, onHeadsets)
+                        if (mandir.aartiTimes.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            AartiReminderToggle(mandir, onDark = true)
+                        }
                         if (!isMember) {
                             Spacer(Modifier.height(12.dp))
                             HinvrPrimaryButton(stringResource(R.string.join_club), onPlans)

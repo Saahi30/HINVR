@@ -40,6 +40,7 @@ import com.hinvr.app.ui.components.HinvrGoldOutlineButton
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.SabhaTopBar
+import com.hinvr.app.ui.components.agoLabel
 import com.hinvr.app.ui.pass.PassQr
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrTheme
@@ -216,6 +217,19 @@ fun VrHeadsetsScreen(onBack: () -> Unit) {
                                     style = HinvrTypography.bodyMedium,
                                     color = colors.inkMuted,
                                 )
+                                device.batteryPct?.let { pct ->
+                                    val seenMs = device.statusAt?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        buildString {
+                                            append(stringResource(R.string.vr_battery, pct))
+                                            if (device.charging == true) append(" · ").append(stringResource(R.string.vr_charging))
+                                            if (seenMs != null) append(" · ").append(agoLabel(seenMs))
+                                        },
+                                        style = HinvrTypography.bodyMedium,
+                                        color = if (pct <= 20 && device.charging != true) colors.vermillion else colors.inkMuted,
+                                    )
+                                }
                                 Spacer(Modifier.height(10.dp))
                                 val asking = confirming == device.deviceId
                                 val busy = unlinking == device.deviceId

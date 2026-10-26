@@ -440,6 +440,8 @@
     <string name="vr_paired_now">हेडसेट जुड़ गया। नमस्ते!</string>
     <string name="vr_linked">जुड़े हुए हेडसेट</string>
     <string name="vr_no_headsets">अभी कोई हेडसेट नहीं जुड़ा है।</string>
+    <string name="vr_battery">बैटरी %1$d%%</string>
+    <string name="vr_charging">चार्ज हो रही है</string>
     <string name="vr_paired_on">%1$s को जोड़ा गया</string>
     <string name="vr_unlink">हटाएँ</string>
     <string name="vr_unlink_confirm">हटाने के लिए फिर टैप करें</string>
@@ -502,4 +504,127 @@
     <string name="mandir_disclaimer">त्योहार के दिन जानकारी बदल सकती है। HINVR आधिकारिक स्रोत बताता है और पहुँच गढ़ता नहीं।</string>
     <string name="mandir_missing_title">यह मंदिर सूची में नहीं है।</string>
     <string name="mandir_missing_body">लिंक पुराना हो सकता है, या डेस्क ने यह पेज अभी हटा दिया है।</string>
+
+    <!-- Sanctum journal -->
+    <string name="journal_title">गर्भगृह डायरी</string>
+    <string name="journal_body">आपके Meta Quest पर HINVR गर्भगृह में पिछले 90 दिनों की आपकी यात्राएँ।</string>
+    <string name="journal_honesty">HINVR में प्रतीकात्मक अर्पण। किसी मंदिर में नहीं किए गए।</string>
+    <string name="journal_empty">अभी यहाँ कुछ नहीं है। गर्भगृह Meta Quest पर HINVR ऐप में है: हेडसेट जोड़ें, भीतर जाएँ, और आपके अर्पण यहाँ दिखेंगे।</string>
+    <string name="journal_month">इस महीने</string>
+    <string name="journal_recent">हाल की यात्राएँ</string>
+    <string name="journal_today">आज</string>
+    <string name="journal_yesterday">कल</string>
+    <string name="journal_share">साझा करें</string>
+    <plurals name="journal_visits">
+        <item quantity="one">%d यात्रा</item>
+        <item quantity="other">%d यात्राएँ</item>
+    </plurals>
+    <plurals name="journal_diyas">
+        <item quantity="one">%d दीया</item>
+        <item quantity="other">%d दीये</item>
+    </plurals>
+    <plurals name="journal_japa">
+        <item quantity="one">%d जप माला</item>
+        <item quantity="other">%d जप मालाएँ</item>
+    </plurals>
+    <plurals name="journal_streak">
+        <item quantity="one">लगातार %d दिन</item>
+        <item quantity="other">लगातार %d दिन</item>
+    </plurals>
+    <string name="journal_kind_ghanta">घंटा</string>
+    <string name="journal_kind_diya">दीया</string>
+    <string name="journal_kind_aarti">आरती</string>
+    <string name="journal_kind_pushp">पुष्प</string>
+    <string name="journal_kind_agarbatti">अगरबत्ती</string>
+    <string name="journal_kind_prasad">नैवेद्य</string>
+    <string name="journal_kind_tilak">तिलक</string>
+    <string name="journal_kind_daan">दान</string>
+    <string name="journal_kind_japa">जप (108)</string>
+    <string name="journal_kind_abhishek">अभिषेक</string>
+    <string name="journal_kind_deepmala">दीपमाला</string>
+    <string name="journal_for_self">स्वयं के लिए</string>
+    <string name="journal_for_family">आपके परिवार के लिए</string>
+    <string name="journal_for_parents">आपके माता-पिता के लिए</string>
+    <string name="journal_for_children">आपके बच्चों के लिए</string>
+    <string name="journal_for_ancestors">आपके पितरों के लिए</string>
+    <string name="journal_for_friend">एक मित्र के लिए</string>
+    <string name="journal_for_teacher">आपके गुरु के लिए</string>
+    <string name="journal_whom_self">स्वयं</string>
+    <string name="journal_whom_family">अपने परिवार</string>
+    <string name="journal_whom_parents">अपने माता-पिता</string>
+    <string name="journal_whom_children">अपने बच्चों</string>
+    <string name="journal_whom_ancestors">अपने पितरों</string>
+    <string name="journal_whom_friend">एक मित्र</string>
+    <string name="journal_whom_teacher">अपने गुरु</string>
+    <string name="journal_share_diya_today">आज मैंने HINVR गर्भगृह में %1$s के लिए दीया जलाया। HINVR में प्रतीकात्मक अर्पण, किसी मंदिर में नहीं किया गया।</string>
+    <string name="journal_share_diya">मैंने HINVR गर्भगृह में %1$s के लिए दीया जलाया। HINVR में प्रतीकात्मक अर्पण, किसी मंदिर में नहीं किया गया।</string>
+    <string name="journal_share_offering_today">आज मैंने HINVR गर्भगृह में %1$s के लिए अर्पण किया। HINVR में प्रतीकात्मक अर्पण, किसी मंदिर में नहीं किया गया।</string>
+    <string name="journal_share_offering">मैंने HINVR गर्भगृह में %1$s के लिए अर्पण किया। HINVR में प्रतीकात्मक अर्पण, किसी मंदिर में नहीं किया गया।</string>
+    <!-- View in VR: phone hands an experience to the paired headset -->
+    <string name="view_in_vr">VR में देखें</string>
+    <string name="view_in_vr_sanctum">VR में गर्भगृह में प्रवेश करें</string>
+    <string name="view_in_vr_sanctum_title">HINVR गर्भगृह</string>
+    <string name="view_in_vr_eyebrow">VR में देखें</string>
+    <string name="view_in_vr_waiting">हेडसेट पहनें और HINVR खोलें। उसमें %1$s खुल जाएगा।</string>
+    <string name="view_in_vr_official">मंदिर का आधिकारिक प्रसारण, मंदिर के अपने चैनल से।</string>
+    <string name="handoff_step_sent">अनुरोध आपके खाते में भेज दिया गया</string>
+    <string name="handoff_step_waiting">आपके हेडसेट की प्रतीक्षा</string>
+    <string name="handoff_step_waiting_detail">हेडसेट पर HINVR खुला रहने पर हर कुछ सेकंड में जाँचता है।</string>
+    <string name="handoff_step_opening">%1$s खुल रहा है</string>
+    <string name="handoff_slow_hint">नहीं खुल रहा? देखें कि हेडसेट पर HINVR खुला है और इंटरनेट से जुड़ा है।</string>
+    <string name="view_in_vr_close">बंद करें</string>
+    <string name="view_in_vr_opened">%1$s पर खुल गया</string>
+    <string name="view_in_vr_opened_plain">आपके हेडसेट पर खुल गया</string>
+    <string name="view_in_vr_opened_body">%1$s अब आपके हेडसेट पर है।</string>
+    <string name="view_in_vr_done">ठीक है</string>
+    <string name="view_in_vr_expired">अनुरोध की समय-सीमा समाप्त</string>
+    <string name="view_in_vr_expired_body">हेडसेट ने दस मिनट में इसे नहीं लिया। हेडसेट पर HINVR खोलें, फिर दोबारा कोशिश करें।</string>
+    <string name="view_in_vr_retry">दोबारा कोशिश करें</string>
+    <string name="view_in_vr_no_headset">पहले हेडसेट जोड़ें</string>
+    <string name="view_in_vr_no_headset_body">अपने Meta Quest को एक बार इस खाते से जोड़ें, फिर यहाँ का कुछ भी उस पर खुल सकता है।</string>
+    <string name="view_in_vr_pair">हेडसेट जोड़ें</string>
+    <string name="err_no_headset">पहले हेडसेट जोड़ें।</string>
+    <!-- Aarti reminders, kept on the phone -->
+    <string name="notification_channel_reminders">आरती रिमाइंडर</string>
+    <string name="reminder_title">%1$s · आरती %2$s पर</string>
+    <string name="reminder_body_now">आरती शुरू हो रही है। आधिकारिक प्रसारण लाइव देखें।</string>
+    <plurals name="reminder_body_in">
+        <item quantity="one">%d मिनट में शुरू होगी। आधिकारिक प्रसारण लाइव देखें।</item>
+        <item quantity="other">%d मिनट में शुरू होगी। आधिकारिक प्रसारण लाइव देखें।</item>
+    </plurals>
+    <string name="reminder_watch">लाइव देखें</string>
+    <string name="reminder_toggle">आरती से पहले याद दिलाएँ</string>
+    <string name="reminder_lead">%1$d मिनट पहले</string>
+    <string name="reminder_denied">HINVR की सूचनाएँ बंद हैं, इसलिए रिमाइंडर नहीं दिखेंगे। सेटिंग्स में इन्हें चालू करें।</string>
+    <string name="reminder_times">आरती: %1$s</string>
+    <string name="reminder_times_local">आरती: %1$s (आपके समय अनुसार)</string>
+
+    <!-- Family on one membership -->
+    <string name="err_family_limit">आपके प्लान में और परिजन नहीं जोड़े जा सकते।</string>
+    <string name="family_title">परिवार</string>
+    <string name="family_body">जो लोग आपके साथ आते हैं, उन्हें जोड़ें। डेस्क आपकी चेक-इन के साथ उन्हें देखता है, और गर्भगृह में उनके लिए अर्पण किए जा सकते हैं। उन्हें अलग खाते की ज़रूरत नहीं।</string>
+    <string name="family_usage">आपके प्लान में %2$d में से %1$d</string>
+    <string name="family_none_on_plan">आपके प्लान में अभी परिवार शामिल नहीं है।</string>
+    <string name="family_empty">अभी कोई नहीं जोड़ा गया।</string>
+    <string name="family_not_covered">मौजूदा प्लान में शामिल नहीं</string>
+    <string name="family_edit">बदलें</string>
+    <string name="family_remove">हटाएँ</string>
+    <string name="family_remove_confirm">हटाने के लिए फिर से टैप करें</string>
+    <string name="family_name_hint">नाम, जैसे अम्मा</string>
+    <string name="family_save">सहेजें</string>
+    <string name="family_add">परिजन जोड़ें</string>
+    <string name="family_upgrade_full">आपका प्लान भर गया है। बड़े प्लान में ज़्यादा परिजन शामिल होते हैं।</string>
+    <string name="family_upgrade_none">गोल्ड और उससे ऊपर के प्लान में परिजन शामिल होते हैं।</string>
+    <string name="family_see_plans">प्लान देखें</string>
+    <string name="relation_mother">माँ</string>
+    <string name="relation_father">पिता</string>
+    <string name="relation_spouse">जीवनसाथी</string>
+    <string name="relation_son">बेटा</string>
+    <string name="relation_daughter">बेटी</string>
+    <string name="relation_grandmother">दादी या नानी</string>
+    <string name="relation_grandfather">दादा या नाना</string>
+    <string name="relation_sibling">भाई या बहन</string>
+    <string name="relation_other">परिजन</string>
+    <string name="pass_also_admits">साथ में: %1$s</string>
+    <string name="journal_for_named">%1$s के लिए</string>
 </resources>

@@ -116,6 +116,7 @@ data class MandirRow(
     val vr: Boolean = false,
     @SerialName("pass_accepted") val passAccepted: Boolean = false,
     @SerialName("next_aarti") val nextAarti: String? = null,
+    @SerialName("aarti_times") val aartiTimes: List<String>? = null,
     val timings: String = "",
     @SerialName("live_checked_at") val liveCheckedAt: String? = null,
     @SerialName("live_url") val liveUrl: String = "",
@@ -176,7 +177,27 @@ data class VrDeviceRow(
     val name: String = "",
     @SerialName("paired_at") val pairedAt: String = "",
     @SerialName("last_seen_at") val lastSeenAt: String = "",
+    // Reported by the headset while HINVR is open on it; null until it has.
+    @SerialName("battery_pct") val batteryPct: Int? = null,
+    val charging: Boolean? = null,
+    @SerialName("status_at") val statusAt: String? = null,
 )
+
+/** One of the member's own sanctum offerings (RLS limits the select to them). */
+@Serializable
+data class OfferingRow(
+    val kind: String,
+    @SerialName("device_id") val deviceId: String = "",
+    @SerialName("mandir_id") val mandirId: String? = null,
+    val sankalp: String? = null,
+    @SerialName("dedicated_to") val dedicatedTo: String? = null,
+    @SerialName("family_member_id") val familyMemberId: String? = null,
+    @SerialName("created_at") val createdAt: String,
+)
+
+/** app_settings.family_limits: tier name to how many family members it carries. */
+@Serializable
+data class FamilyLimitsRow(val value: Map<String, Int> = emptyMap())
 
 @Serializable
 data class VrPairingCode(
@@ -187,6 +208,32 @@ data class VrPairingCode(
 @Serializable
 internal data class VrDeviceArg(
     @SerialName("p_device_id") val deviceId: String,
+)
+
+/** A "View in VR" request waiting for the member's headset. */
+@Serializable
+data class VrHandoff(
+    val id: String,
+    @SerialName("expires_at") val expiresAt: String,
+)
+
+/** Whether a headset has taken the request yet. */
+@Serializable
+data class VrHandoffStatus(
+    @SerialName("claimed_at") val claimedAt: String? = null,
+    @SerialName("device_name") val deviceName: String? = null,
+    val expired: Boolean = false,
+)
+
+@Serializable
+internal data class VrHandoffArg(
+    @SerialName("p_target") val target: String,
+    @SerialName("p_mandir_id") val mandirId: String? = null,
+)
+
+@Serializable
+internal data class VrHandoffIdArg(
+    @SerialName("p_id") val id: String,
 )
 
 /** The published catalog exactly as the desk ordered it. Cached so offline launches keep it. */
