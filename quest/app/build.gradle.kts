@@ -98,15 +98,19 @@ android {
 }
 
 // Developer Hub treats a v2-only debug APK as an invalid file. Add the older JAR signature after packaging.
-val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+// Sign with the keystore AGP itself used (its location differs per machine and CI runner).
 tasks.matching { it.name == "packageDebug" }.configureEach {
     doLast {
         val apk = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk").get().asFile
+        val debugKeystore = android.signingConfigs.getByName("debug").storeFile
+            ?.takeIf { it.exists() }
+            ?: error("Debug keystore not found; AGP should have created it in validateSigningDebug")
+        // Windows ships apksigner.bat; Linux and macOS ship apksigner.
         val apksigner = File(android.sdkDirectory, "build-tools").listFiles()
-            ?.map { File(it, "apksigner") }
+            ?.flatMap { listOf(File(it, "apksigner"), File(it, "apksigner.bat")) }
             ?.filter { it.exists() }
             ?.maxByOrNull { it.parentFile.name }
-            ?: return@doLast
+            ?: error("apksigner not found under ${android.sdkDirectory}/build-tools")
         val code = ProcessBuilder(
             listOf(
                 apksigner.absolutePath,
