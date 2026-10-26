@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
+import com.hinvr.app.data.VrTarget
 import com.hinvr.app.data.hasDeskPass
 import com.hinvr.app.i18n.localized
 import com.hinvr.app.navigation.LocalCatalogRepository
@@ -50,7 +51,7 @@ import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 
 @Composable
-fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: () -> Unit) {
+fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: () -> Unit, onHeadsets: () -> Unit = {}) {
     val colors = HinvrTheme.colors
     val catalog = LocalCatalogRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
@@ -71,6 +72,15 @@ fun VrListScreen(onBack: () -> Unit, onOpenPlayer: (String) -> Unit, onPlans: ()
                         if (snap.loaded && !hasVr) stringResource(R.string.vr_body) else stringResource(R.string.vr_body_member),
                         style = HinvrTypography.bodyLarge,
                         color = colors.inkMuted,
+                    )
+                }
+                item {
+                    ViewInVrButton(
+                        target = VrTarget.Sanctum,
+                        mandirId = null,
+                        title = stringResource(R.string.view_in_vr_sanctum_title),
+                        onHeadsets = onHeadsets,
+                        label = stringResource(R.string.view_in_vr_sanctum),
                     )
                 }
                 items(rows, key = { it.id }) { row ->

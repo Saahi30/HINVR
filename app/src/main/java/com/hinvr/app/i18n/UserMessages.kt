@@ -3,6 +3,7 @@ package com.hinvr.app.i18n
 import android.content.Context
 import android.util.Log
 import com.hinvr.app.R
+import com.hinvr.app.data.FamilyLimitMessage
 
 /**
  * Maps the backend's English messages to translated strings. Anything unknown
@@ -21,6 +22,7 @@ fun Context.userMessage(raw: String?, fallback: Int = R.string.err_generic): Str
 
 private val KnownMessages = mapOf(
     "Sign in again." to R.string.err_sign_in_again,
+    FamilyLimitMessage to R.string.err_family_limit,
     "Your session ended on this phone. Sign in again." to R.string.err_session_ended,
     "Couldn’t save your profile." to R.string.err_save_profile,
     "Couldn’t save the account." to R.string.err_save_account,
@@ -55,4 +57,5 @@ private val KnownMessages = mapOf(
     "That link didn’t sign you in. Request a new one." to R.string.err_link_no_session,
     "That reset link didn’t include a code. Paste the link from the email instead." to R.string.err_reset_no_code,
     "Couldn’t save the password." to R.string.err_save_password,
+    "Pair a headset first." to R.string.err_no_headset,
 )

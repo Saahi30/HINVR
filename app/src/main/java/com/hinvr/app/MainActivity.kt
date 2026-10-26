@@ -13,6 +13,9 @@ import com.hinvr.app.i18n.ProvideAppLanguage
 import com.hinvr.app.navigation.HinvrNavHost
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
+import com.hinvr.app.push.EXTRA_MANDIR
+import com.hinvr.app.push.EXTRA_VIEW_IN_VR
+import com.hinvr.app.push.PUSH_OPEN_AARTI
 import com.hinvr.app.push.PUSH_OPEN_NOTIFICATIONS
 import com.hinvr.app.ui.theme.HinvrTheme
 
@@ -48,8 +51,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun consumePushIntent(intent: Intent?, app: HinvrApplication) {
-        if (intent?.getStringExtra("open") != PUSH_OPEN_NOTIFICATIONS) return
-        app.requestOpenNotifications()
+        when (intent?.getStringExtra("open")) {
+            PUSH_OPEN_NOTIFICATIONS -> app.requestOpenNotifications()
+            PUSH_OPEN_AARTI -> intent.getStringExtra(EXTRA_MANDIR)?.let { id ->
+                app.requestOpenAarti(id, intent.getBooleanExtra(EXTRA_VIEW_IN_VR, false))
+            }
+            else -> return
+        }
         intent.removeExtra("open")
     }
 

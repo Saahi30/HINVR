@@ -25,10 +25,7 @@ POLY_TEXTURES = {
 }
 POLY_MODELS = {
     "brass_diya_lantern": "hanging lamps in the mandap",
-    "brass_pot_01": "kalash beside the threshold",
-    "brass_vase_03": "lota on the offering stand",
-    "bananas": "naivedya",
-    "food_pomegranate_01": "naivedya",
+    "brass_pot_01": "purna kalash at the door and the ledge",
 }
 
 # Wikimedia Commons. Licenses vary per file, so they are read from the API, not assumed.
@@ -40,7 +37,7 @@ COMMONS = {
     "Coins dropped in wooden moneybox.ogg": ("audio/coins", "daan peti"),
     "Cracking peanuts.ogg": ("audio/crack", "coconut"),
     "Bones breaking wood fire ice crackling.ogg": ("audio/crackle", "diya and agarbatti flame"),
-    "Ram Mandir 360.jpg": ("images/courtyard_360", "courtyard outside the mandap door"),
+    "Ram Mandir 360.jpg": ("images/courtyard_360", "courtyard seen through the mandap door"),
 }
 
 

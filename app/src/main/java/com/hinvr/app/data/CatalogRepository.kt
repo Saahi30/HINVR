@@ -2,6 +2,7 @@ package com.hinvr.app.data
 
 import android.content.Context
 import android.util.Log
+import java.util.Locale
 import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.catalog.Mandir
 import com.hinvr.app.ui.catalog.ServiceTile
@@ -42,6 +43,9 @@ class CatalogRepository(
     val headline: StateFlow<String> = _headline.asStateFlow()
 
     private var loadedFromServer = false
+
+    /** Told each time the server's catalog arrives (not the cache, not the bundled list). */
+    var onServerCatalog: ((List<Mandir>) -> Unit)? = null
     private var cacheRead = false
 
     /** Reads the cached catalog once, then asks the server. Safe to call from any screen. */
@@ -53,6 +57,7 @@ class CatalogRepository(
         val remote = backend.fetchCatalog() ?: return@withLock
         loadedFromServer = true
         publish(remote, fromCache = false)
+        onServerCatalog?.invoke(_mandirs.value)
         writeCache(remote)
     }
 
@@ -115,6 +120,7 @@ private fun MandirRow.toMandir(): Mandir {
         vr = vr,
         passAccepted = passAccepted,
         nextAarti = nextAarti?.ifBlank { null },
+        aartiTimes = AartiSchedule.parse(aartiTimes.orEmpty()).map { String.format(Locale.ROOT, "%02d:%02d", it.hour, it.minute) },
         liveCheckedAt = liveCheckedAt?.let(::parseInstantMs),
         timings = text(timings, bundled?.timings),
         photoUrl = photoUrl.trim(),

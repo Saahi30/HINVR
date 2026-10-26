@@ -9,6 +9,7 @@ import { classifyScan } from "@/lib/pass-code";
 import { PassTokenError, verifyPassToken } from "@/lib/pass-token";
 import { createClient } from "@/lib/supabase/client";
 import type { CheckInMember, CheckInResult } from "@/lib/types";
+import { familyLine, familyOf } from "@/lib/family";
 
 type Tone = "green" | "amber" | "red";
 
@@ -595,6 +596,9 @@ export function PassScanner() {
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
+                {familyOf(shown.member).length ? (
+                  <p className="pt-2 text-xl text-white">With family: {familyLine(familyOf(shown.member))}</p>
+                ) : null}
               </div>
             ) : null}
             {shown.detail ? <p className="mt-5 max-w-xl text-lg text-white/90">{shown.detail}</p> : null}

@@ -57,12 +57,30 @@ object QuestCatalog {
         if (fetchedAtMs == 0L || age > StaleAfterMs) refresh()
     }
 
+    /** Off once the server has said it has no aarti_times column, so later fetches don't ask again. */
+    private var askAartiTimes = true
+
     /** Null when the server couldn't be read. An empty list means nothing is published. */
     private fun fetch(): List<RingCard>? {
+        if (askAartiTimes) {
+            val rows = fetch(withAartiTimes = true)
+            if (rows != null) return rows
+            if (!refusedColumn) return null
+            // An older schema: ask again without the column.
+            askAartiTimes = false
+        }
+        return fetch(withAartiTimes = false)
+    }
+
+    private var refusedColumn = false
+
+    private fun fetch(withAartiTimes: Boolean): List<RingCard>? {
+        refusedColumn = false
         val endpoint = buildString {
             append(BuildConfig.SUPABASE_URL.trimEnd('/'))
             append("/rest/v1/mandirs?published=eq.true")
             append("&select=id,name,city,place,scene,live,live_url,live_checked_at")
+            if (withAartiTimes) append(",aarti_times")
             append("&order=sort_order.asc")
         }
         val connection = (URI(endpoint).toURL().openConnection() as HttpURLConnection).apply {
@@ -77,6 +95,7 @@ object QuestCatalog {
             val code = connection.responseCode
             if (code !in 200..299) {
                 Log.w(Tag, "Catalog HTTP $code")
+                refusedColumn = withAartiTimes && code == 400
                 return null
             }
             val text = connection.inputStream.bufferedReader().readText()
@@ -111,6 +130,9 @@ object QuestCatalog {
                             CatalogRules.liveState(row.optBoolean("live", false), checkedAt, nowMs)
                         },
                         state = place.substringAfterLast(',', missingDelimiterValue = "").trim(),
+                        aartiTimes = row.optJSONArray("aarti_times")?.let { times ->
+                            AartiSync.parseTimes(List(times.length()) { times.optString(it) })
+                        }.orEmpty(),
                     ),
                 )
             }

@@ -5,7 +5,9 @@ import com.hinvr.app.data.CatalogRepository
 import com.hinvr.app.data.Connectivity
 import com.hinvr.app.data.SessionRepository
 import com.hinvr.app.data.SupabaseBackend
+import com.hinvr.app.push.AartiReminders
 import com.hinvr.app.push.ensureAartiChannel
+import com.hinvr.app.push.ensureReminderChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,12 +41,29 @@ class HinvrApplication : Application() {
         openNotificationsState.value = false
     }
 
+    /** A reminder was tapped: which mandir's live darshan to open, and whether to offer View in VR. */
+    data class AartiOpen(val mandirId: String, val viewInVr: Boolean)
+
+    private val openAartiState = MutableStateFlow<AartiOpen?>(null)
+    val openAarti: StateFlow<AartiOpen?> = openAartiState.asStateFlow()
+
+    fun requestOpenAarti(mandirId: String, viewInVr: Boolean) {
+        openAartiState.value = AartiOpen(mandirId, viewInVr)
+    }
+
+    fun consumeOpenAarti() {
+        openAartiState.value = null
+    }
+
     override fun onCreate() {
         super.onCreate()
         ensureAartiChannel(this)
+        ensureReminderChannel(this)
         val backend = SupabaseBackend()
         sessionRepository = SessionRepository(this, backend)
         catalogRepository = CatalogRepository(this, backend)
+        catalogRepository.onServerCatalog = { mandirs -> AartiReminders.syncWithCatalog(this, mandirs) }
+        AartiReminders.rescheduleAll(this)
         connectivity = Connectivity(this) { sessionRepository.onNetworkAvailable() }
         connectivity.start()
         appScope.launch {

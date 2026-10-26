@@ -20,6 +20,8 @@ export type Mandir = {
   vr: boolean;
   pass_accepted: boolean;
   next_aarti: string | null;
+  /** Aarti start times, India time, 'HH:MM'. */
+  aarti_times?: string[] | null;
   timings: string;
   updated_label: string;
   live_url: string;
@@ -65,6 +67,22 @@ export type LiveSource = {
   review_channel_name?: string;
   review_title?: string;
   review_found_at?: string | null;
+};
+
+export const FESTIVAL_KINDS = ["deepmala", "abhishek", "modak", "hibiscus"] as const;
+export type FestivalKind = (typeof FESTIVAL_KINDS)[number];
+
+/** A festival puja the headset adds to the sanctum while today (India time) is in its range. */
+export type Festival = {
+  id: string;
+  kind: FestivalKind;
+  name: string;
+  name_hi: string;
+  starts_on: string;
+  ends_on: string;
+  enabled: boolean;
+  notes: string;
+  updated_at?: string;
 };
 
 export type HomeService = {
@@ -242,6 +260,7 @@ export const emptyMandir = (sortOrder = 100): Mandir => ({
   vr: false,
   pass_accepted: false,
   next_aarti: "",
+  aarti_times: null,
   timings: "",
   updated_label: "Updated just now",
   live_url: "",
@@ -292,4 +311,39 @@ export type AuditRow = {
   row_id: string;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
+};
+
+/** One day of offerings on the Insights page (India date). */
+export type InsightsDay = { day: string; total: number; kinds: Record<string, number> };
+
+/** A crash a headset reported, for owners and admins. */
+export type VrCrash = {
+  id: string;
+  received_at: string;
+  happened_at: string | null;
+  app_version: string;
+  kind: string;
+  message: string;
+  trace: string;
+  headset: string;
+};
+
+/** What public.staff_insights returns. */
+export type Insights = {
+  days: number;
+  since: string;
+  offerings: { total: number; members: number; headsets: number; japa_rounds: number; festival: number };
+  daily: InsightsDay[];
+  kinds: Record<string, number>;
+  mandirs: Array<{ mandir_id: string; name: string; offerings: number; members: number }>;
+  dedications: Record<string, number>;
+  headsets: { paired: number; active_week: number; reporting_week: number; low_battery: number };
+  handoffs: {
+    requests: number;
+    claimed: number;
+    median_seconds: number | null;
+    targets: Record<string, { requests: number; claimed: number }>;
+  };
+  crashes: { total: number; headsets: number };
+  recent_crashes: VrCrash[] | null;
 };

@@ -8,6 +8,7 @@ import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/client";
 import { MANDIR_SCENES, type Mandir } from "@/lib/types";
 import { checkHttpsUrl, checkMediaUrl, mediaPathFromUrl } from "@/lib/urls";
+import { formatAartiTimes, parseAartiTimes } from "@/lib/aarti-times";
 
 export function MandirForm({
   initial,
@@ -25,6 +26,7 @@ export function MandirForm({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [aartiText, setAartiText] = useState(formatAartiTimes(initial.aarti_times));
 
   function patch<K extends keyof Mandir>(key: K, value: Mandir[K]) {
     setRow((current) => ({ ...current, [key]: value }));
@@ -47,6 +49,11 @@ export function MandirForm({
       setMessage(urlProblem);
       return;
     }
+    const aarti = parseAartiTimes(aartiText);
+    if (aarti.error) {
+      setMessage(`Aarti times: ${aarti.error}`);
+      return;
+    }
     setBusy(true);
     const payload = {
       id,
@@ -65,6 +72,7 @@ export function MandirForm({
       vr: row.vr,
       pass_accepted: row.pass_accepted,
       next_aarti: row.next_aarti?.trim() || null,
+      aarti_times: aarti.times,
       timings: row.timings.trim(),
       vr_url: row.vr_url.trim(),
       deity: row.deity.trim(),
@@ -285,6 +293,17 @@ export function MandirForm({
               value={row.next_aarti ?? ""}
               onChange={(event) => patch("next_aarti", event.target.value)}
               placeholder="4:30 PM"
+              className={fieldClass}
+            />
+          </Field>
+          <Field
+            label="Aarti times (IST)"
+            hint="24-hour start times from the temple's official schedule, comma separated. The headset uses them to point members to a live aarti."
+          >
+            <input
+              value={aartiText}
+              onChange={(event) => setAartiText(event.target.value)}
+              placeholder="04:30, 12:00, 19:00"
               className={fieldClass}
             />
           </Field>

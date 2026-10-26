@@ -105,6 +105,8 @@
     <string name="action_credits">Credits &amp; licences</string>
     <string name="action_more">More</string>
     <string name="action_next_stream">Next</string>
+    <string name="action_darshan_close">Closer</string>
+    <string name="action_darshan_back">To the garbha</string>
     <string name="action_try_again">Try again</string>
 
     <!-- Mandir -->
@@ -123,12 +125,53 @@
     <string name="darshan_murti">Sanctum murti</string>
     <string name="darshan_caption">%1$s, official temple stream</string>
     <string name="darshan_no_stream">The murti is in this sanctum.</string>
-    <string name="hint_start">Lift the diya and set it back to light it. Ring the ghanta. A / X steps you closer.</string>
-    <string name="hint_threshold">Threshold. The garbha griha is ahead. Offer flowers toward it.</string>
-    <string name="hint_pradakshina">Pradakshina. Let a coin fall into the peti beside you.</string>
-    <string name="hint_mandap">The mandap. Offerings are on the stand.</string>
+    <string name="hint_threshold">The threshold. Lay flowers and naivedya on the ledge at the feet, just ahead.</string>
+    <string name="hint_mandap">Back at the stand. The offerings are on it.</string>
     <string name="hint_prasad">Take the blessing. Prasad is received as you leave.</string>
     <string name="hint_aarti_count">Aarti · %1$d of 7</string>
+    <string name="hint_light_incense">Light it at the jyoti flame first.</string>
+    <string name="hint_incense_lit">The agarbatti is lit. Plant it in the holder.</string>
+    <string name="guide_next">Next · %1$s</string>
+    <string name="next_diya">Pick up the diya and touch its wick to the jyoti flame.</string>
+    <string name="next_agarbatti">Light the agarbatti at the flame, then plant it in the holder.</string>
+    <string name="next_pushp">Toss a flower toward the garbha griha, or step closer and lay it at the feet.</string>
+    <string name="next_prasad">Offer the coconut or laddoo the same way.</string>
+    <string name="next_ghanta">Ring the ghanta hanging on your right.</string>
+    <string name="next_tilak">Touch the kumkum bowl to your forehead.</string>
+    <string name="next_daan">Drop a coin into the daan peti on your right.</string>
+    <string name="next_aarti">Circle the aarti thali clockwise seven times. This completes the visit.</string>
+    <string name="step_diya">Diya</string>
+    <string name="step_agarbatti">Agarbatti</string>
+    <string name="step_pushp">Pushp</string>
+    <string name="step_prasad">Naivedya</string>
+    <string name="step_ghanta">Ghanta</string>
+    <string name="step_tilak">Tilak</string>
+    <string name="step_daan">Daan</string>
+    <string name="step_aarti">Aarti</string>
+    <string name="step_closer">A / X · step closer</string>
+    <string name="step_back">A / X · step back</string>
+    <string name="prop_label">%1$s · %2$s</string>
+    <string name="prop_diya">Diya</string>
+    <string name="prop_thali">Aarti thali</string>
+    <string name="prop_agarbatti">Agarbatti</string>
+    <string name="prop_marigold">Marigold</string>
+    <string name="prop_lotus">Lotus</string>
+    <string name="prop_coconut">Coconut</string>
+    <string name="prop_laddoo">Laddoo</string>
+    <string name="prop_kumkum">Kumkum</string>
+    <string name="prop_coin">Coin</string>
+    <string name="prop_ghanta">Ghanta</string>
+    <string name="verb_diya">touch it to the jyoti flame</string>
+    <string name="verb_diya_lit">set it down, or offer it at the feet</string>
+    <string name="verb_agarbatti">light it at a flame</string>
+    <string name="verb_agarbatti_lit">plant it in the holder</string>
+    <string name="verb_thali">circle it seven times</string>
+    <string name="verb_flower">toss it toward the garbha</string>
+    <string name="verb_naivedya">offer it toward the garbha</string>
+    <string name="verb_prasad">bring it to you as prasad</string>
+    <string name="verb_kumkum">touch it to your forehead</string>
+    <string name="verb_coin">drop it in the peti</string>
+    <string name="verb_ghanta">ring it</string>
     <string name="offer_ghanta">The ghanta sounds.</string>
     <string name="offer_diya">The diya is lit.</string>
     <string name="offer_aarti">Aarti is complete.</string>
@@ -145,14 +188,91 @@
     <string name="blessing_title">The visit is complete.</string>
     <string name="blessing_body">A later release can book real seva. This offering was not performed at a temple.</string>
 
+    <!-- Sankalp: whom the visit is for, comfort, language -->
+    <string name="sankalp_for">For</string>
+    <string name="for_self">Myself</string>
+    <string name="for_family">My family</string>
+    <string name="for_parents">My parents</string>
+    <string name="for_children">My children</string>
+    <string name="for_ancestors">My ancestors</string>
+    <string name="for_friend">A friend</string>
+    <string name="for_teacher">A teacher</string>
+    <string name="blessing_for_self">Offered for yourself.</string>
+    <string name="blessing_for_family">Offered for your family.</string>
+    <string name="blessing_for_parents">Offered for your parents.</string>
+    <string name="blessing_for_children">Offered for your children.</string>
+    <string name="blessing_for_ancestors">Offered for your ancestors.</string>
+    <string name="blessing_for_friend">Offered for a friend.</string>
+    <string name="blessing_for_teacher">Offered for a teacher.</string>
+    <string name="blessing_for_member">Offered for %1$s.</string>
+    <string name="tutorial_again">Show me again</string>
+    <string name="tutorial_again_on">Walk-through on</string>
+    <string name="tutorial_take">Reach out and take the diya, or point at it and pull the trigger (or pinch).</string>
+    <string name="tutorial_light">Touch its wick to this flame: the jyoti that always burns.</string>
+    <string name="tutorial_done">That is how every offering works. The guide shows what is next.</string>
+    <string name="tutorial_skip">Skip</string>
+    <string name="cast_title">Watch together</string>
+    <string name="cast_body">Press the Meta button, open Camera, then choose Cast to show this darshan on a phone or TV.</string>
+    <string name="cast_got_it">Got it</string>
+    <string name="comfort_seated">Seated</string>
+    <string name="comfort_standing">Standing</string>
+    <string name="language_switch">हिन्दी</string>
+
+    <!-- Live aarti -->
+    <string name="aarti_live_now">Aarti is live now at %1$s</string>
+    <string name="action_watch">Watch</string>
+
+    <!-- Festival pujas -->
+    <string name="festival_today">Today: %1$s · %2$s</string>
+    <string name="step_festival">Festival</string>
+    <string name="step_deepmala">Deepmala</string>
+    <string name="step_abhishek">Abhishek</string>
+    <string name="step_modak">Modak</string>
+    <string name="step_hibiscus">Gudhal</string>
+    <string name="step_japa">Japa</string>
+    <string name="next_deepmala">Touch your lit diya to each small diya on the tray beside you.</string>
+    <string name="next_abhishek">Lift the lota from the side table and tip it toward the lingam to pour.</string>
+    <string name="next_modak">Offer the modak toward the garbha griha, or lay it at the feet.</string>
+    <string name="next_hibiscus">Offer the red hibiscus toward the garbha griha, or lay it at the feet.</string>
+    <string name="offer_deepmala">The deepmala is lit.</string>
+    <string name="offer_abhishek">Abhishek is offered.</string>
+    <string name="offer_modak">Modak is offered.</string>
+    <string name="offer_hibiscus">Hibiscus at the feet.</string>
+    <string name="prop_lota">Lota</string>
+    <string name="verb_lota">tip it toward the lingam</string>
+    <string name="prop_modak">Modak</string>
+    <string name="prop_hibiscus">Hibiscus</string>
+
+    <!-- Japa -->
+    <string name="japa_heading">JAPA · OPTIONAL</string>
+    <string name="japa_count">%1$d / %2$d</string>
+    <plurals name="japa_rounds">
+        <item quantity="one">%1$d round of the mala</item>
+        <item quantity="other">%1$d rounds of the mala</item>
+    </plurals>
+    <string name="japa_hint_take">Pick up the mala to count. Text only; nothing is chanted for you.</string>
+    <string name="japa_hint_counting">Press for each bead. Hold, or press over the table, to set it down.</string>
+    <string name="action_mantra">Mantra</string>
+    <string name="mantra_shiva">Om Namah Shivaya</string>
+    <string name="mantra_gayatri">Gayatri Mantra</string>
+    <string name="mantra_hare_krishna">Hare Krishna Mahamantra</string>
+    <string name="mantra_om">Om</string>
+    <string name="prop_mala">Japa mala</string>
+    <string name="verb_mala">pick it up to count</string>
+    <string name="verb_mala_counting">press for each bead</string>
+
     <!-- Credits -->
     <string name="credits_heading">CREDITS &amp; LICENCES</string>
     <string name="credits_sanctum_heading">SANCTUM</string>
-    <string name="credits_sanctum_body">The room, murti, lingam and offering props are modelled by HINVR. Textures and models: Poly Haven, CC0 (Charlotte Baglioni, Rob Tuytel, Amal Kumar, Bhargav Kubal, Rico Cilliers, Alexander Shulha, Oliver Harries). The room’s daylight was baked from a photograph of the Ram Mandir courtyard, “Ram Mandir 360.jpg” by Gaurav Dhwaj Khadka, CC BY-SA 4.0. Sounds: ghanta, Subhashish Panigrahi, CC BY-SA 4.0 (cut and levelled); shankh, Dbolton, CC BY 2.5 (trimmed); aarti chant, Aarti Shri Radha Govind Dev Ji, Jaipur, CC0; hand bell, qubodup, CC0; coins, coconut and flame, ezwa and stephan, public domain. All from Wikimedia Commons.</string>
+    <string name="credits_sanctum_body">The room, murti, lingam and offering props are modelled by HINVR. Textures and models: Poly Haven, CC0 (Charlotte Baglioni, Rob Tuytel, Amal Kumar, Bhargav Kubal, Rico Cilliers). The courtyard seen through the main door is cropped and softened from “Ram Mandir 360.jpg” by Gaurav Dhwaj Khadka, CC BY-SA 4.0; that view is shared under the same licence. Sounds: ghanta, Subhashish Panigrahi, CC BY-SA 4.0 (cut and levelled); shankh, Dbolton, CC BY 2.5 (trimmed); aarti chant, Aarti Shri Radha Govind Dev Ji, Jaipur, CC0; hand bell, qubodup, CC0; coins, coconut and flame, ezwa and stephan, public domain. All from Wikimedia Commons.</string>
     <string name="credits_streams">Live darshan streams belong to the temples that publish them and are played from YouTube. HINVR is not a temple board.</string>
     <string name="credits_photos_heading">CARD PHOTOGRAPHS</string>
     <string name="credits_photo_line">%1$s · %2$s</string>
     <string name="credits_photo_line_modified">%1$s · %2$s · modified</string>
     <string name="credits_unknown_author">Unknown author</string>
     <string name="credits_page">%1$d of %2$d</string>
+    <!-- View in VR: opened from the member's phone -->
+    <string name="handoff_opening">Opening %1$s from your phone</string>
+    <string name="handoff_sanctum">Opening the sanctum from your phone</string>
+    <string name="handoff_unavailable">%1$s has nothing to open in VR right now</string>
 </resources>

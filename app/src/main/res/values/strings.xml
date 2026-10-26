@@ -436,6 +436,8 @@
     <string name="vr_linked">Linked headsets</string>
     <string name="vr_no_headsets">No headsets paired yet.</string>
     <string name="vr_paired_on">Paired %1$s</string>
+    <string name="vr_battery">Battery %1$d%%</string>
+    <string name="vr_charging">charging</string>
     <string name="vr_unlink">Unlink</string>
     <string name="vr_unlink_confirm">Tap again to unlink</string>
     <string name="vr_unlinking">Unlinking…</string>
@@ -495,4 +497,127 @@
     <string name="err_not_reset_link">That isn’t a password reset link.</string>
     <string name="err_link_no_session">That link didn’t sign you in. Request a new one.</string>
     <string name="err_reset_no_code">That reset link didn’t include a code. Paste the link from the email instead.</string>
+
+    <!-- Sanctum journal -->
+    <string name="journal_title">Sanctum journal</string>
+    <string name="journal_body">Your visits to the HINVR sanctum on your Meta Quest, from the last 90 days.</string>
+    <string name="journal_honesty">Symbolic offerings in HINVR. Not performed at a temple.</string>
+    <string name="journal_empty">Nothing here yet. The sanctum is in the HINVR app on Meta Quest: pair a headset, step inside, and your offerings will appear here.</string>
+    <string name="journal_month">THIS MONTH</string>
+    <string name="journal_recent">RECENT VISITS</string>
+    <string name="journal_today">Today</string>
+    <string name="journal_yesterday">Yesterday</string>
+    <string name="journal_share">Share</string>
+    <plurals name="journal_visits">
+        <item quantity="one">%d visit</item>
+        <item quantity="other">%d visits</item>
+    </plurals>
+    <plurals name="journal_diyas">
+        <item quantity="one">%d diya</item>
+        <item quantity="other">%d diyas</item>
+    </plurals>
+    <plurals name="journal_japa">
+        <item quantity="one">%d japa round</item>
+        <item quantity="other">%d japa rounds</item>
+    </plurals>
+    <plurals name="journal_streak">
+        <item quantity="one">%d day in a row</item>
+        <item quantity="other">%d days in a row</item>
+    </plurals>
+    <string name="journal_kind_ghanta">Ghanta</string>
+    <string name="journal_kind_diya">Diya</string>
+    <string name="journal_kind_aarti">Aarti</string>
+    <string name="journal_kind_pushp">Flowers</string>
+    <string name="journal_kind_agarbatti">Agarbatti</string>
+    <string name="journal_kind_prasad">Naivedya</string>
+    <string name="journal_kind_tilak">Tilak</string>
+    <string name="journal_kind_daan">Daan</string>
+    <string name="journal_kind_japa">Japa (108)</string>
+    <string name="journal_kind_abhishek">Abhishek</string>
+    <string name="journal_kind_deepmala">Deepmala</string>
+    <string name="journal_for_self">For yourself</string>
+    <string name="journal_for_family">For your family</string>
+    <string name="journal_for_parents">For your parents</string>
+    <string name="journal_for_children">For your children</string>
+    <string name="journal_for_ancestors">For your ancestors</string>
+    <string name="journal_for_friend">For a friend</string>
+    <string name="journal_for_teacher">For your teacher</string>
+    <string name="journal_whom_self">myself</string>
+    <string name="journal_whom_family">my family</string>
+    <string name="journal_whom_parents">my parents</string>
+    <string name="journal_whom_children">my children</string>
+    <string name="journal_whom_ancestors">my ancestors</string>
+    <string name="journal_whom_friend">a friend</string>
+    <string name="journal_whom_teacher">my teacher</string>
+    <string name="journal_share_diya_today">I lit a diya for %1$s in the HINVR sanctum today. A symbolic offering in HINVR, not performed at a temple.</string>
+    <string name="journal_share_diya">I lit a diya for %1$s in the HINVR sanctum. A symbolic offering in HINVR, not performed at a temple.</string>
+    <string name="journal_share_offering_today">I made an offering for %1$s in the HINVR sanctum today. A symbolic offering in HINVR, not performed at a temple.</string>
+    <string name="journal_share_offering">I made an offering for %1$s in the HINVR sanctum. A symbolic offering in HINVR, not performed at a temple.</string>
+    <!-- View in VR: phone hands an experience to the paired headset -->
+    <string name="view_in_vr">View in VR</string>
+    <string name="view_in_vr_sanctum">Enter the sanctum in VR</string>
+    <string name="view_in_vr_sanctum_title">The HINVR sanctum</string>
+    <string name="view_in_vr_eyebrow">VIEW IN VR</string>
+    <string name="view_in_vr_waiting">Put on your headset and open HINVR. It will open %1$s.</string>
+    <string name="view_in_vr_official">Official temple stream, played from the temple’s own channel.</string>
+    <string name="view_in_vr_close">Close</string>
+    <string name="handoff_step_sent">Request sent to your account</string>
+    <string name="handoff_step_waiting">Waiting for your headset</string>
+    <string name="handoff_step_waiting_detail">HINVR on the headset checks every few seconds while it is open.</string>
+    <string name="handoff_step_opening">Opening %1$s</string>
+    <string name="handoff_slow_hint">Not opening? Make sure HINVR is open on the headset and it is online.</string>
+    <string name="view_in_vr_opened">Opened on %1$s</string>
+    <string name="view_in_vr_opened_plain">Opened on your headset</string>
+    <string name="view_in_vr_opened_body">%1$s is on your headset now.</string>
+    <string name="view_in_vr_done">Done</string>
+    <string name="view_in_vr_expired">Request expired</string>
+    <string name="view_in_vr_expired_body">The headset didn’t pick it up within ten minutes. Open HINVR on the headset, then try again.</string>
+    <string name="view_in_vr_retry">Try again</string>
+    <string name="view_in_vr_no_headset">Pair a headset first</string>
+    <string name="view_in_vr_no_headset_body">Link your Meta Quest to this account once, and anything here can open on it.</string>
+    <string name="view_in_vr_pair">Pair a headset</string>
+    <string name="err_no_headset">Pair a headset first.</string>
+    <!-- Aarti reminders, kept on the phone -->
+    <string name="notification_channel_reminders">Aarti reminders</string>
+    <string name="reminder_title">%1$s · aarti at %2$s</string>
+    <string name="reminder_body_now">Aarti is starting. Watch the official stream live.</string>
+    <plurals name="reminder_body_in">
+        <item quantity="one">Starts in %d minute. Watch the official stream live.</item>
+        <item quantity="other">Starts in %d minutes. Watch the official stream live.</item>
+    </plurals>
+    <string name="reminder_watch">Watch live</string>
+    <string name="reminder_toggle">Remind me before aarti</string>
+    <string name="reminder_lead">%1$d min before</string>
+    <string name="reminder_denied">Notifications are off for HINVR, so reminders can’t show. Turn them on in Settings.</string>
+    <string name="reminder_times">Aarti at %1$s</string>
+    <string name="reminder_times_local">Aarti at %1$s (your time)</string>
+
+    <!-- Family on one membership -->
+    <string name="err_family_limit">Your plan has no room for more family.</string>
+    <string name="family_title">Family</string>
+    <string name="family_body">Add the people who come with you. The desk sees them with your check-in, and offerings in the sanctum can be made for them. They don’t need an account.</string>
+    <string name="family_usage">%1$d of %2$d on your plan</string>
+    <string name="family_none_on_plan">Your plan doesn’t include family yet.</string>
+    <string name="family_empty">No one added yet.</string>
+    <string name="family_not_covered">not on your current plan</string>
+    <string name="family_edit">Edit</string>
+    <string name="family_remove">Remove</string>
+    <string name="family_remove_confirm">Tap again to remove</string>
+    <string name="family_name_hint">Name, for example Amma</string>
+    <string name="family_save">Save</string>
+    <string name="family_add">Add a family member</string>
+    <string name="family_upgrade_full">Your plan is full. A larger plan carries more family.</string>
+    <string name="family_upgrade_none">Gold and higher plans include family members.</string>
+    <string name="family_see_plans">See plans</string>
+    <string name="relation_mother">Mother</string>
+    <string name="relation_father">Father</string>
+    <string name="relation_spouse">Spouse</string>
+    <string name="relation_son">Son</string>
+    <string name="relation_daughter">Daughter</string>
+    <string name="relation_grandmother">Grandmother</string>
+    <string name="relation_grandfather">Grandfather</string>
+    <string name="relation_sibling">Brother or sister</string>
+    <string name="relation_other">Family</string>
+    <string name="pass_also_admits">Also admits: %1$s</string>
+    <string name="journal_for_named">For %1$s</string>
 </resources>

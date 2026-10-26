@@ -22,6 +22,8 @@ class RingInputSystem : SystemBase() {
 
     override fun execute() {
         Frame.begin()
+        // "View in VR" from the phone: asks the server every few seconds while the app runs.
+        Handoff.tick()
         val now = SystemClock.elapsedRealtime()
         var scroll = 0
         var trigger = false
@@ -52,6 +54,10 @@ class RingInputSystem : SystemBase() {
             }
             if (primary && Ring.stage == Stage.Mandir && Mandir.phase == MandirPhase.Visit) {
                 MandirScene.nextTeleport()
+            }
+            // The thumbstick turns the member in the sanctum, a fixed step at a time.
+            if (Ring.stage == Stage.Mandir && (left || right)) {
+                MandirScene.snapTurn(if (right) -Comfort.SnapDegrees else Comfort.SnapDegrees)
             }
             // B / Y on controllers; the left-hand menu pinch arrives as the menu button.
             if (controller.isPressed(ButtonBits.ButtonB) ||

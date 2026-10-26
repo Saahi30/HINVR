@@ -25,6 +25,21 @@
     <item name="ring_flame" type="id" />
     <item name="ring_smoke" type="id" />
     <item name="ring_tilak" type="id" />
+    <item name="ring_jyoti" type="id" />
+    <item name="ring_thali_flame" type="id" />
+    <item name="ring_prop_label" type="id" />
+    <item name="ring_japa" type="id" />
+    <item name="ring_handoff" type="id" />
+    <item name="ring_tutorial" type="id" />
+    <item name="ring_cast_tip" type="id" />
+    <item name="ring_halo_0" type="id" />
+    <item name="ring_halo_1" type="id" />
+    <item name="ring_halo_2" type="id" />
+    <item name="ring_halo_3" type="id" />
+    <item name="ring_halo_4" type="id" />
+    <item name="ring_halo_5" type="id" />
+    <item name="ring_halo_6" type="id" />
+    <item name="ring_halo_7" type="id" />
     <item name="ring_slot_0" type="id" />
     <item name="ring_slot_1" type="id" />
     <item name="ring_slot_2" type="id" />

@@ -46,7 +46,9 @@ import com.hinvr.app.ui.plans.PlansScreen
 import com.hinvr.app.ui.notifications.NotificationsScreen
 import com.hinvr.app.ui.profile.LegalScreen
 import com.hinvr.app.ui.profile.ProfileScreen
+import com.hinvr.app.ui.journal.SanctumJournalScreen
 import com.hinvr.app.ui.vr.VrHeadsetsScreen
+import com.hinvr.app.ui.profile.FamilyScreen
 import com.hinvr.app.ui.splash.SplashScreen
 import com.hinvr.app.ui.vr.VrListScreen
 import com.hinvr.app.ui.vr.VrPlayerScreen
@@ -57,6 +59,7 @@ fun HinvrNavHost() {
     val context = LocalContext.current
     val app = context.applicationContext as HinvrApplication
     val openPush by app.openNotifications.collectAsStateWithLifecycle()
+    val openAarti by app.openAarti.collectAsStateWithLifecycle()
     val backStack by nav.currentBackStackEntryAsState()
     PushRegistrationEffect()
     val session = LocalSessionRepository.current
@@ -99,6 +102,15 @@ fun HinvrNavHost() {
         if (route == null || route == Destinations.Splash || route == Destinations.Onboarding) return@LaunchedEffect
         nav.navigate(Destinations.Notifications) { launchSingleTop = true }
         app.consumeOpenNotifications()
+    }
+    // A tapped aarti reminder: that mandir's live darshan, with View in VR open if asked.
+    LaunchedEffect(openAarti, snap.isLoggedIn, backStack?.destination?.route) {
+        val open = openAarti ?: return@LaunchedEffect
+        if (!snap.isLoggedIn) return@LaunchedEffect
+        val route = backStack?.destination?.route
+        if (route == null || route == Destinations.Splash || route == Destinations.Onboarding) return@LaunchedEffect
+        nav.navigate(Destinations.livePlayer(open.mandirId, open.viewInVr)) { launchSingleTop = true }
+        app.consumeOpenAarti()
     }
 
     fun go(route: String) = nav.navigate(route)
@@ -246,6 +258,7 @@ fun HinvrNavHost() {
                 onAssist = { go(Destinations.passVisit(id)) },
                 onPlans = { go(Destinations.Plans) },
                 onConcierge = { go(Destinations.Concierge) },
+                onHeadsets = { go(Destinations.Headsets) },
             )
         }
         composable(Destinations.Live) {
@@ -256,12 +269,20 @@ fun HinvrNavHost() {
         }
         composable(
             Destinations.LivePlayer,
-            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("vr") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+            ),
         ) { entry ->
             LivePlayerScreen(
                 id = entry.arguments?.getString("id").orEmpty(),
+                openViewInVr = entry.arguments?.getBoolean("vr") == true,
                 onBack = { nav.popBackStack() },
                 onPlans = { go(Destinations.Plans) },
+                onHeadsets = { go(Destinations.Headsets) },
             )
         }
         composable(Destinations.Vr) {
@@ -269,6 +290,7 @@ fun HinvrNavHost() {
                 onBack = { nav.popBackStack() },
                 onOpenPlayer = { go(Destinations.vrPlayer(it)) },
                 onPlans = { go(Destinations.Plans) },
+                onHeadsets = { go(Destinations.Headsets) },
             )
         }
         composable(
@@ -321,6 +343,8 @@ fun HinvrNavHost() {
                 onBack = { nav.popBackStack() },
                 onLegal = { go(Destinations.Legal) },
                 onHeadsets = { go(Destinations.Headsets) },
+                onJournal = { go(Destinations.Journal) },
+                onFamily = { go(Destinations.Family) },
                 onPlans = { go(Destinations.Plans) },
                 onSignedOut = {
                     nav.navigate(Destinations.account(signIn = true)) {
@@ -334,6 +358,12 @@ fun HinvrNavHost() {
         }
         composable(Destinations.Headsets) {
             VrHeadsetsScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Destinations.Journal) {
+            SanctumJournalScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Destinations.Family) {
+            FamilyScreen(onBack = { nav.popBackStack() }, onPlans = { go(Destinations.Plans) })
         }
         composable(Destinations.Notifications) {
             NotificationsScreen(onBack = { nav.popBackStack() })

@@ -88,6 +88,12 @@ object RingWorld {
     var credits: Panel? = null
     var fade: Panel? = null
 
+    /** "Opening … from your phone", over whatever is on screen. */
+    var handoff: Panel? = null
+
+    /** "Watch together": casting to a phone or TV, under a live darshan now and then. */
+    var castTip: Panel? = null
+
     /** Where each card panel sits this frame, for the controller ray. Card index → pose. */
     val cardPoses = HashMap<Int, Pose>()
 

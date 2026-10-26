@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
+import com.hinvr.app.data.VrHandoffs
+import com.hinvr.app.ui.vr.ViewInVrButton
+import com.hinvr.app.ui.components.AartiReminderToggle
 import com.hinvr.app.i18n.localized
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
@@ -166,6 +169,7 @@ fun TempleDetailScreen(
     onAssist: () -> Unit = {},
     onPlans: () -> Unit = {},
     onConcierge: () -> Unit = {},
+    onHeadsets: () -> Unit = {},
 ) {
     val catalog = LocalCatalogRepository.current
     val session = LocalSessionRepository.current
@@ -334,6 +338,14 @@ fun TempleDetailScreen(
                 if (mandir.live) {
                     Spacer(Modifier.height(12.dp))
                     HinvrPrimaryButton(stringResource(R.string.watch_live), onLive)
+                }
+                VrHandoffs.targetFor(hasTour = mandir.vr, hasStream = mandir.live && mandir.liveUrl.isNotBlank())?.let { target ->
+                    Spacer(Modifier.height(12.dp))
+                    ViewInVrButton(target, mandir.id, mandir.name, onHeadsets)
+                }
+                if (mandir.aartiTimes.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    AartiReminderToggle(mandir)
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(

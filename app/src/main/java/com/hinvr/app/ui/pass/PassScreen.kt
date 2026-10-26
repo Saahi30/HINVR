@@ -83,6 +83,9 @@ import com.hinvr.app.data.PassCheckIn
 import com.hinvr.app.HinvrApplication
 import com.hinvr.app.data.AuthException
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.Family
+import com.hinvr.app.data.MembershipTier
+import com.hinvr.app.data.Relation
 import com.hinvr.app.data.attempt
 import com.hinvr.app.data.formatValidUntil
 import com.hinvr.app.data.hasPhysicalCard
@@ -232,6 +235,7 @@ fun PassScreen(
             }
             Spacer(Modifier.height(22.dp))
             PassLedger(snap = snap, hasCredential = hasCredential)
+            if (hasCredential) AlsoAdmits(snap.tier)
             Spacer(Modifier.height(22.dp))
             if (hasCredential) {
                 PassCredentialActions(
@@ -387,6 +391,29 @@ private fun PassVaultHeader(active: Boolean) {
             )
         }
     }
+}
+
+/** "Also admits: Amma (mother), Papa (father)": the family this plan covers, names and relations only. */
+@Composable
+private fun AlsoAdmits(tier: MembershipTier) {
+    val session = LocalSessionRepository.current
+    val colors = HinvrTheme.colors
+    var line by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    LaunchedEffect(tier) {
+        val family = attempt { session.familyMembers() }.getOrNull() ?: return@LaunchedEffect
+        val covered = Family.covered(family, Family.limitFor(tier, session.familyLimits()))
+        line = covered.joinToString(", ") { "${it.name} (${context.getString(Relation.of(it.relation).label)})" }
+    }
+    if (line.isBlank()) return
+    Spacer(Modifier.height(12.dp))
+    Text(
+        stringResource(R.string.pass_also_admits, line),
+        style = HinvrTypography.bodyMedium,
+        color = colors.cream,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

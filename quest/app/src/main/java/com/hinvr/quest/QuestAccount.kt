@@ -31,7 +31,12 @@ data class MemberProfile(
     val validUntil: String,
     val deviceName: String,
     val pairedAt: String,
+    /** The member's family, as added on the phone, for offerings made in their name. */
+    val family: List<FamilyMember> = emptyList(),
 )
+
+/** Someone the member offers for by name. [relation] is the server's key (mother, father, …). */
+data class FamilyMember(val id: String, val name: String, val relation: String)
 
 enum class PairStep { Offline, NeedCamera, Looking, Claiming, Welcome, Paired }
 
@@ -90,6 +95,7 @@ object QuestAccount {
 
     fun attach(context: Context) {
         val app = context.applicationContext
+        HeadsetBattery.attach(app)
         val secure = SecureStore(app, "hinvr_quest_secure", "hinvr_quest_account")
         store = secure
         migratePlainPrefs(app, secure)
@@ -271,7 +277,19 @@ object QuestAccount {
         validUntil = body.optString("valid_until").takeIf { it != "null" }.orEmpty(),
         deviceName = body.optString("device_name"),
         pairedAt = body.optString("paired_at"),
+        family = parseFamily(body),
     )
+
+    /** "family": [{id, name, relation}]; absent on a server that has none, and then nobody. */
+    private fun parseFamily(body: JSONObject): List<FamilyMember> {
+        val rows = body.optJSONArray("family") ?: return emptyList()
+        return (0 until rows.length()).mapNotNull { i ->
+            val row = rows.optJSONObject(i) ?: return@mapNotNull null
+            val id = row.optString("id")
+            val name = row.optString("name").trim()
+            if (id.isBlank() || name.isBlank()) null else FamilyMember(id, name, row.optString("relation"))
+        }
+    }
 
     fun deviceArgs(): JSONObject =
         JSONObject().put("p_device_id", deviceId).put("p_secret", secret)

@@ -98,6 +98,7 @@ fun ProfilePanel() {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Pill(stringResource(R.string.action_back_to_menu)) { Ring.back() }
             Pill(stringResource(R.string.action_credits), filled = false, tint = CreamMuted) { Ring.openCredits() }
+            Pill(stringResource(R.string.language_switch), filled = false, tint = CreamMuted) { QuestLocale.toggle() }
             Pill(
                 when {
                     QuestAccount.unpairing -> stringResource(R.string.profile_unpairing)

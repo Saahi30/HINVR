@@ -32,6 +32,13 @@ object RingLayout {
     /** A panel's front faces its local -Z, so it takes the same yaw as the line from the head to it. */
     fun placeInFront(head: Pose, distance: Float, yOffset: Float): Pose =
         Pose(head.t + head.q.times(Vector3(0f, yOffset, distance)), head.q)
+
+    /** The phone handoff notice, high in view on every screen. */
+    fun placeHandoff(head: Pose) {
+        val panel = RingWorld.handoff ?: return
+        panel.show(Handoff.showingNotice)
+        if (Handoff.showingNotice) panel.place(placeInFront(head, 1.5f, 0.42f))
+    }
 }
 
 /**
@@ -89,12 +96,15 @@ class RingLayoutSystem : SystemBase() {
         SanctumSound.sync(
             when {
                 AudioMix.held || splash || watching || sphere != null -> Ambience.Off
-                mandir -> Ambience.Mandir
+                // In the sanctum the chant comes from the garbha itself (MandirSound).
+                mandir -> Ambience.Off
                 else -> Ambience.Hall
             },
         )
         if (nav.stage == Stage.States || nav.stage == Stage.Live || mandir) QuestCatalog.refreshIfStale()
 
+        val darshanUp = mandir && Mandir.darshanClose && Mandir.phase != MandirPhase.Sankalp && Mandir.darshan?.hasStream == true
+        CastTip.tick((dt * 1000f).toLong(), (watching && !leaving) || darshanUp)
         val viewerRaw = getScene().getViewerPose()
         ViewRig.tick(viewerRaw, dt)
         placeFade(viewerRaw)
@@ -111,6 +121,7 @@ class RingLayoutSystem : SystemBase() {
         val viewer = viewerRaw.removePitchAndRoll()
         if (viewer.t.y < 0.5f) return
         val head = anchorFor(viewer, now, dt)
+        RingLayout.placeHandoff(head)
 
         if (mandir) {
             hideRing()
@@ -122,6 +133,7 @@ class RingLayoutSystem : SystemBase() {
         MandirLayout.hide()
         if (sphere != null) {
             hideRing()
+            RingWorld.castTip?.show(false)
             showSphere(head, viewer, sphere)
             return
         }
@@ -136,10 +148,21 @@ class RingLayoutSystem : SystemBase() {
             if (showing) {
                 stream.place(RingLayout.placeInFront(head, 1.7f, -0.02f))
                 val full = if (Ring.stream?.spherical == true) 1.42f else 1f
-                stream.setScale(0.68f + (full - 0.68f) * streamPresence)
+                val scale = 0.68f + (full - 0.68f) * streamPresence
+                stream.setScale(scale)
+                // Under the stream's bottom edge.
+                placeCastTip(RingLayout.placeInFront(head, 1.62f, -0.02f - 0.54f * scale - 0.15f))
+            } else {
+                RingWorld.castTip?.show(false)
             }
         }
         placeRing(head, viewer, 1f - streamPresence, introT)
+    }
+
+    private fun placeCastTip(pose: Pose) {
+        val panel = RingWorld.castTip ?: return
+        panel.show(CastTip.showing)
+        if (CastTip.showing) panel.place(pose)
     }
 
     private fun placeChrome(head: Pose, nav: NavState) {

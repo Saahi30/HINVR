@@ -40,6 +40,8 @@ data class Mandir(
     val vr: Boolean = false,
     val passAccepted: Boolean = false,
     val nextAarti: String? = null,
+    /** Aarti start times, 'HH:MM' India time, as the desk entered them. Empty when not known. */
+    val aartiTimes: List<String> = emptyList(),
     /** When the desk's live checker last looked at this feed. Null when unknown. */
     val liveCheckedAt: Long? = null,
     val timings: String = "",
