@@ -1,18 +1,28 @@
 package com.hinvr.quest
 
-import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
+import androidx.annotation.StringRes
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.core.net.toUri
 import com.meta.spatial.core.Entity
 import com.meta.spatial.core.Pose
-import com.meta.spatial.core.Quaternion
+import com.meta.spatial.core.SystemManager
 import com.meta.spatial.core.Vector3
 import com.meta.spatial.runtime.Scene
 import com.meta.spatial.toolkit.Light
 import com.meta.spatial.toolkit.LightType
 import com.meta.spatial.toolkit.Mesh
 import com.meta.spatial.toolkit.MeshCollision
+import com.meta.spatial.toolkit.SceneObjectSystem
 import com.meta.spatial.toolkit.Transform
 import com.meta.spatial.toolkit.Visible
 import java.lang.ref.WeakReference
+import kotlin.math.atan2
 
 object MandirWorld {
     var room: Entity? = null
@@ -20,68 +30,132 @@ object MandirWorld {
     var garbhaLight: Entity? = null
     var diyaLight: Entity? = null
     var incenseLight: Entity? = null
-    var darshan: Entity? = null
-    var sankalp: Entity? = null
-    var hint: Entity? = null
-    var blessing: Entity? = null
-    var courtyard: Entity? = null
-    var flame: Entity? = null
-    var smoke: Entity? = null
-    var tilak: Entity? = null
+    var darshan: Panel? = null
+    var sankalp: Panel? = null
+    var guide: Panel? = null
+    var blessing: Panel? = null
+    var flame: Panel? = null
+    var smoke: Panel? = null
+    var tilak: Panel? = null
     val props = HashMap<String, Entity>()
+
+    val panels: List<Panel> by lazy { listOfNotNull(darshan, sankalp, guide, blessing, flame, smoke, tilak) }
 }
 
 object MandirScene {
+    private const val Tag = "HinvrMandir"
+
+    /** The room is ~7 MB of textures; past this we stop waiting and show what has loaded. */
+    private const val LoadTimeoutMs = 10_000L
+
+    private val main = Handler(Looper.getMainLooper())
     private var scene = WeakReference<Scene>(null)
+    private var systems: SystemManager? = null
     private var built = false
     private var teleport = 0
-    var diyaPose = Pose(MandirPlace.stand + Vector3(-0.14f, 0.06f, 0.02f))
+    private var loadStartedAt = 0L
+    private var watchingLoad = false
+
+    /** False until the room's mesh has finished loading. */
+    var ready by mutableStateOf(false)
+        private set
+
+    var diyaPose = Pose(Vector3(0f))
         internal set
-    var incensePose = Pose(MandirPlace.incense + Vector3(0f, 0.08f, 0f))
+    var incensePose = Pose(Vector3(0f))
         internal set
 
-    val homes: Map<String, Vector3> = mapOf(
-        "ghanta" to MandirPlace.ghanta,
-        "diya" to MandirPlace.stand + Vector3(-0.14f, 0.06f, 0.02f),
-        "aarti_thali" to MandirPlace.stand + Vector3(0.16f, 0.05f, 0.04f),
-        "agarbatti" to MandirPlace.stand + Vector3(0.32f, 0.07f, 0.02f),
-        "marigold" to MandirPlace.stand + Vector3(-0.28f, 0.05f, 0.08f),
-        "lotus" to MandirPlace.stand + Vector3(0.28f, 0.05f, 0.08f),
-        "coconut" to MandirPlace.stand + Vector3(-0.08f, 0.05f, 0.18f),
-        "laddoo" to MandirPlace.stand + Vector3(0.08f, 0.05f, 0.18f),
-        "kumkum" to MandirPlace.stand + Vector3(-0.22f, 0.05f, -0.04f),
-        "coin" to MandirPlace.peti + Vector3(-0.18f, 0.22f, 0.08f),
-    )
+    /** Where each prop rests. Built from markers.json once it has been read. */
+    var homes: Map<String, Vector3> = emptyMap()
+        private set
 
-    fun attach(host: Scene) {
+    fun attach(host: Scene, systemManager: SystemManager) {
         scene = WeakReference(host)
+        systems = systemManager
+        val stand = MandirPlace.stand
+        homes = mapOf(
+            "ghanta" to MandirPlace.ghanta,
+            "diya" to stand + Vector3(-0.14f, 0.06f, 0.02f),
+            "aarti_thali" to stand + Vector3(0.16f, 0.05f, 0.04f),
+            "agarbatti" to stand + Vector3(0.32f, 0.07f, 0.02f),
+            "marigold" to stand + Vector3(-0.28f, 0.05f, 0.08f),
+            "lotus" to stand + Vector3(0.28f, 0.05f, 0.08f),
+            "coconut" to stand + Vector3(-0.08f, 0.05f, 0.18f),
+            "laddoo" to stand + Vector3(0.08f, 0.05f, 0.18f),
+            "kumkum" to stand + Vector3(-0.22f, 0.05f, -0.04f),
+            // On the stand, where a seated member can reach it, not at the peti on the floor.
+            "coin" to stand + Vector3(0.22f, 0.05f, -0.06f),
+        )
+        diyaPose = Pose(homes.getValue("diya"))
+        incensePose = Pose(MandirPlace.incense + Vector3(0f, 0.08f, 0f))
     }
 
     fun show() {
-        val world = scene.get() ?: return
-        if (!built) build(world)
+        if (scene.get() == null) return
+        if (!built) build()
         setVisible(true)
         teleport = 0
-        world.setViewOrigin(MandirPlace.spawn.x, MandirPlace.spawn.y, MandirPlace.spawn.z, 0f)
+        // Stay behind the fade until the room is there, rather than standing in an empty void.
+        ViewRig.holdBlack = !ready
+        ViewRig.placeHead(MandirPlace.marks[0], facingGarbha(MandirPlace.marks[0]))
         MandirSound.startVisit()
     }
 
     fun hide() {
-        val world = scene.get() ?: return
         setVisible(false)
-        world.setViewOrigin(0f, 0f, 0f, 0f)
+        ViewRig.holdBlack = false
+        ViewRig.reset(faded = false)
+        ViewRig.fadeFromBlack()
+    }
+
+    /** Called each frame while inside, until the room has loaded. */
+    fun watchLoad() {
+        if (ready) return
+        val room = MandirWorld.room ?: return
+        if (SystemClock.elapsedRealtime() - loadStartedAt > LoadTimeoutMs) {
+            Log.w(Tag, "Room still loading after ${LoadTimeoutMs}ms; showing it anyway")
+            markReady()
+            return
+        }
+        if (watchingLoad) return
+        val future = runCatching { systems?.findSystem<SceneObjectSystem>()?.getSceneObject(room) }.getOrNull() ?: return
+        watchingLoad = true
+        future.whenComplete { _, error ->
+            if (error != null) Log.w(Tag, "Room failed to load", error)
+            main.post { markReady() }
+        }
+    }
+
+    private fun markReady() {
+        if (ready) return
+        ready = true
+        ViewRig.holdBlack = false
     }
 
     fun nextTeleport() {
-        val world = scene.get() ?: return
+        if (ViewRig.busy) return
         teleport = (teleport + 1) % MandirPlace.marks.size
         val mark = MandirPlace.marks[teleport]
-        world.setViewOrigin(mark.x, mark.y, mark.z, 0f)
-        Mandir.hint = when (teleport) {
-            1 -> "Threshold. The garbha griha is ahead."
-            2 -> "Pradakshina. Walk the mandap clockwise."
-            else -> "The mandap. Offerings are on the stand."
-        }
+        ViewRig.placeHead(mark, facingGarbha(mark))
+        Mandir.setHint(teleportHint(teleport))
+    }
+
+    /** The member's view origin moved under them (system recentre). Put them back on their mark. */
+    fun recentre() {
+        val mark = MandirPlace.marks[teleport]
+        ViewRig.placeHead(mark, facingGarbha(mark))
+    }
+
+    @StringRes
+    private fun teleportHint(mark: Int): Int = when (mark) {
+        1 -> R.string.hint_threshold
+        2 -> R.string.hint_pradakshina
+        else -> R.string.hint_mandap
+    }
+
+    private fun facingGarbha(from: Vector3): Float {
+        val garbha = MandirPlace.garbha
+        return Math.toDegrees(atan2(garbha.x - from.x, garbha.z - from.z).toDouble()).toFloat()
     }
 
     fun setDiyaLight(on: Boolean, where: Vector3) {
@@ -99,11 +173,12 @@ object MandirScene {
         }
     }
 
-    private fun build(world: Scene) {
+    private fun build() {
         built = true
+        loadStartedAt = SystemClock.elapsedRealtime()
         MandirWorld.room = Entity.create(
             listOf(
-                Mesh(Uri.parse("mandir/sanctum.glb"), hittable = MeshCollision.NoCollision),
+                Mesh("mandir/sanctum.glb".toUri(), hittable = MeshCollision.NoCollision),
                 Transform(Pose(Vector3(0f, 0f, 0f))),
                 Visible(true),
             ),
@@ -157,18 +232,12 @@ object MandirScene {
         homes.forEach { (name, where) ->
             MandirWorld.props[name] = Entity.create(
                 listOf(
-                    Mesh(Uri.parse("mandir/props/$name.glb"), hittable = MeshCollision.NoCollision),
+                    Mesh("mandir/props/$name.glb".toUri(), hittable = MeshCollision.NoCollision),
                     Transform(Pose(where)),
                     Visible(true),
                 ),
             )
         }
-        world.setLightingEnvironment(
-            ambientColor = Vector3(0.38f, 0.28f, 0.18f),
-            sunColor = Vector3(1.15f, 0.78f, 0.46f),
-            sunDirection = -Vector3(0.2f, 1f, 0.15f),
-            environmentIntensity = 1.05f,
-        )
     }
 
     private fun setVisible(show: Boolean) {
@@ -176,21 +245,9 @@ object MandirScene {
             MandirWorld.room,
             MandirWorld.ceiling,
             MandirWorld.garbhaLight,
-            MandirWorld.courtyard,
         ).forEach { it.setComponent(Visible(show)) }
         MandirWorld.diyaLight?.setComponent(Visible(show && Mandir.diyaLit))
         MandirWorld.incenseLight?.setComponent(Visible(show && Mandir.agarbattiLit))
         MandirWorld.props.values.forEach { it.setComponent(Visible(show)) }
-        if (!show) {
-            listOfNotNull(
-                MandirWorld.darshan,
-                MandirWorld.sankalp,
-                MandirWorld.hint,
-                MandirWorld.blessing,
-                MandirWorld.flame,
-                MandirWorld.smoke,
-                MandirWorld.tilak,
-            ).forEach { it.setComponent(Visible(false)) }
-        }
     }
 }

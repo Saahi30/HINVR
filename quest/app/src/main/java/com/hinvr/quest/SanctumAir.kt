@@ -21,13 +21,13 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import kotlin.math.PI
 import kotlin.math.sin
 
-private val Marigold = Color(0xFFF4C430)
-private val Saffron = Color(0xFFF0B429)
-private val Gold = Color(0xFFE8C547)
-private val Cream = Color(0xFFF3E6D0)
-private val Pink = Color(0xFFE88AA8)
-private val Lotus = Color(0xFFF0A0B8)
-private val Rose = Color(0xFFE07A92)
+// The rain's own brighter tints; they read as petals against the dark hall.
+private val PetalMarigold = Color(0xFFF4C430)
+private val PetalSaffron = Color(0xFFF0B429)
+private val PetalGold = Color(0xFFE8C547)
+private val PetalPink = Color(0xFFE88AA8)
+private val PetalLotus = Color(0xFFF0A0B8)
+private val PetalRose = Color(0xFFE07A92)
 
 private enum class BloomKind { Petal, Marigold, Lotus }
 
@@ -51,6 +51,8 @@ private data class MoteSpec(
 
 @Composable
 fun SanctumAir(slot: Int) {
+    // Only the greeting and pairing show the rain; anywhere else these six canvases stop animating.
+    if (Ring.stage != Stage.Splash && Ring.stage != Stage.Pair) return
     val blessing = Ring.stage == Stage.Pair && QuestAccount.step == PairStep.Welcome
     val claiming = Ring.stage == Stage.Pair && QuestAccount.step == PairStep.Claiming
     val swell by animateFloatAsState(
@@ -78,7 +80,7 @@ fun SanctumAir(slot: Int) {
             val y = size.height * ((mote.y + t * 0.35f) % 1.15f)
             val sway = sin((t * 5f + mote.phase * 8f) * 2.0 * PI).toFloat() * unit * 0.02f
             drawCircle(
-                color = Gold.copy(alpha = 0.22f * swell * edgeFade(t)),
+                color = PetalGold.copy(alpha = 0.22f * swell * edgeFade(t)),
                 radius = unit * mote.scale,
                 center = Offset(mote.x * size.width + sway, y),
             )
@@ -102,8 +104,8 @@ fun SanctumAir(slot: Int) {
 
 private fun bloomField(slot: Int): List<Bloom> {
     val random = java.util.Random(108L * (slot + 1))
-    val yellow = listOf(Marigold, Saffron, Gold, Marigold)
-    val pink = listOf(Lotus, Pink, Rose, Lotus)
+    val yellow = listOf(PetalMarigold, PetalSaffron, PetalGold, PetalMarigold)
+    val pink = listOf(PetalLotus, PetalPink, PetalRose, PetalLotus)
     return List(62) {
         val wantPink = random.nextBoolean()
         val kind = when {
@@ -169,7 +171,7 @@ private fun DrawScope.drawMarigold(center: Offset, size: Float, rotation: Float,
                 )
             }
         }
-        drawCircle(Gold.copy(alpha = color.alpha), radius = size * 0.18f, center = center)
+        drawCircle(PetalGold.copy(alpha = color.alpha), radius = size * 0.18f, center = center)
     }
 }
 
@@ -184,6 +186,6 @@ private fun DrawScope.drawLotus(center: Offset, size: Float, rotation: Float, ti
                 )
             }
         }
-        drawCircle(Gold.copy(alpha = 0.7f * fade), radius = size * 0.14f, center = center)
+        drawCircle(PetalGold.copy(alpha = 0.7f * fade), radius = size * 0.14f, center = center)
     }
 }

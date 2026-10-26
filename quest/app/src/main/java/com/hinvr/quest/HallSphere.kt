@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.view.Surface
 
+/** The lamp-lit hall drawn once onto its equirect panel behind the menu. */
 object HallSphere {
     private var appContext: Context? = null
 
@@ -16,8 +17,7 @@ object HallSphere {
 
     fun drawOn(surface: Surface) {
         val context = appContext ?: return
-        val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.sanctum_panorama)
-            ?: return
+        val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.sanctum_panorama) ?: return
         runCatching {
             val canvas = surface.lockCanvas(null)
             try {

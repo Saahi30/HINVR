@@ -6,6 +6,8 @@ coreKtx = "1.13.1"
 composeActivity = "1.9.2"
 composeBom = "2024.09.03"
 zxing = "3.5.3"
+junit = "4.13.2"
+json = "20240303"
 
 [libraries]
 meta-spatial-sdk = { group = "com.meta.spatial", name = "meta-spatial-sdk", version.ref = "spatialsdk" }
@@ -21,6 +23,8 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+json = { group = "org.json", name = "json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,4 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HINVR</string>
+
+    <!-- Greeting -->
+    <string name="greet_morning_hi">सुप्रभात</string>
+    <string name="greet_morning_en">Good morning. Your darshan awaits.</string>
+    <string name="greet_day_hi">नमस्ते</string>
+    <string name="greet_day_en">Welcome. Your darshan awaits.</string>
+    <string name="greet_evening_hi">शुभ संध्या</string>
+    <string name="greet_evening_en">Good evening. The aarti lamps are lit.</string>
+    <string name="greet_night_hi">शुभ रात्रि</string>
+    <string name="greet_night_en">The sanctum is quiet. Your darshan awaits.</string>
+
+    <!-- Menu and cards -->
+    <string name="menu_live">Live Darshan</string>
+    <string name="menu_live_place">THE MANDIRS</string>
+    <string name="menu_tour">Guided Tour</string>
+    <string name="menu_tour_place">THREE TEMPLES</string>
+    <string name="menu_mandir">Enter Mandir</string>
+    <string name="menu_mandir_place">HINVR SANCTUM</string>
+    <string name="badge_darshan">OFFICIAL STREAMS</string>
+    <string name="badge_live">LIVE</string>
+    <string name="badge_not_live">NOT LIVE NOW</string>
+    <string name="badge_stream">OFFICIAL STREAM</string>
+    <string name="badge_recorded_360">RECORDED 360 · NOT LIVE</string>
+    <string name="badge_sanctum">SANCTUM</string>
+    <string name="chip_menu">Menu</string>
+    <string name="chip_states">States</string>
+    <string name="card_no_stream">No official stream</string>
+    <string name="toggle_sanctum">SANCTUM</string>
+    <string name="toggle_passthrough">PASSTHROUGH</string>
+    <string name="sound_label">Sound: %1$s</string>
+    <string name="sound_full">On</string>
+    <string name="sound_low">Low</string>
+    <string name="sound_off">Off</string>
+    <string name="catalog_loading">Checking which mandirs are live now…</string>
+    <string name="catalog_offline">Offline. Showing saved mandirs; live status unknown.</string>
+
+    <!-- Streams -->
+    <string name="stream_heading_live">LIVE DARSHAN</string>
+    <string name="stream_heading_recorded">RECORDED · NOT LIVE</string>
+    <string name="stream_heading_official">OFFICIAL TEMPLE STREAM</string>
+    <string name="stream_heading_360">RECORDED 360 · NOT LIVE</string>
+    <string name="stream_credit_official">Official temple stream, shown from YouTube. HINVR is not the temple.</string>
+    <string name="stream_credit_360">Recorded 360 video, shown from YouTube.</string>
+    <string name="stream_untitled">Darshan</string>
+    <string name="stream_drag_hint">Drag inside the picture to look around.</string>
+    <string name="stream_loading">Loading darshan…</string>
+    <string name="stream_none_title">No official stream</string>
+    <string name="stream_none_body">There is no live darshan for this mandir yet.</string>
+    <string name="stream_error_title">This stream can’t play right now</string>
+    <string name="stream_error_gone">The temple’s stream has ended or is private.</string>
+    <string name="stream_error_embed">The temple doesn’t allow this stream to play outside YouTube.</string>
+    <string name="stream_error_generic">Something went wrong with the player.</string>
+
+    <!-- Tours -->
+    <string name="tour_done_title">दर्शन पूर्ण हुए</string>
+    <string name="tour_again">वापस दर्शन करें</string>
+    <string name="tour_failed_title">This tour couldn’t play</string>
+    <string name="tour_failed_body">The video on this headset may be missing or damaged.</string>
+
+    <!-- Pairing -->
+    <string name="pair_heading">PAIR THIS HEADSET</string>
+    <string name="pair_title">अपना फ़ोन जोड़ें</string>
+    <string name="pair_step_1">On your phone, open HINVR → Profile → VR headsets → Pair a headset.</string>
+    <string name="pair_step_2">Hold the phone out in front of you and look at its QR code.</string>
+    <string name="pair_offline">This build isn’t connected to HINVR.</string>
+    <string name="pair_need_camera">Allow camera access so the headset can read the code.</string>
+    <string name="pair_looking">Looking for the code…</string>
+    <string name="pair_claiming">Pairing…</string>
+    <string name="pair_welcome">नमस्ते</string>
+    <string name="pair_welcome_name">नमस्ते, %1$s</string>
+    <string name="pair_done">Your headset is paired.</string>
+    <string name="pair_note_not_code">That isn’t a HINVR pairing code. Open Profile → VR headsets on your phone.</string>
+    <string name="err_network">No network. Check the headset’s Wi‑Fi and try again.</string>
+    <string name="err_code_expired">That code has expired. Show a new one on your phone.</string>
+    <string name="err_other_account">This headset is linked to another account. Unpair it there first.</string>
+    <string name="err_headset_id">This headset couldn’t be identified. Restart HINVR and try again.</string>
+    <string name="err_generic">Couldn’t reach HINVR. Try again.</string>
+
+    <!-- Profile -->
+    <string name="profile_heading">HINVR MEMBER</string>
+    <string name="profile_member">Member</string>
+    <string name="profile_membership">MEMBERSHIP</string>
+    <string name="profile_member_id">MEMBER ID</string>
+    <string name="profile_valid_until">VALID UNTIL</string>
+    <string name="profile_city">CITY</string>
+    <string name="profile_headset">HEADSET</string>
+    <string name="profile_paired_since">PAIRED SINCE</string>
+    <string name="profile_no_membership">No membership yet</string>
+    <string name="profile_unpair_warning">You’ll need your phone to pair this headset again.</string>
+    <string name="profile_unpairing">Unpairing…</string>
+    <string name="profile_unpair_confirm">Tap again to unpair</string>
+    <string name="profile_unpair">Unpair this headset</string>
+
+    <!-- Actions -->
+    <string name="action_back">Back</string>
+    <string name="action_back_to_menu">Back to menu</string>
+    <string name="action_begin">Begin</string>
+    <string name="action_leave">Leave</string>
+    <string name="action_leave_sanctum">Leave sanctum</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_allow_camera">Allow camera</string>
+    <string name="action_credits">Credits &amp; licences</string>
+    <string name="action_more">More</string>
+    <string name="action_next_stream">Next</string>
+    <string name="action_try_again">Try again</string>
+
+    <!-- Mandir -->
+    <string name="honesty">Symbolic offering in HINVR. Not performed at a temple.</string>
+    <string name="mandir_loading">Preparing the sanctum…</string>
+    <string name="sankalp_heading">SANKALP</string>
+    <string name="sankalp_guest">Guest</string>
+    <string name="sankalp_private">This visit stays in HINVR. Nothing is sent to a temple.</string>
+    <string name="sankalp_intention">Intention</string>
+    <string name="sankalp_window">Darshan window</string>
+    <string name="intention_family">For family</string>
+    <string name="intention_health">For health</string>
+    <string name="intention_peace">For peace</string>
+    <string name="intention_thanks">Thanksgiving</string>
+    <string name="intention_none">No particular intention</string>
+    <string name="darshan_murti">Sanctum murti</string>
+    <string name="darshan_caption">%1$s, official temple stream</string>
+    <string name="darshan_no_stream">The murti is in this sanctum.</string>
+    <string name="hint_start">Lift the diya and set it back to light it. Ring the ghanta. A / X steps you closer.</string>
+    <string name="hint_threshold">Threshold. The garbha griha is ahead. Offer flowers toward it.</string>
+    <string name="hint_pradakshina">Pradakshina. Let a coin fall into the peti beside you.</string>
+    <string name="hint_mandap">The mandap. Offerings are on the stand.</string>
+    <string name="hint_prasad">Take the blessing. Prasad is received as you leave.</string>
+    <string name="hint_aarti_count">Aarti · %1$d of 7</string>
+    <string name="offer_ghanta">The ghanta sounds.</string>
+    <string name="offer_diya">The diya is lit.</string>
+    <string name="offer_aarti">Aarti is complete.</string>
+    <string name="offer_pushp">Flowers at the feet.</string>
+    <string name="offer_agarbatti">Incense is planted.</string>
+    <string name="offer_prasad">Naivedya is offered.</string>
+    <string name="offer_tilak">Tilak is received.</string>
+    <string name="offer_daan">The peti is closed.</string>
+    <plurals name="diyas_today">
+        <item quantity="one">%1$d diya lit today</item>
+        <item quantity="other">%1$d diyas lit today</item>
+    </plurals>
+    <string name="blessing_heading">ASHIRWAD</string>
+    <string name="blessing_title">The visit is complete.</string>
+    <string name="blessing_body">A later release can book real seva. This offering was not performed at a temple.</string>
+
+    <!-- Credits -->
+    <string name="credits_heading">CREDITS &amp; LICENCES</string>
+    <string name="credits_sanctum_heading">SANCTUM</string>
+    <string name="credits_sanctum_body">The room, murti, lingam and offering props are modelled by HINVR. Textures and models: Poly Haven, CC0 (Charlotte Baglioni, Rob Tuytel, Amal Kumar, Bhargav Kubal, Rico Cilliers, Alexander Shulha, Oliver Harries). The room’s daylight was baked from a photograph of the Ram Mandir courtyard, “Ram Mandir 360.jpg” by Gaurav Dhwaj Khadka, CC BY-SA 4.0. Sounds: ghanta, Subhashish Panigrahi, CC BY-SA 4.0 (cut and levelled); shankh, Dbolton, CC BY 2.5 (trimmed); aarti chant, Aarti Shri Radha Govind Dev Ji, Jaipur, CC0; hand bell, qubodup, CC0; coins, coconut and flame, ezwa and stephan, public domain. All from Wikimedia Commons.</string>
+    <string name="credits_streams">Live darshan streams belong to the temples that publish them and are played from YouTube. HINVR is not a temple board.</string>
+    <string name="credits_photos_heading">CARD PHOTOGRAPHS</string>
+    <string name="credits_photo_line">%1$s · %2$s</string>
+    <string name="credits_photo_line_modified">%1$s · %2$s · modified</string>
+    <string name="credits_unknown_author">Unknown author</string>
+    <string name="credits_page">%1$d of %2$d</string>
 </resources>

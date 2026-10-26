@@ -1,5 +1,6 @@
 package com.hinvr.quest
 
+import android.os.SystemClock
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -10,19 +11,25 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,179 +38,189 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.sin
 
-private val Stone = Color(0xF2100B08)
-private val Cream = Color(0xFFF3E6D0)
-private val CreamMuted = Color(0xFFD9C7A8)
-private val Gold = Color(0xFFC9A227)
-private val Rounded = RoundedCornerShape(28.dp)
-
 @Composable
 fun SankalpPanel() {
-    if (!Mandir.inside || !Mandir.sankalpOpen) return
+    if (!Mandir.sankalpOpen) return
     val live = Mandir.darshan
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .clip(Rounded)
-            .background(Stone)
-            .border(1.dp, Gold.copy(alpha = 0.55f), Rounded)
+            .clip(PanelShape)
+            .background(InkGlass)
+            .border(1.dp, Gold.copy(alpha = 0.55f), PanelShape)
             .padding(horizontal = 36.dp, vertical = 26.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("SANKALP", color = Gold, fontSize = 13.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.6.sp)
+        Text(stringResource(R.string.sankalp_heading), color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.6.sp)
         Text(
-            Mandir.sankalpName.ifBlank { "Guest" },
+            Mandir.sankalpName.ifBlank { stringResource(R.string.sankalp_guest) },
             color = Cream,
             fontFamily = FontFamily.Serif,
             fontSize = 34.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
-        Text("This visit stays in HINVR. Nothing is sent to a temple.", color = CreamMuted, fontSize = 15.sp)
+        Text(stringResource(R.string.sankalp_private), color = CreamMuted, fontSize = 17.sp)
         Spacer(Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Intention", color = Gold, fontSize = 13.sp, letterSpacing = 1.2.sp, modifier = Modifier.weight(1f))
-            Pill(Mandir.sankalpIntention, filled = false) { Mandir.cycleIntention(1) }
+            Text(stringResource(R.string.sankalp_intention), color = Gold, fontSize = 16.sp, letterSpacing = 1.2.sp, modifier = Modifier.weight(1f))
+            Pill(stringResource(Mandir.sankalpIntention.label), filled = false) { Mandir.cycleIntention(1) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Darshan window", color = Gold, fontSize = 13.sp, letterSpacing = 1.2.sp, modifier = Modifier.weight(1f))
-            Pill(live?.title ?: "Sanctum murti", filled = false) { Mandir.cycleDarshan(1) }
+            Text(stringResource(R.string.sankalp_window), color = Gold, fontSize = 16.sp, letterSpacing = 1.2.sp, modifier = Modifier.weight(1f))
+            Pill(live?.title ?: stringResource(R.string.darshan_murti), filled = false) { Mandir.cycleDarshan(1) }
         }
         Spacer(Modifier.weight(1f))
-        Text(Mandir.Honesty, color = CreamMuted, fontSize = 13.sp)
+        Text(stringResource(R.string.honesty), color = CreamMuted, fontSize = 15.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Pill("Begin") { Mandir.beginVisit() }
-            Pill("Leave", filled = false, tint = CreamMuted) { Ring.back() }
+            Pill(stringResource(R.string.action_begin)) { Mandir.beginVisit() }
+            Pill(stringResource(R.string.action_leave), filled = false, tint = CreamMuted) { Ring.back() }
+        }
+    }
+}
+
+/** The line over the offering stand: what to do next, today's diyas, and the darshan window's source. */
+@Composable
+fun GuidePanel() {
+    if (!Mandir.inside || Mandir.phase != MandirPhase.Visit) return
+    val card = Mandir.darshan
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(36.dp))
+            .background(InkVeil)
+            .border(1.dp, Gold.copy(alpha = 0.4f), RoundedCornerShape(36.dp))
+            .padding(horizontal = 28.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            stringResource(Mandir.hint, Mandir.aartiCircles),
+            color = Cream,
+            fontSize = 22.sp,
+            lineHeight = 27.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val note = if (Mandir.hintHonest) stringResource(R.string.honesty) else ""
+            Text(note, color = CreamMuted, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
+            if (Mandir.diyasToday > 0) {
+                Text(
+                    pluralStringResource(R.plurals.diyas_today, Mandir.diyasToday, Mandir.diyasToday),
+                    color = Gold,
+                    fontSize = 16.sp,
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (card != null && card.hasStream) StreamBadge(card.live, size = 14.sp)
+            Text(
+                if (card != null && card.hasStream) {
+                    stringResource(R.string.darshan_caption, card.title)
+                } else {
+                    stringResource(R.string.darshan_murti)
+                },
+                color = CreamMuted,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (Mandir.liveChoices.size > 1) SmallPill(stringResource(R.string.action_next_stream)) { Mandir.cycleDarshan(1) }
+            SmallPill(stringResource(R.string.sound_label, stringResource(AudioMix.level.label))) { AudioMix.cycle() }
         }
     }
 }
 
 @Composable
-fun OfferingHintPanel() {
-    if (!Mandir.inside || Mandir.sankalpOpen || Mandir.blessing) return
-    Box(
+private fun SmallPill(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        color = Gold,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.SemiBold,
         modifier = Modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color(0xE6100B08))
-            .border(1.dp, Gold.copy(alpha = 0.4f), RoundedCornerShape(999.dp))
-            .padding(horizontal = 22.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                Mandir.hint,
-                color = Cream,
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-            )
-            if (Mandir.countsLine.isNotBlank()) {
-                Text(Mandir.countsLine, color = Gold, fontSize = 12.sp)
-            }
-        }
-    }
+            .clip(PillShape)
+            .border(1.2.dp, Gold, PillShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+    )
 }
 
 @Composable
 fun BlessingPanel() {
-    if (!Mandir.inside || !Mandir.blessing) return
+    if (!Mandir.blessing) return
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .clip(Rounded)
-            .background(Stone)
-            .border(1.dp, Gold.copy(alpha = 0.6f), Rounded)
+            .clip(PanelShape)
+            .background(InkGlass)
+            .border(1.dp, Gold.copy(alpha = 0.6f), PanelShape)
             .padding(horizontal = 36.dp, vertical = 26.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("ASHIRWAD", color = Gold, fontSize = 13.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.6.sp)
-        Text("The visit is complete.", color = Cream, fontFamily = FontFamily.Serif, fontSize = 32.sp)
-        Text(Mandir.Honesty, color = CreamMuted, fontSize = 16.sp)
-        Text(
-            "A later release can book real seva. This offering was not performed at a temple.",
-            color = CreamMuted,
-            fontSize = 15.sp,
-        )
+        Text(stringResource(R.string.blessing_heading), color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.6.sp)
+        Text(stringResource(R.string.blessing_title), color = Cream, fontFamily = FontFamily.Serif, fontSize = 32.sp)
+        Text(stringResource(R.string.honesty), color = CreamMuted, fontSize = 17.sp)
+        Text(stringResource(R.string.blessing_body), color = CreamMuted, fontSize = 16.sp)
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Pill("Leave sanctum") { Ring.back() }
+            Pill(stringResource(R.string.action_leave_sanctum)) { Ring.back() }
         }
     }
 }
 
+/**
+ * The window in the garbha. It is ~5 m away, so it carries only the picture and big type;
+ * the source and controls are on the guide over the stand.
+ */
 @Composable
 fun DarshanPanel() {
     if (!Mandir.inside) return
     val card = Mandir.darshan
     val url = card?.liveUrl.orEmpty()
-    Column(
+    val active = Mandir.phase != MandirPhase.Sankalp && MandirScene.ready && !AudioMix.held
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF100B08)),
+            .background(Ink),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("DARSHAN WINDOW", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.3.sp)
-                Text(
-                    card?.title ?: "HINVR sanctum",
-                    color = Cream,
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 20.sp,
-                    maxLines = 1,
+        if (url.isNotBlank()) {
+            YoutubePlayer(url, active, Modifier.fillMaxSize(), textScale = 1.8f)
+        } else {
+            card?.photo?.let { photo ->
+                Image(
+                    painter = painterResource(photo),
+                    contentDescription = card.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
-            if (Mandir.liveChoices.size > 1) {
-                Pill("Next", filled = false) { Mandir.cycleDarshan(1) }
-            }
+            Text(
+                stringResource(R.string.darshan_no_stream),
+                color = Cream,
+                fontFamily = FontFamily.Serif,
+                fontSize = 44.sp,
+                lineHeight = 52.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(24.dp)
+                    .background(InkShade, RoundedCornerShape(16.dp))
+                    .padding(20.dp),
+            )
         }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .background(Color(0xFF100B08)),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (url.isNotBlank()) {
-                LivePlayer(url, spherical = false, Modifier.fillMaxSize())
-            } else {
-                card?.photo?.let { photo ->
-                    Image(
-                        painter = painterResource(photo),
-                        contentDescription = card.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Text(
-                    "The murti is in this sanctum.\nLive darshan is a public stream when one is chosen.",
-                    color = Cream,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(20.dp)
-                        .background(Color(0xAA100B08), RoundedCornerShape(16.dp))
-                        .padding(16.dp),
-                )
-            }
-        }
-        Text(
-            Mandir.Honesty,
-            color = CreamMuted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
     }
 }
 
@@ -241,35 +258,88 @@ fun SmokePanel() {
     }
 }
 
+/** A soft warmth at the brow that comes and goes within two seconds. */
 @Composable
 fun TilakOverlay() {
-    if (!Mandir.inside || !Mandir.tilakOn) return
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Canvas(Modifier.fillMaxSize()) {
-            val cx = size.width / 2f
-            val cy = size.height * 0.22f
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xE6B3392B), Color.Transparent),
-                    center = Offset(cx, cy),
-                    radius = size.minDimension * 0.18f,
-                ),
-                radius = size.minDimension * 0.18f,
-                center = Offset(cx, cy),
-            )
-            drawCircle(Color(0xFFB3392B), radius = size.minDimension * 0.035f, center = Offset(cx, cy))
+    val at = Mandir.tilakAtMs
+    if (!Mandir.inside || at == 0L) return
+    var glow by remember(at) { mutableFloatStateOf(0f) }
+    LaunchedEffect(at) {
+        while (true) {
+            val age = withFrameMillis { SystemClock.elapsedRealtime() - at }
+            val t = age / MandirLayout.TilakGlowMs.toFloat()
+            if (t >= 1f) {
+                glow = 0f
+                break
+            }
+            // Up quickly, then a long ease out.
+            glow = if (t < 0.2f) t / 0.2f else 1f - (t - 0.2f) / 0.8f
+        }
+    }
+    Canvas(Modifier.fillMaxSize()) {
+        val c = Offset(size.width / 2f, size.height * 0.3f)
+        val r = size.minDimension * 0.5f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFFB3392B).copy(alpha = 0.32f * glow), Color.Transparent),
+                center = c,
+                radius = r,
+            ),
+            radius = r,
+            center = c,
+        )
+    }
+}
+
+/** Black over the eyes while the member is moved, and while the sanctum is still loading. */
+@Composable
+fun FadePanel() {
+    val level = ViewRig.fade
+    if (level <= 0.003f) return
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = level)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (ViewRig.holdBlack && Mandir.inside && !MandirScene.ready) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                DiyaFlame(lit = 1f, size = 60.dp)
+                Text(stringResource(R.string.mandir_loading), color = CreamMuted, fontSize = 15.sp)
+            }
         }
     }
 }
 
+/** Over the state and mandir rings: whether the live state is fresh from the server. */
 @Composable
-fun MandirCredits() {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("SANCTUM CREDITS", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.3.sp)
+fun CatalogStatusPanel() {
+    val text = when {
+        Ring.fromServer -> return
+        QuestCatalog.status == CatalogStatus.Loading -> R.string.catalog_loading
+        QuestCatalog.status == CatalogStatus.Failed || !QuestAccount.configured -> R.string.catalog_offline
+        else -> return
+    }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            "Textures: Poly Haven (CC0). Ghanta: Subhashish Panigrahi, CC BY-SA 4.0. Shankh: Dbolton, CC BY 2.5. Courtyard: Gaurav Dhwaj Khadka, CC BY-SA 4.0. Room modeled by HINVR. Nothing is taken from a temple photograph.",
+            stringResource(text),
             color = CreamMuted,
-            fontSize = 13.sp,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .background(InkVeil, PillShape)
+                .border(1.dp, Gold.copy(alpha = 0.32f), PillShape)
+                .padding(horizontal = 18.dp, vertical = 8.dp),
         )
     }
+}
+
+@Composable
+fun GoldRule() {
+    Box(
+        Modifier
+            .width(72.dp)
+            .height(1.5.dp)
+            .background(Brush.horizontalGradient(listOf(Color.Transparent, Gold, Color.Transparent))),
+    )
 }

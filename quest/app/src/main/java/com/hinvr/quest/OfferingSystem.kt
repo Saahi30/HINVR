@@ -1,70 +1,67 @@
 package com.hinvr.quest
 
 import com.meta.spatial.core.Entity
+import com.meta.spatial.core.Hand
 import com.meta.spatial.core.Pose
-import com.meta.spatial.core.Query
 import com.meta.spatial.core.SystemBase
 import com.meta.spatial.core.Vector3
 import com.meta.spatial.runtime.ButtonBits
+import com.meta.spatial.toolkit.AvatarAttachment
 import com.meta.spatial.toolkit.Controller
+import com.meta.spatial.toolkit.ControllerType
 import com.meta.spatial.toolkit.Transform
 import kotlin.math.atan2
 import kotlin.math.hypot
-import kotlin.math.sqrt
-
-private const val GrabReach = 0.32f
-private const val DropReach = 0.38f
 
 class OfferingSystem : SystemBase() {
     private var held: String? = null
     private var heldHand: Entity? = null
+    private var gesture: Gesture? = null
     private var lastPos: Vector3? = null
     private var lastAngle: Float? = null
     private var angleAcc = 0f
     private var ghantaUntil = 0L
-    private var lastNs = 0L
-    private var dt = 0.016f
     private var wasInside = false
 
     override fun execute() {
-        if (Mandir.inside && !wasInside) reset()
-        wasInside = Mandir.inside
-        if (!Mandir.inside || Mandir.sankalpOpen) {
+        val inside = Mandir.inside
+        if (inside && !wasInside) reset()
+        wasInside = inside
+        if (!inside || Mandir.phase != MandirPhase.Visit || !MandirScene.ready) {
             held = null
+            heldHand = null
+            gesture = null
             return
         }
-        val now = System.nanoTime()
-        dt = if (lastNs == 0L) 0.016f else ((now - lastNs) / 1_000_000_000f).coerceIn(0f, 0.05f)
-        lastNs = now
-        val controllers = Query.where { has(Controller.id) }.eval().filter { it.isLocal() }
-        var viewer = Vector3(0f, 1.5f, 1.55f)
-        runCatching { viewer = getScene().getViewerPose().t }
-        var anyHold = false
-        for (hand in controllers) {
+        val viewer = runCatching { getScene().getViewerPose().t }.getOrNull() ?: Vector3(0f, 1.5f, 0.05f)
+        var holding = false
+        for (hand in Frame.controllers()) {
             val pad = hand.getComponent<Controller>()
             if (!pad.isActive) continue
             val pose = hand.tryGetComponent<Transform>()?.transform ?: continue
-            val trigger = pad.isDown(ButtonBits.ButtonTriggerR) || pad.isDown(ButtonBits.ButtonTriggerL)
-            val squeeze = pad.isDown(ButtonBits.ButtonSqueezeR) || pad.isDown(ButtonBits.ButtonSqueezeL)
-            val gripping = trigger || squeeze
-            if (!gripping) continue
-            anyHold = true
+            val gripping = pad.isDown(ButtonBits.ButtonTriggerR) || pad.isDown(ButtonBits.ButtonTriggerL) ||
+                pad.isDown(ButtonBits.ButtonSqueezeR) || pad.isDown(ButtonBits.ButtonSqueezeL)
+            if (!gripping) {
+                if (heldHand == hand) heldHand = null
+                continue
+            }
             if (held == null) {
                 grabNearest(pose.t, hand)
+                if (held != null) holding = true
             } else if (heldHand == null || heldHand == hand) {
                 heldHand = hand
+                holding = true
                 follow(pose)
             }
         }
-        if (!anyHold && held != null) {
-            drop(viewer)
-        }
-        tickAarti()
+        if (!holding && held != null) drop(viewer)
+        if (held != "aarti_thali") lastAngle = null
     }
 
-    fun reset() {
+    private fun reset() {
         held = null
         heldHand = null
+        gesture = null
         lastPos = null
         lastAngle = null
         angleAcc = 0f
@@ -72,11 +69,13 @@ class OfferingSystem : SystemBase() {
             val home = MandirScene.homes[name] ?: return@forEach
             entity.setComponent(Transform(Pose(home)))
         }
+        MandirScene.diyaPose = Pose(MandirScene.homes["diya"] ?: MandirPlace.stand)
+        MandirScene.incensePose = Pose(MandirPlace.incense + Vector3(0f, 0.08f, 0f))
     }
 
     private fun grabNearest(hand: Vector3, controller: Entity) {
         var best: String? = null
-        var bestDist = GrabReach
+        var bestDist = OfferingRules.GrabReach
         for ((name, entity) in MandirWorld.props) {
             val pos = entity.tryGetComponent<Transform>()?.transform?.t ?: continue
             val dist = distance(hand, pos)
@@ -86,11 +85,13 @@ class OfferingSystem : SystemBase() {
             }
         }
         val name = best ?: return
+        val at = MandirWorld.props[name]?.tryGetComponent<Transform>()?.transform?.t ?: return
         held = name
         heldHand = controller
-        lastPos = MandirWorld.props[name]?.tryGetComponent<Transform>()?.transform?.t
-        buzz(0.35f, 40)
-        if (name == "ghanta") ringGhanta(lastPos ?: MandirPlace.ghanta)
+        lastPos = at
+        gesture = Gesture(at.vec(), System.nanoTime())
+        Haptics.pulse(controller, 0.35f, 40)
+        if (name == "ghanta") ringGhanta(at, controller)
     }
 
     private fun follow(pose: Pose) {
@@ -99,20 +100,18 @@ class OfferingSystem : SystemBase() {
         val tip = pose.t + pose.forward() * 0.14f
         val last = lastPos
         entity.setComponent(Transform(Pose(tip, pose.q)))
-        if (name == "ghanta" && last != null && distance(last, tip) > 0.09f) {
-            ringGhanta(tip)
-        }
+        gesture?.add(tip.vec(), System.nanoTime())
+        if (name == "ghanta" && last != null && distance(last, tip) > 0.09f) ringGhanta(tip, heldHand)
         if (name == "diya") MandirScene.diyaPose = Pose(tip)
         if (name == "agarbatti") MandirScene.incensePose = Pose(tip)
         lastPos = tip
         if (name == "aarti_thali") trackCircle(tip)
         if (name == "kumkum" && headNear(tip)) applyTilak()
-        if (name == "agarbatti" && Mandir.diyaLit && near(tip, MandirScene.diyaPose.t, 0.16f)) {
-            if (!Mandir.agarbattiLit) {
-                Mandir.agarbattiLit = true
-                MandirSound.at("ignite", tip, 0.7f)
-                MandirScene.setIncenseLight(true, tip)
-            }
+        if (name == "agarbatti" && Mandir.diyaLit && near(tip, MandirScene.diyaPose.t, 0.16f) && !Mandir.agarbattiLit) {
+            Mandir.agarbattiLit = true
+            MandirSound.at("ignite", tip, 0.7f)
+            MandirScene.setIncenseLight(true, tip)
+            Haptics.pulse(heldHand, 0.3f, 40)
         }
     }
 
@@ -120,71 +119,77 @@ class OfferingSystem : SystemBase() {
         val name = held ?: return
         val entity = MandirWorld.props[name] ?: return
         val pos = entity.tryGetComponent<Transform>()?.transform?.t ?: return
+        val move = gesture ?: Gesture(pos.vec(), System.nanoTime())
+        val release = pos.vec()
+        val velocity = move.velocity()
+        val home = MandirScene.homes[name] ?: pos
         when (name) {
             "diya" -> {
-                if (near(pos, MandirPlace.stand, DropReach)) {
-                    lightDiya(pos)
-                    park(name, MandirScene.homes[name] ?: MandirPlace.stand)
-                }
+                if (OfferingRules.diyaSetDown(move, release, MandirPlace.stand.vec())) lightDiya(home)
+                park(name, home)
             }
             "marigold", "lotus" -> {
-                if (near(pos, MandirPlace.feet, 0.45f) || near(pos, MandirPlace.garbha, 0.7f)) {
-                    Mandir.mark(OfferingKind.Pushp, "Flowers at the feet. ${Mandir.Honesty}")
-                    park(name, MandirPlace.feet + Vector3((name.hashCode() % 7) * 0.03f, 0f, 0f))
+                if (OfferingRules.offeredToGarbha(move, release, velocity, MandirPlace.feet.vec(), MandirPlace.garbha.vec())) {
+                    Mandir.mark(OfferingKind.Pushp, R.string.offer_pushp)
+                    Haptics.pulse(heldHand, 0.4f, 50)
+                    park(name, MandirPlace.feet + Vector3(if (name == "lotus") 0.09f else -0.09f, 0f, 0f))
                 } else {
-                    park(name, MandirScene.homes[name] ?: pos)
+                    park(name, home)
                 }
             }
             "coconut", "laddoo" -> {
                 when {
                     near(pos, viewer, 0.32f) && OfferingKind.Prasad in Mandir.done -> {
                         Mandir.receivePrasad()
-                        park(name, MandirScene.homes[name] ?: pos)
+                        park(name, home)
                     }
-                    near(pos, MandirPlace.garbha, 0.7f) || near(pos, MandirPlace.feet, 0.45f) -> {
-                        Mandir.mark(OfferingKind.Prasad, "Naivedya is offered. ${Mandir.Honesty}")
-                        if (name == "coconut") MandirSound.at("coconut", pos, 0.85f)
-                        park(name, MandirPlace.feet + Vector3(0.12f, 0f, 0.04f))
+                    OfferingRules.offeredToGarbha(move, release, velocity, MandirPlace.feet.vec(), MandirPlace.garbha.vec()) -> {
+                        Mandir.mark(OfferingKind.Prasad, R.string.offer_prasad)
+                        if (name == "coconut") MandirSound.at("coconut", MandirPlace.feet, 0.85f)
+                        Haptics.pulse(heldHand, 0.4f, 50)
+                        park(name, MandirPlace.feet + Vector3(if (name == "coconut") 0.16f else 0.24f, 0f, 0.04f))
                     }
-                    else -> park(name, MandirScene.homes[name] ?: pos)
+                    else -> park(name, home)
                 }
             }
             "coin" -> {
-                if (near(pos, MandirPlace.peti, 0.4f)) {
-                    Mandir.mark(OfferingKind.Daan, "The peti is closed. ${Mandir.Honesty}")
+                if (OfferingRules.intoPeti(move, release, velocity, MandirPlace.peti.vec())) {
+                    Mandir.mark(OfferingKind.Daan, R.string.offer_daan)
                     MandirSound.at("coins", MandirPlace.peti, 0.9f)
-                    park(name, MandirPlace.peti + Vector3(0f, 0.12f, 0f))
+                    Haptics.pulse(heldHand, 0.5f, 60)
+                    park(name, MandirPlace.peti + Vector3(0f, 0.22f, 0f))
                 } else {
-                    park(name, MandirScene.homes[name] ?: pos)
+                    park(name, home)
                 }
             }
             "agarbatti" -> {
-                if (near(pos, MandirPlace.incense, 0.28f)) {
+                if (OfferingRules.incensePlanted(move, release, MandirPlace.incense.vec())) {
                     Mandir.agarbattiPlanted = true
                     if (Mandir.agarbattiLit || Mandir.diyaLit) {
                         Mandir.agarbattiLit = true
                         MandirScene.setIncenseLight(true, MandirPlace.incense)
                     }
-                    Mandir.mark(OfferingKind.Agarbatti, "Incense is planted. ${Mandir.Honesty}")
+                    Mandir.mark(OfferingKind.Agarbatti, R.string.offer_agarbatti)
                     park(name, MandirPlace.incense + Vector3(0f, 0.06f, 0f))
                     MandirScene.incensePose = Pose(MandirPlace.incense + Vector3(0f, 0.08f, 0f))
                 } else {
-                    park(name, MandirScene.homes[name] ?: pos)
+                    park(name, home)
                 }
             }
             "kumkum" -> {
                 if (headNear(pos)) applyTilak()
-                park(name, MandirScene.homes[name] ?: pos)
+                park(name, home)
             }
             "aarti_thali" -> {
-                park(name, MandirScene.homes[name] ?: MandirPlace.stand)
+                park(name, home)
                 lastAngle = null
             }
             "ghanta" -> park(name, MandirPlace.ghanta)
-            else -> park(name, MandirScene.homes[name] ?: pos)
+            else -> park(name, home)
         }
         held = null
         heldHand = null
+        gesture = null
         lastPos = null
     }
 
@@ -199,24 +204,24 @@ class OfferingSystem : SystemBase() {
         Mandir.diyaLit = true
         MandirScene.setDiyaLight(true, where)
         MandirSound.at("ignite", where, 0.8f)
-        Mandir.mark(OfferingKind.Diya, "The diya is lit. ${Mandir.Honesty}")
-        buzz(0.55f, 70)
+        Mandir.mark(OfferingKind.Diya, R.string.offer_diya)
+        Haptics.pulse(heldHand, 0.55f, 70)
     }
 
-    private fun ringGhanta(where: Vector3) {
+    private fun ringGhanta(where: Vector3, hand: Entity?) {
         val now = System.currentTimeMillis()
         if (now < ghantaUntil) return
         ghantaUntil = now + 900L
         MandirSound.at("ghanta", where, 1f)
-        Mandir.mark(OfferingKind.Ghanta, "The ghanta sounds. ${Mandir.Honesty}")
-        buzz(0.8f, 90)
+        Mandir.mark(OfferingKind.Ghanta, R.string.offer_ghanta)
+        Haptics.pulse(hand, 0.8f, 90)
     }
 
     private fun applyTilak() {
         if (Mandir.tilakOn) return
-        Mandir.tilakOn = true
-        Mandir.mark(OfferingKind.Tilak, "Tilak is received. ${Mandir.Honesty}")
-        buzz(0.4f, 50)
+        Mandir.applyTilak()
+        Mandir.mark(OfferingKind.Tilak, R.string.offer_tilak)
+        Haptics.pulse(heldHand, 0.4f, 50)
     }
 
     private fun trackCircle(pos: Vector3) {
@@ -234,17 +239,13 @@ class OfferingSystem : SystemBase() {
         val circles = (angleAcc / (2f * Math.PI.toFloat())).toInt()
         if (circles > Mandir.aartiCircles) {
             Mandir.aartiCircles = circles.coerceAtMost(7)
-            Mandir.hint = "Aarti · ${Mandir.aartiCircles} of 7"
-            buzz(0.25f, 30)
+            Mandir.setHint(R.string.hint_aarti_count)
+            Haptics.pulse(heldHand, 0.25f, 30)
             if (Mandir.aartiCircles >= 7 && !Mandir.aartiDone) {
-                Mandir.mark(OfferingKind.Aarti, "Aarti is complete. ${Mandir.Honesty}")
+                Mandir.mark(OfferingKind.Aarti, R.string.offer_aarti)
                 MandirSound.aartiMoment(MandirPlace.stand)
             }
         }
-    }
-
-    private fun tickAarti() {
-        if (held != "aarti_thali") lastAngle = null
     }
 
     private fun headNear(pos: Vector3): Boolean {
@@ -258,14 +259,27 @@ class OfferingSystem : SystemBase() {
         val dx = a.x - b.x
         val dy = a.y - b.y
         val dz = a.z - b.z
-        return sqrt(dx * dx + dy * dy + dz * dz)
-    }
-
-    private fun buzz(amplitude: Float, durationMs: Int) {
-        Haptics.pulse(amplitude, durationMs)
+        return kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
     }
 }
 
+fun Vector3.vec() = Vec(x, y, z)
+
+/** Controller rumble through the Spatial SDK. Hands have nothing to rumble, so they're skipped. */
 object Haptics {
-    var pulse: (Float, Int) -> Unit = { _, _ -> }
+    /** Set by the activity: hand, amplitude 0..1, duration in ms. */
+    var sink: ((Hand, Float, Int) -> Unit)? = null
+
+    fun pulse(controller: Entity?, amplitude: Float, durationMs: Int) {
+        val entity = controller ?: return
+        val out = sink ?: return
+        val pad = entity.tryGetComponent<Controller>() ?: return
+        if (pad.type == ControllerType.HAND) return
+        val hand = when (entity.tryGetComponent<AvatarAttachment>()?.type) {
+            "left_controller" -> Hand.LEFT
+            "right_controller" -> Hand.RIGHT
+            else -> return
+        }
+        runCatching { out(hand, amplitude.coerceIn(0f, 1f), durationMs) }
+    }
 }
