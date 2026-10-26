@@ -18,7 +18,7 @@ function readServiceAccount(): ServiceAccount | null {
   return parsed;
 }
 
-function bytesFromB64(value: string): Uint8Array {
+function bytesFromB64(value: string): Uint8Array<ArrayBuffer> {
   const padded = value.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((value.length + 3) % 4);
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
@@ -74,6 +74,84 @@ async function accessToken(account: ServiceAccount, key: CryptoKey): Promise<str
   return String(body.access_token);
 }
 
+const WALLET_API = "https://walletobjects.googleapis.com/walletobjects/v1";
+
+let classReady = "";
+
+async function walletFetch(token: string, path: string, init: RequestInit = {}) {
+  return fetch(`${WALLET_API}/${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
+}
+
+/** Creates the HINVR class once. GET first, so an existing class (and its review state) is left alone. */
+async function ensureClass(token: string, classId: string): Promise<boolean> {
+  if (classReady === classId) return true;
+  const found = await walletFetch(token, `genericClass/${encodeURIComponent(classId)}`);
+  if (found.ok) {
+    classReady = classId;
+    return true;
+  }
+  if (found.status !== 404) return false;
+  const created = await walletFetch(token, "genericClass", {
+    method: "POST",
+    body: JSON.stringify({ id: classId, multipleDevicesAndHoldersAllowedStatus: "ONE_USER_ALL_DEVICES" }),
+  });
+  if (created.ok || created.status === 409) {
+    classReady = classId;
+    return true;
+  }
+  return false;
+}
+
+function passFields(pass: IssuedPass, nowIso: string) {
+  return {
+    state: "ACTIVE",
+    hexBackgroundColor: "#1A120C",
+    cardTitle: { defaultValue: { language: "en-US", value: "HINVR" } },
+    header: { defaultValue: { language: "en-US", value: pass.displayName } },
+    subheader: { defaultValue: { language: "en-US", value: `${pass.tier === "Nri" ? "NRI" : pass.tier} · Priority Assist` } },
+    barcode: { type: "QR_CODE", value: pass.token, alternateText: pass.memberId },
+    textModulesData: [
+      { id: "member", header: "Member", body: pass.memberId },
+      { id: "valid", header: "Valid through", body: pass.validUntil || "See the HINVR app" },
+      { id: "code", header: "Code expires", body: "Reopen HINVR to refresh this code" },
+    ],
+    validTimeInterval: {
+      start: { date: nowIso },
+      end: { date: pass.expiresAt },
+    },
+  };
+}
+
+/**
+ * The Wallet object id is fixed per member, and Google ignores the object inside a save
+ * link once that id exists. So the object is inserted once and PATCHed with the fresh
+ * barcode on every issue; the save link then only names the object.
+ */
+async function upsertObject(token: string, objectId: string, classId: string, pass: IssuedPass): Promise<boolean> {
+  const fields = passFields(pass, new Date().toISOString());
+  const path = `genericObject/${encodeURIComponent(objectId)}`;
+  const patched = await walletFetch(token, path, { method: "PATCH", body: JSON.stringify(fields) });
+  if (patched.ok) return true;
+  if (patched.status !== 404) return false;
+  const inserted = await walletFetch(token, "genericObject", {
+    method: "POST",
+    body: JSON.stringify({ id: objectId, classId, ...fields }),
+  });
+  if (inserted.ok) return true;
+  if (inserted.status === 409) {
+    const retry = await walletFetch(token, path, { method: "PATCH", body: JSON.stringify(fields) });
+    return retry.ok;
+  }
+  return false;
+}
+
 export async function googleWalletSaveUrl(pass: IssuedPass): Promise<{ url: string } | { error: string; status: number }> {
   const issuer = Deno.env.get("GOOGLE_WALLET_ISSUER_ID")?.trim() ?? "";
   const account = readServiceAccount();
@@ -83,23 +161,15 @@ export async function googleWalletSaveUrl(pass: IssuedPass): Promise<{ url: stri
   const key = await importGoogleKey(account.private_key);
   const token = await accessToken(account, key);
   const classId = `${issuer}.hinvr_membership`;
-  const classResponse = await fetch("https://walletobjects.googleapis.com/walletobjects/v1/genericClass", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      id: classId,
-      issuerName: "HINVR",
-      reviewStatus: "UNDER_REVIEW",
-    }),
-  });
-  if (!classResponse.ok && classResponse.status !== 409) {
+  if (!(await ensureClass(token, classId))) {
     return { error: "Google Wallet did not open the HINVR pass.", status: 502 };
   }
 
   const objectId = `${issuer}.hinvr_${pass.memberId.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  if (!(await upsertObject(token, objectId, classId, pass))) {
+    return { error: "Google Wallet did not update the HINVR pass.", status: 502 };
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const save = await signJwt(key, {
     iss: account.client_email,
@@ -107,27 +177,7 @@ export async function googleWalletSaveUrl(pass: IssuedPass): Promise<{ url: stri
     typ: "savetowallet",
     iat: now,
     payload: {
-      genericObjects: [
-        {
-          id: objectId,
-          classId,
-          state: "ACTIVE",
-          hexBackgroundColor: "#1A120C",
-          cardTitle: { defaultValue: { language: "en-US", value: "HINVR" } },
-          header: { defaultValue: { language: "en-US", value: pass.displayName } },
-          subheader: { defaultValue: { language: "en-US", value: `${pass.tier === "Nri" ? "NRI" : pass.tier} pass` } },
-          barcode: { type: "QR_CODE", value: pass.token, alternateText: pass.memberId },
-          textModulesData: [
-            { id: "member", header: "Member", body: pass.memberId },
-            { id: "valid", header: "Valid through", body: pass.validUntil || "This year" },
-            { id: "code", header: "Code expires", body: "Reopen HINVR to refresh this code" },
-          ],
-          validTimeInterval: {
-            start: { date: new Date(now * 1000).toISOString() },
-            end: { date: pass.expiresAt },
-          },
-        },
-      ],
+      genericObjects: [{ id: objectId, classId }],
     },
   });
   return { url: `https://pay.google.com/gp/v/save/${save}` };

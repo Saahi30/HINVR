@@ -17,16 +17,25 @@ export type QuotaSnap = {
   searches: number;
 };
 
-const emptySnap = (): QuotaSnap => ({ units: 0, videos: 0, playlists: 0, channels: 0, searches: 0 });
+/** Units spent by one checker run. Each run makes its own meter, so concurrent runs never share a count. */
+export class QuotaMeter {
+  private snap: QuotaSnap = { units: 0, videos: 0, playlists: 0, channels: 0, searches: 0 };
 
-let snap = emptySnap();
+  charge(path: string) {
+    this.snap.units += COST[path] ?? 1;
+    if (path === "videos") this.snap.videos += 1;
+    else if (path === "playlistItems") this.snap.playlists += 1;
+    else if (path === "channels") this.snap.channels += 1;
+    else if (path === "search") this.snap.searches += 1;
+  }
 
-export function resetQuotaRun() {
-  snap = emptySnap();
-}
+  get units() {
+    return this.snap.units;
+  }
 
-export function quotaSnap(): QuotaSnap {
-  return { ...snap };
+  toJSON(): QuotaSnap {
+    return { ...this.snap };
+  }
 }
 
 export function quotaDay(at = new Date()) {
@@ -36,15 +45,6 @@ export function quotaDay(at = new Date()) {
     month: "2-digit",
     day: "2-digit",
   }).format(at);
-}
-
-function charge(path: string) {
-  const units = COST[path] ?? 1;
-  snap.units += units;
-  if (path === "videos") snap.videos += 1;
-  else if (path === "playlistItems") snap.playlists += 1;
-  else if (path === "channels") snap.channels += 1;
-  else if (path === "search") snap.searches += 1;
 }
 
 export type VideoState = {
@@ -73,8 +73,8 @@ function videoIdOf(item: ApiItem) {
 
 type ApiError = { error?: { message?: string; errors?: { reason?: string }[] } };
 
-async function call(path: string, params: Record<string, string>, key: string): Promise<ApiItem[]> {
-  charge(path);
+async function call(meter: QuotaMeter, path: string, params: Record<string, string>, key: string): Promise<ApiItem[]> {
+  meter.charge(path);
   const query = new URLSearchParams({ ...params, key });
   const res = await fetch(`${API}/${path}?${query}`);
   const body = (await res.json().catch(() => ({}))) as { items?: ApiItem[] } & ApiError;
@@ -85,12 +85,13 @@ async function call(path: string, params: Record<string, string>, key: string): 
   return body.items ?? [];
 }
 
-export async function fetchVideos(ids: string[], key: string): Promise<Map<string, VideoState>> {
+export async function fetchVideos(meter: QuotaMeter, ids: string[], key: string): Promise<Map<string, VideoState>> {
   const out = new Map<string, VideoState>();
   const unique = [...new Set(ids.filter(Boolean))];
   for (let i = 0; i < unique.length; i += 50) {
     const batch = unique.slice(i, i + 50);
     const items = await call(
+      meter,
       "videos",
       { part: "snippet,liveStreamingDetails,status", id: batch.join(","), maxResults: "50" },
       key,
@@ -113,9 +114,10 @@ export async function fetchVideos(ids: string[], key: string): Promise<Map<strin
   return out;
 }
 
-export async function recentUploads(channelId: string, key: string): Promise<string[]> {
+export async function recentUploads(meter: QuotaMeter, channelId: string, key: string): Promise<string[]> {
   if (!channelId.startsWith("UC")) return [];
   const items = await call(
+    meter,
     "playlistItems",
     { part: "contentDetails", playlistId: `UU${channelId.slice(2)}`, maxResults: "15" },
     key,
@@ -123,7 +125,7 @@ export async function recentUploads(channelId: string, key: string): Promise<str
   return items.map(videoIdOf).filter(Boolean);
 }
 
-export async function searchLive(query: string, key: string, channelId = ""): Promise<string[]> {
+export async function searchLive(meter: QuotaMeter, query: string, key: string, channelId = ""): Promise<string[]> {
   const q = query.trim();
   if (!q) return [];
   const params: Record<string, string> = {
@@ -134,12 +136,12 @@ export async function searchLive(query: string, key: string, channelId = ""): Pr
     q,
   };
   if (channelId.startsWith("UC")) params.channelId = channelId;
-  const items = await call("search", params, key);
+  const items = await call(meter, "search", params, key);
   return items.map(videoIdOf).filter(Boolean);
 }
 
-export async function resolveHandle(handle: string, key: string): Promise<string> {
-  const items = await call("channels", { part: "id", forHandle: handle }, key);
+export async function resolveHandle(meter: QuotaMeter, handle: string, key: string): Promise<string> {
+  const items = await call(meter, "channels", { part: "id", forHandle: handle }, key);
   const id = items[0]?.id;
   return typeof id === "string" ? id : "";
 }

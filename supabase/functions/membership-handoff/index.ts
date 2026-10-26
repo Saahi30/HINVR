@@ -1,47 +1,39 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getCaller, readEnv, serviceClient } from "../_shared/auth.ts";
+import { json, withCors } from "../_shared/http.ts";
 
-const jsonHeaders = {
-  "Content-Type": "application/json",
-  Connection: "keep-alive",
-};
+/**
+ * Trades a fresh phone session for a one-time magic-link token the membership site
+ * verifies. The phone opens <membership site>#handoff=<token_hash>&type=<type>.
+ *
+ * - The access token must have been minted in the last 5 minutes, so a leaked older
+ *   token cannot be turned into a new long-lived web session. The phone refreshes its
+ *   session right before calling.
+ * - The token hash is single use (Auth consumes it on verify) and generating a new one
+ *   replaces the previous link for that user. It expires with the project's email OTP
+ *   expiry (set it short, see admin/README.md).
+ */
+const MAX_TOKEN_AGE_SECONDS = 5 * 60;
 
-function json(body: Record<string, string>, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
-}
-
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return json({ error: "Couldn't open membership." }, 405);
   }
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const url = Deno.env.get("SUPABASE_URL") ?? "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const serviceKey =
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
-    Deno.env.get("SUPABASE_SECRET_KEY") ??
-    "";
-  if (!url || !anonKey || !serviceKey || !authHeader.toLowerCase().startsWith("bearer ")) {
+  const env = readEnv();
+  if (!env) return json({ error: "Couldn't open membership." }, 500);
+  const caller = await getCaller(req, env);
+  if (!caller?.email) {
     return json({ error: "Sign in again." }, 401);
   }
-
-  const userClient = createClient(url, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  const email = userData.user?.email;
-  if (userError || !email) {
-    return json({ error: "Sign in again." }, 401);
+  if (caller.tokenAgeSeconds == null || caller.tokenAgeSeconds > MAX_TOKEN_AGE_SECONDS || caller.tokenAgeSeconds < -60) {
+    return json({ error: "Sign in again.", code: "stale_session" }, 401);
   }
 
-  const admin = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const admin = serviceClient(env);
   const { data, error } = await admin.auth.admin.generateLink({
     type: "magiclink",
-    email,
+    email: caller.email,
   });
   const tokenHash = data?.properties?.hashed_token;
   if (error || !tokenHash) {
@@ -54,4 +46,4 @@ Deno.serve(async (req: Request) => {
 
   const type = data.properties.verification_type || "magiclink";
   return json({ token_hash: tokenHash, type });
-});
+}));

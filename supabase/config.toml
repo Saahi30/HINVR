@@ -1,0 +1,23 @@
+# Supabase CLI config for the HINVR project. Only what differs from CLI defaults.
+# Link the hosted project with `supabase link --project-ref <ref>`.
+project_id = "hinvr"
+
+# live-check is called by pg_cron with its own x-live-check-secret header (and by staff
+# with a JWT, which the function verifies itself), so the gateway must not require a JWT.
+[functions.live-check]
+verify_jwt = false
+
+[functions.desk-check-in]
+verify_jwt = true
+
+[functions.pass-credential]
+verify_jwt = true
+
+[functions.pass-wallet]
+verify_jwt = true
+
+[functions.membership-handoff]
+verify_jwt = true
+
+[functions.send-notification]
+verify_jwt = true

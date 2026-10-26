@@ -1,19 +1,33 @@
-/** Signed desk credential. HNV1.<kid>.<payload>.<sig> — ECDSA P-256, raw signature. */
+/**
+ * Signed desk credential. HNV1.<kid>.<payload>.<sig> — ECDSA P-256 (SHA-256), raw r||s signature.
+ *
+ * Canonical source. The admin desk imports this file directly (admin/lib/pass-token.ts
+ * re-exports it), so keep it pure Web Crypto: no Deno or Node APIs, no imports.
+ */
 
 export const DESK_TTL_SECONDS = 6 * 60 * 60;
 export const WALLET_TTL_SECONDS = 24 * 60 * 60;
-const CLOCK_SKEW_SECONDS = 90;
-const MAX_TOKEN_LENGTH = 2048;
+export const CLOCK_SKEW_SECONDS = 90;
+export const MAX_TOKEN_LENGTH = 2048;
+/** Memberships end at 23:59:59 India time on their last day. */
+const IST_OFFSET_SECONDS = 5 * 60 * 60 + 30 * 60;
 
 export type PassPurpose = "desk" | "wallet";
 
 export type PassClaims = {
+  /** credential id */
   j: string;
+  /** user id */
   u: string;
+  /** member id */
   m: string;
+  /** tier */
   t: string;
+  /** membership end, unix seconds */
   v: number;
+  /** token expiry, unix seconds */
   e: number;
+  /** pass generation */
   g: number;
   p: PassPurpose;
 };
@@ -27,17 +41,18 @@ export class PassTokenError extends Error {
   }
 }
 
-export function membershipEndUnix(value: string): number | null {
-  const text = value.trim();
-  if (!text) return null;
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
-  if (iso) {
-    return Math.floor(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 23, 59, 59) / 1000);
-  }
-  const parsed = Date.parse(text);
-  if (Number.isNaN(parsed)) return null;
-  const date = new Date(parsed);
-  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59) / 1000);
+/** Unix seconds for 23:59:59 IST on a YYYY-MM-DD date. Null for anything else. */
+export function membershipEndUnix(value: string | null | undefined): number | null {
+  const text = (value ?? "").trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.slice(0, 10));
+  if (!iso) return null;
+  const year = Number(iso[1]);
+  const month = Number(iso[2]);
+  const day = Number(iso[3]);
+  const utcMidnight = Date.UTC(year, month - 1, day);
+  const check = new Date(utcMidnight);
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+  return Math.floor(utcMidnight / 1000) + 24 * 60 * 60 - 1 - IST_OFFSET_SECONDS;
 }
 
 export function bytesToB64url(bytes: Uint8Array): string {
@@ -46,7 +61,8 @@ export function bytesToB64url(bytes: Uint8Array): string {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
 
-export function b64urlToBytes(value: string): Uint8Array {
+export function b64urlToBytes(value: string): Uint8Array<ArrayBuffer> {
+  if (!/^[A-Za-z0-9_-]*$/.test(value)) throw new PassTokenError("That code is not a signed pass.");
   const padded = value.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((value.length + 3) % 4);
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
@@ -67,13 +83,8 @@ function payloadJson(claims: PassClaims): string {
   });
 }
 
-function exactBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return copy;
-}
-
-function signingKey(jwk: JsonWebKey, usage: "sign" | "verify"): JsonWebKey {
+/** Strips a JWK down to the EC fields, keeping `d` only for signing. */
+export function ecJwk(jwk: JsonWebKey, usage: "sign" | "verify"): JsonWebKey {
   const copy: JsonWebKey = {
     kty: jwk.kty,
     crv: jwk.crv,
@@ -87,15 +98,20 @@ function signingKey(jwk: JsonWebKey, usage: "sign" | "verify"): JsonWebKey {
 async function ecdsaKey(jwk: JsonWebKey, usage: "sign" | "verify"): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "jwk",
-    signingKey(jwk, usage),
+    ecJwk(jwk, usage),
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     [usage],
   );
 }
 
+export function isValidKid(kid: string): boolean {
+  return /^[A-Za-z0-9_-]{1,64}$/.test(kid);
+}
+
 export async function signPassToken(privateJwk: JsonWebKey, kid: string, claims: PassClaims): Promise<string> {
-  if (!kid || kid.includes(".")) throw new PassTokenError("That code is not a signed pass.");
+  if (!isValidKid(kid)) throw new PassTokenError("Bad signing key id.");
+  if (!privateJwk.d) throw new PassTokenError("That key cannot sign.");
   const payload = bytesToB64url(new TextEncoder().encode(payloadJson(claims)));
   const key = await ecdsaKey(privateJwk, "sign");
   const signature = new Uint8Array(
@@ -120,19 +136,25 @@ export async function verifyPassToken(
   const kid = parts[1];
   const jwk = keys.get(kid);
   if (!jwk) throw new PassTokenError("This desk does not have the key for that code yet.");
-  let signature: Uint8Array;
-  let payloadBytes: Uint8Array;
+  let signature: Uint8Array<ArrayBuffer>;
+  let payloadBytes: Uint8Array<ArrayBuffer>;
   try {
     payloadBytes = b64urlToBytes(parts[2]);
     signature = b64urlToBytes(parts[3]);
   } catch {
     throw new PassTokenError("That code is not a signed pass.");
   }
-  const key = await ecdsaKey(jwk, "verify");
+  if (signature.byteLength !== 64) throw new PassTokenError("That signature does not match.");
+  let key: CryptoKey;
+  try {
+    key = await ecdsaKey(jwk, "verify");
+  } catch {
+    throw new PassTokenError("This desk has a broken key for that code.");
+  }
   const ok = await crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    exactBytes(signature),
+    signature,
     new TextEncoder().encode(`${kid}.${parts[2]}`),
   );
   if (!ok) throw new PassTokenError("That signature does not match.");
@@ -142,7 +164,18 @@ export async function verifyPassToken(
   } catch {
     throw new PassTokenError("That code is not a signed pass.");
   }
-  if (!claims.j || !claims.u || !claims.m || !claims.t || (claims.p !== "desk" && claims.p !== "wallet")) {
+  if (
+    !claims ||
+    typeof claims.j !== "string" ||
+    typeof claims.u !== "string" ||
+    typeof claims.m !== "string" ||
+    typeof claims.t !== "string" ||
+    !claims.j ||
+    !claims.u ||
+    !claims.m ||
+    !claims.t ||
+    (claims.p !== "desk" && claims.p !== "wallet")
+  ) {
     throw new PassTokenError("That code is not a signed pass.");
   }
   if (!Number.isFinite(claims.e) || nowSeconds > claims.e + CLOCK_SKEW_SECONDS) {
