@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Looked up by name at runtime (getIdentifier), so the shrinker can't see them. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/mandir_*,@raw/photo_credits,@raw/temple_bell" />

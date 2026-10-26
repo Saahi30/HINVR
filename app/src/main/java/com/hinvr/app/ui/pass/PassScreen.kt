@@ -3,8 +3,6 @@ package com.hinvr.app.ui.pass
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.Intent
-import android.net.Uri
 import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -32,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,12 +63,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -78,7 +80,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.data.PassCheckIn
+import com.hinvr.app.HinvrApplication
+import com.hinvr.app.data.AuthException
 import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.attempt
+import com.hinvr.app.data.formatValidUntil
+import com.hinvr.app.data.hasPhysicalCard
+import com.hinvr.app.data.passIsUsable
+import com.hinvr.app.data.passNeedsReissue
+import com.hinvr.app.ui.components.HinvrSealLetters
+import com.hinvr.app.ui.plans.openDeviceBrowser
 import com.hinvr.app.data.hasDeskPass
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
@@ -105,26 +116,20 @@ fun PassScreen(
     onPlanVisit: () -> Unit,
 ) {
     val session = LocalSessionRepository.current
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
-    val hasCredential = snap.tier.hasDeskPass
+    val snap by session.snapshot.collectAsStateWithLifecycle()
+    val hasCredential = snap.loaded && snap.tier.hasDeskPass
     val colors = HinvrTheme.colors
-    var passRevealed by rememberSaveable { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var passError by remember { mutableStateOf("") }
     var passBusy by remember { mutableStateOf(false) }
     var showCard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val livePayload = if (
-        hasCredential && snap.passToken.startsWith("HNV1.") && snap.passExpiresAt > nowMs
-    ) {
-        snap.passToken
-    } else {
-        ""
-    }
+    val online by (context.applicationContext as HinvrApplication).connectivity.online.collectAsStateWithLifecycle()
+    val livePayload = if (hasCredential && passIsUsable(snap.passToken, snap.passExpiresAt, nowMs)) snap.passToken else ""
     KeepScreenBright(enabled = livePayload.isNotBlank())
     LaunchedEffect(Unit) {
-        session.syncRemote()
+        attempt { session.syncRemote() }
     }
     LaunchedEffect(snap.passExpiresAt) {
         val expiry = snap.passExpiresAt
@@ -133,14 +138,18 @@ fun PassScreen(
         if (wait > 0) delay(wait)
         nowMs = System.currentTimeMillis()
     }
-    LaunchedEffect(snap.userId, snap.tier, snap.memberId, snap.validUntilLabel, livePayload.isBlank()) {
-        if (!snap.isLoggedIn || !hasCredential || livePayload.isNotBlank()) return@LaunchedEffect
-        passBusy = true
+    // Issue when missing, and top up early while online. A failed early top-up keeps
+    // the code on screen; an error shows only when there is no usable code at all.
+    LaunchedEffect(snap.userId, snap.tier, snap.memberId, livePayload.isBlank(), online) {
+        if (!snap.isLoggedIn || !hasCredential) return@LaunchedEffect
+        if (!passNeedsReissue(snap.passToken, snap.passExpiresAt, System.currentTimeMillis())) return@LaunchedEffect
+        if (!online && livePayload.isNotBlank()) return@LaunchedEffect
+        passBusy = livePayload.isBlank()
         try {
             session.ensurePass(false)
             passError = ""
-        } catch (error: Exception) {
-            passError = context.userMessage(error.message, R.string.err_refresh_pass)
+        } catch (error: AuthException) {
+            if (livePayload.isBlank()) passError = context.userMessage(error.message, R.string.err_refresh_pass)
         } finally {
             passBusy = false
         }
@@ -148,6 +157,7 @@ fun PassScreen(
 
     HinvrBackground(atmosphere = Atmosphere.Sanctum) {
         PassVaultAtmosphere()
+        if (!snap.loaded) return@HinvrBackground
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -184,10 +194,7 @@ fun PassScreen(
                             ),
                         ),
                 )
-                PassDrawerReveal(
-                    alreadyRevealed = passRevealed,
-                    onFinished = { passRevealed = true },
-                ) {
+                PassDrawerReveal {
                     PassCredentialCard(snap = snap, hasCredential = hasCredential, payload = livePayload)
                 }
             }
@@ -210,8 +217,11 @@ fun PassScreen(
                 Text(
                     when {
                         passError.isNotBlank() -> passError
-                        livePayload.isNotBlank() -> stringResource(R.string.pass_expires, formatPassClock(snap.passExpiresAt))
+                        livePayload.isNotBlank() && !online ->
+                            stringResource(R.string.pass_offline_valid, formatPassClock(context, snap.passExpiresAt))
+                        livePayload.isNotBlank() -> stringResource(R.string.pass_expires, formatPassClock(context, snap.passExpiresAt))
                         passBusy -> stringResource(R.string.pass_issuing)
+                        !online -> stringResource(R.string.pass_offline_none)
                         snap.passToken.isNotBlank() -> stringResource(R.string.pass_expired)
                         else -> stringResource(R.string.pass_connect)
                     },
@@ -227,13 +237,14 @@ fun PassScreen(
                 PassCredentialActions(
                     busy = passBusy,
                     cardStatus = snap.cardStatus,
+                    offersCard = snap.tier.hasPhysicalCard,
                     onNewCode = {
                         scope.launch {
                             passBusy = true
                             passError = ""
                             try {
                                 session.ensurePass(true)
-                            } catch (error: Exception) {
+                            } catch (error: AuthException) {
                                 passError = context.userMessage(error.message, R.string.err_refresh_pass)
                             } finally {
                                 passBusy = false
@@ -246,8 +257,8 @@ fun PassScreen(
                             passError = ""
                             try {
                                 val url = session.googleWalletUrl()
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                            } catch (error: Exception) {
+                                if (!openDeviceBrowser(context, url)) passError = context.getString(R.string.err_wallet)
+                            } catch (error: AuthException) {
                                 passError = context.userMessage(error.message, R.string.err_wallet)
                             } finally {
                                 passBusy = false
@@ -267,7 +278,8 @@ fun PassScreen(
                 style = HinvrTypography.labelLarge,
                 color = colors.gold,
                 modifier = Modifier
-                    .clickable(onClick = onOpenHow)
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClick = onOpenHow)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             )
             if (hasCredential || snap.checkIns.isNotEmpty()) {
@@ -282,7 +294,7 @@ fun PassScreen(
             )
         }
     }
-    if (showCard && hasCredential) {
+    if (showCard && hasCredential && snap.tier.hasPhysicalCard) {
         PhysicalCardDialog(
             initialName = snap.displayName,
             initialAddress = snap.places.joinToString("\n") { place ->
@@ -301,7 +313,7 @@ fun PassScreen(
                     try {
                         session.requestPhysicalCard(name, address)
                         showCard = false
-                    } catch (error: Exception) {
+                    } catch (error: AuthException) {
                         passError = context.userMessage(error.message, R.string.err_card_list)
                     } finally {
                         passBusy = false
@@ -397,12 +409,12 @@ private fun PassLedger(snap: SessionSnapshot, hasCredential: Boolean) {
         LedgerRule()
         LedgerCell(
             eyebrow = stringResource(R.string.ledger_member),
-            value = if (hasCredential) snap.memberId.ifBlank { "HNV-00000" } else "—",
+            value = if (hasCredential) snap.memberId.ifBlank { stringResource(R.string.member_id_pending_short) } else "—",
         )
         LedgerRule()
         LedgerCell(
             eyebrow = stringResource(R.string.ledger_valid),
-            value = if (hasCredential) snap.validUntilLabel.ifBlank { stringResource(R.string.ledger_annual) } else stringResource(R.string.ledger_join),
+            value = if (hasCredential) validityLabel(snap.validUntil) else stringResource(R.string.ledger_join),
         )
     }
 }
@@ -468,6 +480,7 @@ private fun PassVaultButton(text: String, onClick: () -> Unit) {
             .clickable(
                 interactionSource = interaction,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
@@ -476,43 +489,33 @@ private fun PassVaultButton(text: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * The folio slides away the first time the pass opens in this run of the app, and
+ * the code is readable within a second. After that the card is simply there.
+ */
 @Composable
-private fun PassDrawerReveal(
-    alreadyRevealed: Boolean,
-    onFinished: () -> Unit,
-    content: @Composable () -> Unit,
-) {
+private fun PassDrawerReveal(content: @Composable () -> Unit) {
     val colors = HinvrTheme.colors
-    val seal = remember { Animatable(if (alreadyRevealed) 0f else 1f) }
-    val drawer = remember { Animatable(if (alreadyRevealed) 1f else 0f) }
-    val folio = remember { Animatable(if (alreadyRevealed) 0f else 1f) }
+    val first = remember { !PassRevealState.shown }
+    val seal = remember { Animatable(if (first) 1f else 0f) }
+    val drawer = remember { Animatable(if (first) 0f else 1f) }
+    val folio = remember { Animatable(if (first) 1f else 0f) }
 
-    LaunchedEffect(alreadyRevealed) {
-        if (alreadyRevealed) return@LaunchedEffect
-        delay(360)
+    LaunchedEffect(first) {
+        if (!first) return@LaunchedEffect
+        PassRevealState.shown = true
+        delay(120)
         coroutineScope {
+            launch { seal.animateTo(0f, animationSpec = tween(260, easing = HinvrMotion.ExitEasing)) }
             launch {
-                seal.animateTo(
-                    0f,
-                    animationSpec = tween(800, easing = HinvrMotion.ExitEasing),
-                )
+                delay(120)
+                drawer.animateTo(1f, animationSpec = tween(640, easing = HinvrMotion.EnterEasing))
             }
             launch {
-                delay(380)
-                drawer.animateTo(
-                    1f,
-                    animationSpec = tween(4200, easing = HinvrMotion.EnterEasing),
-                )
-            }
-            launch {
-                delay(1900)
-                folio.animateTo(
-                    0f,
-                    animationSpec = tween(2680, easing = HinvrMotion.ExitEasing),
-                )
+                delay(220)
+                folio.animateTo(0f, animationSpec = tween(520, easing = HinvrMotion.ExitEasing))
             }
         }
-        onFinished()
     }
 
     Box(
@@ -537,74 +540,80 @@ private fun PassDrawerReveal(
             content()
         }
 
-        Box(
-            Modifier
-                .zIndex(2f)
-                .fillMaxWidth()
-                .aspectRatio(1.586f)
-                .graphicsLayer {
-                    alpha = folio.value
-                    translationX = -size.width * 0.45f * drawer.value
-                }
-                .shadow(
-                    elevation = 16.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    ambientColor = colors.gold.copy(alpha = 0.15f),
-                    spotColor = Color.Black.copy(alpha = 0.16f),
-                )
-                .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, colors.gold.copy(alpha = 0.58f), RoundedCornerShape(24.dp)),
-        ) {
-            Image(
-                painter = painterResource(R.drawable.pass_envelope_art),
-                contentDescription = stringResource(R.string.folio_cd),
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.BottomCenter,
-                modifier = Modifier.fillMaxSize(),
-            )
+        if (folio.value > 0f) {
             Box(
                 Modifier
-                    .fillMaxSize()
-                    .background(colors.saffron.copy(alpha = 0.025f)),
-            )
-            Column(
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(18.dp),
+                    .zIndex(2f)
+                    .fillMaxWidth()
+                    .aspectRatio(1.586f)
+                    .graphicsLayer {
+                        alpha = folio.value
+                        translationX = -size.width * 0.45f * drawer.value
+                    }
+                    .shadow(
+                        elevation = 16.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        ambientColor = colors.gold.copy(alpha = 0.15f),
+                        spotColor = Color.Black.copy(alpha = 0.16f),
+                    )
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(1.dp, colors.gold.copy(alpha = 0.58f), RoundedCornerShape(24.dp)),
             ) {
-                Text(stringResource(R.string.app_name), style = HinvrTypography.labelLarge, color = colors.ink)
-                Text(stringResource(R.string.folio), style = HinvrTypography.labelSmall, color = colors.goldDim)
-            }
-            Text(
-                stringResource(R.string.draw_open),
-                style = HinvrTypography.labelSmall,
-                color = colors.ink.copy(alpha = 0.58f),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(18.dp),
-            )
-        }
-
-        Box(
-            Modifier
-                .zIndex(3f)
-                .align(Alignment.Center)
-                .size(52.dp)
-                .graphicsLayer {
-                    alpha = folio.value * seal.value
-                    val scale = 0.86f + seal.value * 0.14f
-                    scaleX = scale
-                    scaleY = scale
+                Image(
+                    painter = painterResource(R.drawable.pass_envelope_art),
+                    contentDescription = stringResource(R.string.folio_cd),
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.BottomCenter,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(colors.saffron.copy(alpha = 0.025f)),
+                )
+                Column(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(18.dp),
+                ) {
+                    Text(stringResource(R.string.app_name), style = HinvrTypography.labelLarge, color = colors.ink)
+                    Text(stringResource(R.string.folio), style = HinvrTypography.labelSmall, color = colors.goldDim)
                 }
-                .shadow(10.dp, CircleShape)
-                .clip(CircleShape)
-                .background(colors.saffron)
-                .border(2.dp, colors.gold.copy(alpha = 0.8f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("श्री", style = HinvrTypography.titleMedium, color = colors.cream)
+            }
+
+            Box(
+                Modifier
+                    .zIndex(3f)
+                    .align(Alignment.Center)
+                    .size(52.dp)
+                    .graphicsLayer {
+                        alpha = folio.value * seal.value
+                        val scale = 0.86f + seal.value * 0.14f
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .shadow(10.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(colors.saffron)
+                    .border(2.dp, colors.gold.copy(alpha = 0.8f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("श्री", style = HinvrTypography.titleMedium, color = colors.cream)
+            }
         }
     }
+}
+
+/** Process-wide: the folio flourish plays once per launch, not on every tab visit. */
+private object PassRevealState {
+    var shown = false
+}
+
+/** Formatted renewal month, or "Annual" while the desk has not set a date. */
+@Composable
+private fun validityLabel(raw: String): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return formatValidUntil(raw, locale).ifBlank { stringResource(R.string.ledger_annual) }
 }
 
 @Composable
@@ -655,7 +664,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
         )
         Box(
             Modifier
-                .offset(x = sheenX.dp)
+                .offset { IntOffset(sheenX.dp.roundToPx(), 0) }
                 .width(74.dp)
                 .fillMaxHeight()
                 .graphicsLayer { rotationZ = -8f }
@@ -682,10 +691,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                             .border(1.dp, Color(0xFFE8D18A), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("HI", style = HinvrTypography.labelSmall, color = colors.cream)
-                            Text("NV", style = HinvrTypography.labelSmall, color = colors.gold)
-                        }
+                        HinvrSealLetters(letterSize = 10.sp, top = colors.cream, bottom = colors.gold)
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
@@ -705,14 +711,18 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                     maxLines = 1,
                 )
                 Text(
-                    if (hasCredential) snap.memberId.ifBlank { "HNV-00000" } else "HNV-•••••",
+                    when {
+                        !hasCredential -> "HNV-•••••"
+                        snap.memberId.isBlank() -> stringResource(R.string.member_id_pending)
+                        else -> snap.memberId
+                    },
                     style = HinvrTypography.bodyMedium,
                     color = colors.ink.copy(alpha = 0.72f),
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.valid_through), style = HinvrTypography.labelSmall, color = colors.ink.copy(alpha = 0.62f))
                 Text(
-                    if (hasCredential) snap.validUntilLabel.ifBlank { stringResource(R.string.ledger_annual) } else stringResource(R.string.join_activate),
+                    if (hasCredential) validityLabel(snap.validUntil) else stringResource(R.string.join_activate),
                     style = HinvrTypography.bodyMedium,
                     color = colors.ink,
                 )
@@ -728,7 +738,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                         .clip(RoundedCornerShape(18.dp))
                         .background(colors.ivory)
                         .border(1.dp, colors.ink.copy(alpha = 0.14f), RoundedCornerShape(18.dp))
-                        .clickable(enabled = payload.isNotBlank()) { showExpandedQr = true }
+                        .clickable(enabled = payload.isNotBlank(), role = Role.Button) { showExpandedQr = true }
                         .padding(9.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -782,7 +792,7 @@ private fun PassCredentialCard(snap: SessionSnapshot, hasCredential: Boolean, pa
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "${snap.displayName} · ${snap.memberId}",
+                    listOf(snap.displayName, snap.memberId).filter { it.isNotBlank() }.joinToString(" · "),
                     style = HinvrTypography.bodyMedium,
                     color = colors.inkMuted,
                 )

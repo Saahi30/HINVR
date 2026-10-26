@@ -40,8 +40,9 @@ data class Mandir(
     val vr: Boolean = false,
     val passAccepted: Boolean = false,
     val nextAarti: String? = null,
-    val updatedLabel: String = "Updated 12 min ago",
-    val timings: String = "Suprabhatam 3:30 AM · Aarti through the evening",
+    /** When the desk's live checker last looked at this feed. Null when unknown. */
+    val liveCheckedAt: Long? = null,
+    val timings: String = "",
     val photoUrl: String = "",
     val liveUrl: String = "",
     val vrUrl: String = "",
@@ -59,28 +60,22 @@ data class Mandir(
     val contactPhone: String = "",
 )
 
-data class ChatBlock(
-    val id: String,
-    val time: String,
-    val photoTitle: String? = null,
-    val photoPlace: String? = null,
-    val photoScene: TileScene? = null,
-    val factTitle: String? = null,
-    val factBody: String? = null,
-)
-
 object HinvrCatalog {
     const val DefaultHeadline = "You see the aarti.\nThe internet sees a thumbnail."
 
     val bundledServices = listOf(
         ServiceTile("Live Darshan", "Aarti, from the sabha", TileScene.LiveAarti, Destinations.Live, tall = true),
-        ServiceTile("VR Darshan", "360. Move your phone", TileScene.VrHall, Destinations.Vr),
-        ServiceTile("Priority Pass", "Show this at the desk", TileScene.PassDesk, Destinations.Pass),
+        ServiceTile("VR Darshan", "Recorded 360 walks", TileScene.VrHall, Destinations.Vr),
+        ServiceTile("Priority Assist", "Show this at the desk", TileScene.PassDesk, Destinations.Pass),
         ServiceTile("Book Pandit", "One city. Verified", TileScene.PanditDoor, Destinations.Pooja),
         ServiceTile("Concierge", "Ask. Then a human", TileScene.ConciergeDesk, Destinations.Concierge),
         ServiceTile("Yatra", "Club desk, not a portal", TileScene.YatraRoad, Destinations.Yatra, tall = true),
     )
 
+    /**
+     * First-run and offline fallback only. Nothing here is marked live: a feed is
+     * live when the server's checker says so, never because the app shipped that way.
+     */
     val bundledMandirs = listOf(
         Mandir(
             id = "tirupati",
@@ -88,10 +83,8 @@ object HinvrCatalog {
             place = "Tirupati, Andhra Pradesh",
             city = "Tirupati",
             scene = TileScene.Tirupati,
-            live = true,
             vr = true,
             passAccepted = true,
-            updatedLabel = "Updated 12 min ago",
             timings = "Suprabhatam 2:30 AM · Tomala 3:30 AM · Ekantha 1:00 AM",
             liveUrl = "https://www.youtube.com/embed/live_stream?channel=UCTboTRX74UydvU_cBdm_cCQ",
         ),
@@ -113,9 +106,7 @@ object HinvrCatalog {
             place = "Shirdi, Maharashtra",
             city = "Shirdi",
             scene = TileScene.Shirdi,
-            live = true,
             passAccepted = true,
-            updatedLabel = "Updated 8 min ago",
             timings = "Kakad aarti 5:00 AM · Shej aarti 10:00 PM",
             liveUrl = "https://www.youtube.com/embed/6Uf3aMujHa8",
         ),
@@ -217,49 +208,10 @@ object HinvrCatalog {
         ),
     ).map(::withBundledInformation)
 
-    val services: List<ServiceTile> get() = bundledServices
-    val mandirs: List<Mandir> get() = bundledMandirs
-    val liveNow: Mandir get() = mandirs.firstOrNull { it.live } ?: mandirs.first()
+    /** The desk's published tiles, in its order; the bundled six only when it has none. */
+    fun mergeServices(remote: List<ServiceTile>): List<ServiceTile> =
+        remote.ifEmpty { bundledServices }
 
-    fun mandir(id: String): Mandir =
-        mandirs.find { it.id.equals(id, true) || it.city.equals(id, true) }
-            ?: mandirs.first().copy(id = id, name = id.replaceFirstChar { it.uppercase() }, city = id)
-
-    fun mergeServices(remote: List<ServiceTile>): List<ServiceTile> {
-        if (remote.isEmpty()) return bundledServices
-        val byRoute = remote.associateBy { it.route }
-        return bundledServices.map { local ->
-            byRoute[local.route]?.copy(tall = local.tall) ?: local
-        }
-    }
-
-    val conciergeThread = listOf(
-        ChatBlock(
-            id = "1",
-            time = "Yesterday",
-            factTitle = "Specialists 8am–10pm IST",
-            factBody = "Family custom may differ. We are not a replacement for your kulguru.",
-        ),
-        ChatBlock(
-            id = "2",
-            time = "09:14",
-            photoTitle = "Tirupati with elderly parents",
-            photoPlace = "Desk note",
-            photoScene = TileScene.Tirupati,
-        ),
-        ChatBlock(
-            id = "3",
-            time = "09:16",
-            factTitle = "What to wear at Kashi Vishwanath",
-            factBody = "Modest clothing, covered shoulders. Leather is often left outside. Follow the notice at the mandir.",
-        ),
-    )
-
-    val faqs = listOf(
-        "wear-kashi" to "What to wear at Kashi Vishwanath",
-        "shraddh" to "Shraddh — first 13 days",
-        "tirupati-elderly" to "Best time for Tirupati with elderly parents",
-    )
 }
 
 private fun withBundledInformation(mandir: Mandir): Mandir = when (mandir.id) {

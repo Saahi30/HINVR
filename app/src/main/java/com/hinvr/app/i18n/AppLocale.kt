@@ -34,6 +34,17 @@ object AppLocale {
             .putString(KEY, normalize(tag))
             .apply()
     }
+
+    /**
+     * Process-wide side effects of a language choice: default locale for date
+     * formatting and the Devanagari type scale. Called when the language changes,
+     * never from composition.
+     */
+    fun applyProcessDefaults(tag: String) {
+        val normalized = normalize(tag)
+        Locale.setDefault(Locale.forLanguageTag(normalized))
+        applyHinvrType(normalized == "hi")
+    }
 }
 
 @Composable
@@ -42,17 +53,18 @@ fun ProvideAppLanguage(languageTag: String, content: @Composable () -> Unit) {
     val base = LocalContext.current
     val root = remember { base }
     val locale = remember(tag) { Locale.forLanguageTag(tag) }
-    Locale.setDefault(locale)
-    applyHinvrType(tag == "hi")
-    val config = remember(tag) {
-        Configuration(root.resources.configuration).apply {
+    // The activity handles rotation itself, so the live configuration changes under
+    // us. Derive from it every time; only the locale is overridden.
+    val live = LocalConfiguration.current
+    val config = remember(tag, live) {
+        Configuration(live).apply {
             setLocale(locale)
             setLayoutDirection(locale)
         }
     }
     // Keep the Activity in the context chain. createConfigurationContext() on newer
     // Android returns a detached context, which drops the activity-result owner.
-    val localized = remember(tag) {
+    val localized = remember(config) {
         object : ContextWrapper(root) {
             private val resourcesOverride = root.createConfigurationContext(config).resources
             override fun getResources() = resourcesOverride

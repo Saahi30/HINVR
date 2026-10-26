@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
-import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.attempt
 import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
@@ -72,7 +72,7 @@ fun PlansScreen(onBack: () -> Unit) {
     val session = LocalSessionRepository.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val snap by session.snapshot.collectAsStateWithLifecycle()
     var opening by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var browserError by remember { mutableStateOf<String?>(null) }
@@ -138,7 +138,7 @@ fun PlansScreen(onBack: () -> Unit) {
         )
     }
     LaunchedEffect(Unit) {
-        session.syncRemote()
+        attempt { session.syncRemote() }
     }
     LaunchedEffect(snap.tier) {
         if (snap.tier != MembershipTier.None && plans.any { it.tier == snap.tier }) {

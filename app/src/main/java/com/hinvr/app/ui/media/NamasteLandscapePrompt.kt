@@ -11,11 +11,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hinvr.app.R
@@ -35,17 +38,22 @@ import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 
+/** Follows rotation live: the activity handles orientation itself, and the app locale keeps the real configuration. */
 @Composable
 fun isViewerPortrait(): Boolean =
     LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
 /**
- * A quiet namaste over the darshan viewer until the member turns the phone sideways.
+ * A quiet namaste over the darshan viewer until the member turns the phone sideways,
+ * or chooses to watch upright.
  */
 @Composable
-fun NamasteLandscapePrompt(modifier: Modifier = Modifier) {
+fun NamasteLandscapePrompt(
+    visible: Boolean,
+    onWatchUpright: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = HinvrTheme.colors
-    val portrait = isViewerPortrait()
     val bow by rememberInfiniteTransition(label = "namaste-bow").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -56,7 +64,7 @@ fun NamasteLandscapePrompt(modifier: Modifier = Modifier) {
         label = "bow",
     )
     AnimatedVisibility(
-        visible = portrait,
+        visible = visible,
         enter = fadeIn(tween(HinvrMotion.Immersive, easing = HinvrMotion.EnterEasing)),
         exit = fadeOut(tween(HinvrMotion.Standard, easing = HinvrMotion.ExitEasing)),
         modifier = modifier,
@@ -93,6 +101,16 @@ fun NamasteLandscapePrompt(modifier: Modifier = Modifier) {
                     style = HinvrTypography.bodyLarge,
                     color = colors.creamMuted,
                     textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    stringResource(R.string.turn_sideways_dismiss),
+                    style = HinvrTypography.labelLarge,
+                    color = colors.gold,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(role = Role.Button, onClick = onWatchUpright)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                 )
             }
         }

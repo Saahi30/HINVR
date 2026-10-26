@@ -4,7 +4,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.google.services)
+}
+
+// Firebase needs app/google-services.json. Without it the app still builds and
+// push stays off (see push/Push.kt), so local and CI builds work without secrets.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
 }
 
 val localProperties = Properties().apply {
@@ -17,6 +22,26 @@ fun localProp(key: String, default: String = ""): String {
     return raw.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
+// Gradle property (-Phinvr.versionCode=42), then environment, then local.properties.
+fun buildSetting(key: String, env: String, default: String = ""): String =
+    (findProperty(key) as String?)
+        ?: System.getenv(env)
+        ?: localProperties.getProperty(key)
+        ?: default
+
+// Release signing never lives in the repo: local.properties (gitignored) on a
+// workstation, environment variables in CI. Missing values leave it unsigned.
+fun signingSetting(key: String): String? =
+    localProperties.getProperty(key)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(key)?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = signingSetting("HINVR_KEYSTORE_PATH")
+val releaseStorePassword = signingSetting("HINVR_KEYSTORE_PASSWORD")
+val releaseKeyAlias = signingSetting("HINVR_KEY_ALIAS")
+val releaseKeyPassword = signingSetting("HINVR_KEY_PASSWORD")
+val canSignRelease = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+    .all { it != null } && rootProject.file(releaseStoreFile!!).exists()
+
 android {
     namespace = "com.hinvr.app"
     compileSdk = 37
@@ -25,8 +50,8 @@ android {
         applicationId = "com.hinvr.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = buildSetting("hinvr.versionCode", "HINVR_VERSION_CODE", "1").toInt()
+        versionName = buildSetting("hinvr.versionName", "HINVR_VERSION_NAME", "0.1.0")
         vectorDrawables.useSupportLibrary = true
         buildConfigField(
             "String",
@@ -45,13 +70,28 @@ android {
         )
     }
 
+    signingConfigs {
+        if (canSignRelease) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Drawables are WebP; nothing left for PNG crunching to do.
+            isCrunchPngs = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (canSignRelease) signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -69,6 +109,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 }
 
@@ -105,6 +149,8 @@ dependencies {
     implementation(libs.firebase.messaging)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(libs.junit)
 }
 
 // Android Studio 2025.3 looks for intermediates/apk/debug/app-debug.apk.

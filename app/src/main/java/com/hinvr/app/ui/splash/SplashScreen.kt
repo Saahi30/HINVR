@@ -1,5 +1,9 @@
 package com.hinvr.app.ui.splash
 
+import android.app.NotificationManager
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,12 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -50,30 +55,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hinvr.app.HinvrApplication
 import com.hinvr.app.R
+import com.hinvr.app.data.attempt
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.navigation.startRoute
+import com.hinvr.app.ui.components.HinvrSealLetters
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val SealShape = RoundedCornerShape(percent = 50)
-private val GoldKnockout = ColorFilter.colorMatrix(
-    ColorMatrix(
-        floatArrayOf(
-            1f, 0f, 0f, 0f, 0f,
-            0f, 1f, 0f, 0f, 0f,
-            0f, 0f, 1f, 0f, 0f,
-            0.30f, 0.52f, 0.18f, 0f, -0.04f,
-        ),
-    ),
-)
+
+/** Session and catalog get this long behind the splash; after it, cached data is enough. */
+private const val SyncBudgetMs = 3_000L
 
 /**
- * Sanctum launch. Hall first, gold seal second, wordmark last.
- * Skippable after 800ms; auto-advance at 2500ms.
+ * Sanctum launch. Hall first, the HINVR seal second, one diya, the wordmark last.
+ * Membership sync and the catalog run alongside the animation. Skippable after
+ * 800ms; auto-advance at 2500ms.
  */
 @Composable
 fun SplashScreen(onFinished: (String) -> Unit) {
@@ -81,14 +86,20 @@ fun SplashScreen(onFinished: (String) -> Unit) {
     val catalog = LocalCatalogRepository.current
     val context = LocalContext.current
     val finishOnce = rememberUpdatedState(onFinished)
+    val appScope = (context.applicationContext as HinvrApplication).appScope
     var navigated by remember { mutableStateOf(false) }
     var canSkip by remember { mutableStateOf(false) }
     var lightDiya by remember { mutableStateOf(false) }
     var showSeal by remember { mutableStateOf(false) }
     var showMark by remember { mutableStateOf(false) }
 
-    val bellId = remember {
-        context.resources.getIdentifier("temple_bell", "raw", context.packageName)
+    // Started with the first frame, not after the animation, and in the app scope
+    // so a slow sync still finishes after the splash has moved on.
+    val background = remember {
+        listOf(
+            appScope.async { attempt { session.syncRemote() } },
+            appScope.async { attempt { catalog.refresh() } },
+        )
     }
 
     val go: () -> Unit = remember {
@@ -99,9 +110,9 @@ fun SplashScreen(onFinished: (String) -> Unit) {
 
     LaunchedEffect(navigated) {
         if (!navigated) return@LaunchedEffect
-        runCatching { session.syncRemote() }
-        runCatching { catalog.refresh() }
-        val route = session.snapshot.first().startRoute()
+        // Weak signal at launch: go on with what the phone already has.
+        withTimeoutOrNull(SyncBudgetMs) { background.awaitAll() }
+        val route = session.snapshot.first { it.loaded }.startRoute()
         finishOnce.value(route)
     }
 
@@ -118,18 +129,9 @@ fun SplashScreen(onFinished: (String) -> Unit) {
         go()
     }
 
-    DisposableEffect(bellId) {
-        val player = if (bellId != 0) {
-            runCatching {
-                MediaPlayer.create(context, bellId)?.apply {
-                    setOnCompletionListener { release() }
-                    start()
-                }
-            }.getOrNull()
-        } else {
-            null
-        }
-        onDispose { runCatching { player?.release() } }
+    DisposableEffect(Unit) {
+        val player = if (bellAllowed(context)) playBellOnce(context) else null
+        onDispose { attempt { player?.release() } }
     }
 
     SplashCanvas(
@@ -139,6 +141,26 @@ fun SplashScreen(onFinished: (String) -> Unit) {
         onSkip = { if (canSkip) go() },
     )
 }
+
+/** One bell, and only when the phone is allowed to ring: not on silent, vibrate or Do Not Disturb. */
+private fun bellAllowed(context: Context): Boolean {
+    val audio = context.getSystemService(AudioManager::class.java) ?: return false
+    if (audio.ringerMode != AudioManager.RINGER_MODE_NORMAL) return false
+    val notifications = context.getSystemService(NotificationManager::class.java) ?: return true
+    return notifications.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL ||
+        notifications.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+}
+
+private fun playBellOnce(context: Context): MediaPlayer? = attempt {
+    val attributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+    MediaPlayer.create(context, R.raw.temple_bell, attributes, 0)?.apply {
+        setOnCompletionListener { it.release() }
+        start()
+    }
+}.getOrNull()
 
 @Composable
 private fun SplashCanvas(
@@ -244,7 +266,8 @@ private fun SplashCanvas(
                 .padding(bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            GaneshaSeal(
+            SealPill(
+                flame = flame,
                 modifier = Modifier.graphicsLayer {
                     alpha = sealAlpha
                     scaleX = sealScale
@@ -252,9 +275,7 @@ private fun SplashCanvas(
                     transformOrigin = TransformOrigin.Center
                 },
             )
-            Spacer(Modifier.height(20.dp))
-            DiyaFlame(lit = flame, size = 64.dp)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(18.dp))
             Text(
                 text = stringResource(R.string.splash_wordmark),
                 style = HinvrTypography.displayLarge.copy(
@@ -285,10 +306,11 @@ private fun SplashCanvas(
     }
 }
 
+/** The dark pill from the bible: the HINVR seal above, the one diya below. No deity art. */
 @Composable
-private fun GaneshaSeal(modifier: Modifier = Modifier) {
+private fun SealPill(flame: Float, modifier: Modifier = Modifier) {
     val colors = HinvrTheme.colors
-    Box(
+    Column(
         modifier = modifier
             .size(width = 168.dp, height = 268.dp)
             .shadow(
@@ -317,27 +339,34 @@ private fun GaneshaSeal(modifier: Modifier = Modifier) {
                     ),
                 ),
                 shape = SealShape,
-            ),
-        contentAlignment = Alignment.Center,
+            )
+            .padding(top = 30.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Image(
-            painter = painterResource(R.drawable.ganesha_stencil),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 28.dp),
-            contentScale = ContentScale.Fit,
-            colorFilter = GoldKnockout,
-        )
         Box(
             Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 22.dp)
-                .width(36.dp)
-                .height(3.dp)
-                .clip(RoundedCornerShape(50))
-                .background(colors.gold.copy(alpha = 0.45f)),
-        )
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0xFF3A2618), Color(0xFF1A110B)),
+                    ),
+                )
+                .drawWithContent {
+                    drawContent()
+                    drawCircle(
+                        color = colors.gold.copy(alpha = 0.7f),
+                        radius = size.minDimension / 2f - 6.dp.toPx(),
+                        style = Stroke(width = 1.dp.toPx()),
+                    )
+                }
+                .border(1.dp, colors.gold.copy(alpha = 0.85f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            HinvrSealLetters(letterSize = 22.sp, top = colors.cream, bottom = colors.gold)
+        }
+        Spacer(Modifier.height(10.dp))
+        DiyaFlame(lit = flame, size = 96.dp)
     }
 }
 

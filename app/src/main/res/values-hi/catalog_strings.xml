@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Hindi copy for the bundled temples, looked up by name in i18n/CatalogCopy.kt
+  (mandir_<id>_<field>). English has no matching resource: the English text is the
+  catalog itself, so these exist only here.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingDefaultResource,ExtraTranslation">
+    <string name="mandir_tirupati_deity">श्री वेंकटेश्वर</string>
+    <string name="mandir_tirupati_summary">तिरुमला की पहाड़ी पर एक अभयारण्य, और भारत के सबसे अधिक देखे जाने वाले पूजा स्थलों में से एक।</string>
+    <string name="mandir_tirupati_history">यह जीवित मंदिर दक्षिण भारतीय राजवंशों और विजयनगर शासकों के संरक्षण से बढ़ा। इसकी अनुष्ठान परंपरा आज दिखने वाली कई इमारतों से पुरानी है।</string>
+    <string name="mandir_tirupati_significance">श्री वेंकटेश्वर को इस युग में शरण देने वाले विष्णु रूप में पूजा जाता है। दर्शन, लड्डू प्रसाद और मन्नतें इस तीर्थ के केंद्र हैं।</string>
+    <string name="mandir_tirupati_architecture">द्रविड़ वास्तुकला, स्वर्णिम आनंद निलयम विमान, गोपुरम, स्तंभयुक्त मंडप और स्तरित प्राकार गलियारे।</string>
+    <string name="mandir_tirupati_dress">पारंपरिक या शालीन वस्त्र। बुक सेवाओं के लिए मंदिर के नियम और सख्त हैं।</string>
+    <string name="mandir_tirupati_best">बड़े त्योहारों से बाहर, सप्ताह के दिनों की सुबह। भीड़ वर्ष भर रहती है।</string>
+    <string name="mandir_tirupati_notes">आधिकारिक टीटीडी माध्यम इस्तेमाल करें। अंदर फ़ोन, कैमरा, जूते और सामान प्रतिबंधित हैं।</string>
+    <string name="mandir_tirupati_facilities">आधिकारिक बुकिंग\nनिःशुल्क तिरुमला बसें\nसामान काउंटर\nव्हीलचेयर सहायता\nप्रसाद काउंटर</string>
+    <string name="mandir_tirupati_timings">सुप्रभातम 2:30 AM · तोमाला 3:30 AM · एकांत 1:00 AM</string>
+    <string name="mandir_kashi_deity">श्री विश्वनाथ</string>
+    <string name="mandir_kashi_summary">गंगा के पास, काशी की पवित्र गलियों में एक ज्योतिर्लिंग।</string>
+    <string name="mandir_kashi_history">वर्तमान मंदिर अठारहवीं शताब्दी में अहिल्याबाई होल्कर के अधीन बना, बाद में स्वर्ण आवरण और आधुनिक धाम कॉरिडोर जुड़े।</string>
+    <string name="mandir_kashi_significance">काशी शिव की नगरी मानी जाती है। यात्री विश्वनाथ दर्शन के साथ गंगा स्नान, अन्नपूर्णा दर्शन और पितृ कर्म जोड़ते हैं।</string>
+    <string name="mandir_kashi_architecture">स्वर्ण-आच्छादित उत्तर भारतीय शिखर, पत्थर के आँगन, और पुरानी गलियों को घाटों से जोड़ता कॉरिडोर।</string>
+    <string name="mandir_kashi_dress">शालीन वस्त्र; चमड़ा और प्रतिबंधित इलेक्ट्रॉनिक्स आधिकारिक लॉकर में छोड़ें।</string>
+    <string name="mandir_kashi_best">सप्ताह के दिनों की तड़के सुबह, या आधिकारिक बुकिंग के साथ मंगला आरती।</string>
+    <string name="mandir_kashi_notes">स्वीकृत फ़ोटो पहचान पत्र रखें और सुरक्षा द्वार के निर्देश मानें।</string>
+    <string name="mandir_kashi_facilities">आधिकारिक लॉकर\nचयनित व्हीलचेयर मार्ग\nपीने का पानी\nप्रसाद काउंटर\nगंगा कॉरिडोर</string>
+    <string name="mandir_kashi_timings">मंगला 3:00 AM · सप्तऋषि आरती 7:00 PM</string>
+    <string name="mandir_shirdi_deity">श्री साईं बाबा</string>
+    <string name="mandir_shirdi_summary">साईं बाबा की समाधि, श्रद्धा, सब्र और सेवा के केंद्र पर।</string>
+    <string name="mandir_shirdi_history">समाधि मंदिर उस स्थान के आसपास विकसित हुआ जहाँ 1918 में साईं बाबा की समाधि हुई।</string>
+    <string name="mandir_shirdi_significance">काकड़, मध्याह्न, धूप और शेज आरतियाँ एक ऐसा दिन बनाती हैं जो परंपराओं के पार खुला है।</string>
+    <string name="mandir_shirdi_architecture">संगमरमर की समाधि, द्वारकामाई, चावड़ी और साईं बाबा के जीवन से जुड़े स्थानों से जुड़ी।</string>
+    <string name="mandir_shirdi_dress">साफ़, शालीन वस्त्र। कंधे और घुटने ढके हों।</string>
+    <string name="mandir_shirdi_best">गुरुवार, छुट्टी और त्योहार से बाहर, सप्ताह के दिनों की सुबह।</string>
+    <string name="mandir_shirdi_notes">संस्थान का आधिकारिक पोर्टल इस्तेमाल करें। अनौपचारिक सशुल्क लाइव-दर्शन के दावे न मानें।</string>
+    <string name="mandir_shirdi_facilities">आधिकारिक दर्शन बुकिंग\nप्रसादाल्य\nआवास डेस्क\nसामान काउंटर\nव्हीलचेयर सहायता</string>
+    <string name="mandir_shirdi_timings">काकड़ आरती 5:00 AM · शेज आरती 10:00 PM</string>
+    <string name="mandir_kedarnath_deity">भगवान शिव</string>
+    <string name="mandir_kedarnath_summary">केदारनाथ शिखर के नीचे एक हिमालयी ज्योतिर्लिंग, मौसमी और कठिन यात्रा से पहुँचा जाता है।</string>
+    <string name="mandir_kedarnath_history">परंपरा इस मंदिर को पांडवों और इसके पुनरुद्धार को आदि शंकराचार्य से जोड़ती है। विशाल पत्थर का रूप कठोर जलवायु में टिका रहा।</string>
+    <string name="mandir_kedarnath_significance">बारह ज्योतिर्लिंगों में से एक, और उत्तराखंड चार धाम का प्रमुख पड़ाव।</string>
+    <string name="mandir_kedarnath_architecture">विशाल धूसर पत्थर, पिरामिडनुमा शिखर, और ऊँचे हिमालय के अनुकूल छोटा मंडप।</string>
+    <string name="mandir_kedarnath_dress">गर्म परतें, वर्षा से बचाव, मज़बूत जूते, और शालीन मंदिर वस्त्र।</string>
+    <string name="mandir_kedarnath_best">मई के अंत से जून, या सितंबर — मौसम और आधिकारिक मौसमी तिथियों के अनुसार।</string>
+    <string name="mandir_kedarnath_notes">स्वास्थ्य, पंजीकरण, मौसम, ट्रेक और हेलीकॉप्टर सलाह जाँचें।</string>
+    <string name="mandir_kedarnath_facilities">मौसमी पंजीकरण\nचिकित्सा चौकियाँ\nहेलीकॉप्टर\nघोड़ा और पालकी\nसीमित पहुँच</string>
+    <string name="mandir_kedarnath_timings">प्रारंभिक आरती 4:00 AM · सर्दियों में बंद</string>
+    <string name="mandir_somnath_deity">भगवान शिव</string>
+    <string name="mandir_somnath_summary">प्रभास पाटन पर समुद्र की ओर एक ज्योतिर्लिंग, निरंतरता के प्रतीक रूप में पुनर्निर्मित।</string>
+    <string name="mandir_somnath_history">सोमनाथ बार-बार पुनर्निर्माण के लिए याद किया जाता है। वर्तमान बीसवीं सदी का मंदिर मारु-गुर्जर परंपरा में है।</string>
+    <string name="mandir_somnath_significance">बारह ज्योतिर्लिंगों में प्रथम माना जाता है, और पवित्र प्रभास संगम से जुड़ा है।</string>
+    <string name="mandir_somnath_architecture">बलुआ पत्थर का शिखर, उत्कीर्ण मंडप, समुद्र की धुरी, और दक्षिण की ओर इंगित बाण स्तंभ।</string>
+    <string name="mandir_somnath_dress">शालीन वस्त्र; इलेक्ट्रॉनिक्स और सामान के वर्तमान नियम मानें।</string>
+    <string name="mandir_somnath_best">अक्टूबर से मार्च, सूर्यास्त और संध्या आरती से पहले पहुँचें।</string>
+    <string name="mandir_somnath_notes">संध्या कार्यक्रम और फ़ोटोग्राफ़ी के आधिकारिक नियम जाँचें।</string>
+    <string name="mandir_somnath_facilities">प्रसाद काउंटर\nव्हीलचेयर पहुँच\nक्लोक रूम\nपार्किंग\nसंध्या कार्यक्रम</string>
+    <string name="mandir_somnath_timings">मंगला 6:00 AM · आरती 7:00 PM</string>
+    <string name="mandir_vaishno_devi_deity">माता वैष्णो देवी</string>
+    <string name="mandir_vaishno_devi_timings">दिन भर खुला · सुबह और शाम आरती</string>
+    <string name="mandir_meenakshi_deity">मीनाक्षी और सुंदरेश्वर</string>
+    <string name="mandir_meenakshi_timings">सुबह 5:00 AM–12:30 PM · शाम 4:00–10:00 PM</string>
+    <string name="mandir_jagannath_deity">भगवान जगन्नाथ</string>
+    <string name="mandir_jagannath_timings">सुबह 5:30 AM–रात 9:30 PM · समय अनुष्ठान के अनुसार</string>
+    <string name="mandir_dwarkadhish_deity">भगवान कृष्ण</string>
+    <string name="mandir_dwarkadhish_timings">सुबह 6:30 AM–1:00 PM · शाम 5:00–9:30 PM</string>
+    <string name="mandir_badrinath_deity">भगवान बदरी नारायण</string>
+    <string name="mandir_badrinath_timings">मौसमी उद्घाटन · सुबह और शाम दर्शन</string>
+    <string name="mandir_golden_temple_deity">श्री गुरु ग्रंथ साहिब</string>
+    <string name="mandir_golden_temple_timings">प्रतिदिन खुला · पालकी साहिब सुबह और रात</string>
+    <string name="mandir_siddhivinayak_deity">भगवान गणेश</string>
+    <string name="mandir_siddhivinayak_timings">बुधवार–सोमवार 5:30 AM–9:50 PM · मंगलवार 3:15 AM से</string>
+    <string name="mandir_iskcon_bengaluru_deity">राधा कृष्णचंद्र</string>
+    <string name="mandir_iskcon_bengaluru_timings">सुबह 4:15–5:00 AM · शाम तक दर्शन</string>
+</resources>

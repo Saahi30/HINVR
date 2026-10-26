@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.hinvr.app.R
 import com.hinvr.app.data.VrDeviceRow
 import com.hinvr.app.data.VrPairingCode
+import com.hinvr.app.data.attempt
 import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
@@ -70,7 +71,7 @@ fun VrHeadsetsScreen(onBack: () -> Unit) {
     var unlinking by remember { mutableStateOf<String?>(null) }
 
     suspend fun reload(): List<VrDeviceRow>? =
-        runCatching { session.vrDevices() }
+        attempt { session.vrDevices() }
             .onSuccess { devices = it }
             .onFailure { error = context.userMessage(it.message) }
             .getOrNull()
@@ -85,7 +86,7 @@ fun VrHeadsetsScreen(onBack: () -> Unit) {
         while (true) {
             val now = System.currentTimeMillis()
             if (now >= expiresAt - 5_000L) {
-                val issued = runCatching { session.startVrPairing() }
+                val issued = attempt { session.startVrPairing() }
                     .onFailure { error = context.userMessage(it.message) }
                     .getOrNull()
                 if (issued == null) {
@@ -101,7 +102,7 @@ fun VrHeadsetsScreen(onBack: () -> Unit) {
             secondsLeft = ((expiresAt - 5_000L - now) / 1000L).toInt().coerceAtLeast(0)
             delay(1_000L)
             if (secondsLeft % 3 == 0) {
-                val latest = runCatching { session.vrDevices() }.getOrNull()
+                val latest = attempt { session.vrDevices() }.getOrNull()
                 if (latest != null) {
                     devices = latest
                     if (latest.any { (it.deviceId to it.pairedAt) !in before }) {
@@ -235,7 +236,7 @@ fun VrHeadsetsScreen(onBack: () -> Unit) {
                                                 }
                                                 unlinking = device.deviceId
                                                 scope.launch {
-                                                    runCatching { session.unlinkVrDevice(device.deviceId) }
+                                                    attempt { session.unlinkVrDevice(device.deviceId) }
                                                         .onFailure { error = context.userMessage(it.message) }
                                                     reload()
                                                     confirming = null

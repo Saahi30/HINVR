@@ -1,14 +1,17 @@
 package com.hinvr.app.ui.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.res.imageResource
 import com.hinvr.app.R
 import com.hinvr.app.ui.theme.ApplyAtmosphereBars
 import com.hinvr.app.ui.theme.Atmosphere
@@ -38,14 +41,10 @@ fun HinvrBackground(
                 ),
         ) {
             if (atmosphere == Atmosphere.Sabha) {
-                // Ochre is the paper. Scripture contrast is baked in at about 8–12%.
-                Image(
-                    painter = painterResource(R.drawable.parchment_texture),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 1f,
-                )
+                // Ochre is the paper: a small seamless grain, tiled. Text-free by design.
+                val grain = ImageBitmap.imageResource(R.drawable.paper_grain)
+                val brush = remember(grain) { ShaderBrush(ImageShader(grain, TileMode.Repeated, TileMode.Repeated)) }
+                Box(Modifier.fillMaxSize().background(brush))
             }
             content()
         }

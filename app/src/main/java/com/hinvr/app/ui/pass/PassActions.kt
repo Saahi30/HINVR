@@ -1,5 +1,7 @@
 package com.hinvr.app.ui.pass
 
+import android.content.Context
+import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.hinvr.app.R
@@ -35,9 +37,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-fun formatPassClock(epochMs: Long): String {
-    val formatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
-    return formatter.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
+/** Clock time in the phone's own 12/24-hour setting and the app's language. */
+fun formatPassClock(context: Context, epochMs: Long): String {
+    val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+    val pattern = if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
+    return DateTimeFormatter.ofPattern(pattern, locale)
+        .format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
 }
 
 @Composable
@@ -48,10 +53,12 @@ fun physicalCardLabel(status: String): String = when (status) {
     else -> stringResource(R.string.physical_card)
 }
 
+/** The physical card row appears only for tiers that include the card: Platinum and NRI. */
 @Composable
 fun PassCredentialActions(
     busy: Boolean,
     cardStatus: String,
+    offersCard: Boolean,
     onNewCode: () -> Unit,
     onWallet: () -> Unit,
     onCard: () -> Unit,
@@ -64,7 +71,9 @@ fun PassCredentialActions(
             onClick = onNewCode,
         )
         PassLink(stringResource(R.string.google_wallet), enabled = !busy, onClick = onWallet)
-        PassLink(physicalCardLabel(cardStatus), enabled = !busy && !cardOpen, onClick = onCard)
+        if (offersCard || cardOpen) {
+            PassLink(physicalCardLabel(cardStatus), enabled = offersCard && !busy && !cardOpen, onClick = onCard)
+        }
     }
 }
 
@@ -76,8 +85,9 @@ private fun PassLink(text: String, enabled: Boolean, onClick: () -> Unit) {
         style = HinvrTypography.labelLarge,
         color = if (enabled) colors.gold else colors.creamMuted.copy(alpha = 0.7f),
         modifier = Modifier
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .heightIn(min = 48.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
     )
 }
 
@@ -118,10 +128,11 @@ fun PhysicalCardDialog(
                 style = HinvrTypography.labelLarge,
                 color = if (busy || name.isBlank() || address.isBlank()) colors.goldDim else colors.gold,
                 modifier = Modifier
-                    .clickable(enabled = !busy && name.isNotBlank() && address.isNotBlank()) {
+                    .heightIn(min = 48.dp)
+                    .clickable(enabled = !busy && name.isNotBlank() && address.isNotBlank(), role = Role.Button) {
                         onSubmit(name.trim(), address.trim())
                     }
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 14.dp),
             )
         }
     }
@@ -134,7 +145,7 @@ private fun CardField(value: String, onValueChange: (String) -> Unit, hint: Stri
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        textStyle = TextStyle(color = colors.ink),
+        textStyle = HinvrTypography.bodyLarge.copy(color = colors.ink),
         cursorBrush = SolidColor(colors.gold),
         modifier = Modifier
             .fillMaxWidth()

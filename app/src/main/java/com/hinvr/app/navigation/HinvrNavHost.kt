@@ -25,7 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.launch
 import com.hinvr.app.HinvrApplication
-import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.attempt
 import com.hinvr.app.push.PushRegistrationEffect
 import com.hinvr.app.ui.auth.AccountScreen
 import com.hinvr.app.ui.auth.ProfileSetupScreen
@@ -60,13 +60,14 @@ fun HinvrNavHost() {
     val backStack by nav.currentBackStackEntryAsState()
     PushRegistrationEffect()
     val session = LocalSessionRepository.current
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val snap by session.snapshot.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, session) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                scope.launch { session.syncRemote() }
+                // Sync also retries any desk request still waiting for a signal.
+                scope.launch { attempt { session.syncRemote() } }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -77,6 +78,17 @@ fun HinvrNavHost() {
         val route = nav.currentDestination?.route ?: return@LaunchedEffect
         if (route == Destinations.Splash || route == Destinations.Reset) return@LaunchedEffect
         nav.navigate(Destinations.Reset) {
+            popUpTo(nav.graph.id) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+    // The server ended the session (refresh rejected, user removed). Don't leave the
+    // member in Main as a blank non-member; take them to sign in, with the reason.
+    LaunchedEffect(snap.loaded, snap.isLoggedIn, snap.mustResetPassword, backStack?.destination?.route) {
+        if (!snap.loaded || snap.isLoggedIn || snap.mustResetPassword) return@LaunchedEffect
+        val route = backStack?.destination?.route ?: return@LaunchedEffect
+        if (route in SignedOutRoutes) return@LaunchedEffect
+        nav.navigate(Destinations.account(signIn = true)) {
             popUpTo(nav.graph.id) { inclusive = true }
             launchSingleTop = true
         }
@@ -340,6 +352,14 @@ fun HinvrNavHost() {
         }
     }
 }
+
+/** Routes that make sense without a session. Anything else needs one. */
+private val SignedOutRoutes = setOf(
+    Destinations.Splash,
+    Destinations.Onboarding,
+    Destinations.Account,
+    Destinations.Reset,
+)
 
 private fun isImmersiveRoute(route: String?): Boolean =
     route == Destinations.LivePlayer ||

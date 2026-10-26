@@ -29,10 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material3.Icon
@@ -69,6 +67,7 @@ import com.hinvr.app.navigation.Destinations
 import com.hinvr.app.ui.components.ClayGlassState
 import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.PassSeal
+import com.hinvr.app.ui.components.TempleIcons
 import com.hinvr.app.ui.components.clayGlass
 import com.hinvr.app.ui.components.clayGlassSource
 import com.hinvr.app.ui.concierge.ConciergeScreen
@@ -99,7 +98,7 @@ fun MainScaffold(
 ) {
     val tabs = listOf(
         TabSpec(Destinations.Home, R.string.nav_home, Icons.Outlined.Home, Icons.Rounded.Home),
-        TabSpec(Destinations.Mandirs, R.string.nav_mandirs, Icons.Outlined.AccountBalance, Icons.Rounded.AccountBalance),
+        TabSpec(Destinations.Mandirs, R.string.nav_mandirs, TempleIcons.Shikhara, TempleIcons.ShikharaFilled),
         TabSpec(Destinations.Pass, R.string.nav_pass, null),
         TabSpec(Destinations.Concierge, R.string.nav_concierge, Icons.Outlined.ChatBubbleOutline, Icons.Rounded.ChatBubble),
     )
@@ -191,7 +190,10 @@ fun MainScaffold(
                     )
                 }
                 composable(Destinations.Mandirs) {
-                    MandirsScreen(onOpenTemple = { onOpenRoute(Destinations.mandir(it)) })
+                    MandirsScreen(
+                        onOpenTemple = { onOpenRoute(Destinations.mandir(it)) },
+                        onAskConcierge = { tabNav.navigateToTab(Destinations.Concierge) },
+                    )
                 }
                 composable(Destinations.Pass) {
                     PassScreen(

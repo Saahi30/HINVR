@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.hinvr.app.R
+import com.hinvr.app.data.attempt
 import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
@@ -52,8 +54,8 @@ fun AccountScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
-    var stage by remember { mutableStateOf(if (startInSignIn) AccountStage.SignIn else AccountStage.SignUp) }
-    var email by remember { mutableStateOf("") }
+    var stage by rememberSaveable { mutableStateOf(if (startInSignIn) AccountStage.SignIn else AccountStage.SignUp) }
+    var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var recoveryLink by remember { mutableStateOf("") }
     var sent by remember { mutableStateOf(false) }
@@ -177,17 +179,17 @@ fun AccountScreen(
                         error = null
                         scope.launch {
                             if (resetting && pasted) {
-                                runCatching { session.acceptRecoveryLink(recoveryLink) }
+                                attempt { session.acceptRecoveryLink(recoveryLink) }
                                     .onFailure { error = context.userMessage(it.message, R.string.err_use_link) }
                             } else if (resetting) {
-                                runCatching { session.requestPasswordReset(email) }
+                                attempt { session.requestPasswordReset(email) }
                                     .onSuccess {
                                         opensInApp = it
                                         sent = true
                                     }
                                     .onFailure { error = context.userMessage(it.message, R.string.err_send_reset) }
                             } else {
-                                val result = runCatching {
+                                val result = attempt {
                                     if (signIn) {
                                         session.signIn(email, password)
                                     } else {
@@ -371,7 +373,7 @@ fun ResetPasswordScreen(
                             busy = true
                             error = null
                             scope.launch {
-                                runCatching { session.completePasswordReset(password) }
+                                attempt { session.completePasswordReset(password) }
                                     .onSuccess { onPasswordSaved(it) }
                                     .onFailure { error = context.userMessage(it.message, R.string.err_save_password) }
                                 busy = false
@@ -386,7 +388,7 @@ fun ResetPasswordScreen(
                         if (busy) return@HinvrTextButton
                         busy = true
                         scope.launch {
-                            runCatching { session.signOut() }
+                            attempt { session.signOut() }
                             onBackToSignIn()
                         }
                     },
