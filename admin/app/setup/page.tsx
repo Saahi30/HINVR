@@ -1,27 +1,26 @@
 import { redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
-import { Card, PageHeader } from "@/components/ui";
+import { ClaimOwner } from "@/components/claim-owner";
+import { GateMessage } from "@/components/desk-shell";
 import { requireDesk } from "@/lib/auth";
 
 export default async function SetupPage() {
   const desk = await requireDesk();
-  if (!desk.needsSetup && desk.staff) redirect("/");
-  if (!desk.needsSetup && !desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
+  if (desk.staff) redirect("/");
+
+  if (desk.needsSetup) {
+    return (
+      <GateMessage
+        title="The database isn't ready."
+        body="The desk tables are missing on this project. The owner applies the Supabase migrations (see admin/README.md), then this page works."
+      />
+    );
   }
 
   return (
-    <DeskShell email={desk.email} role="setup">
-      <PageHeader
-        eyebrow="Setup"
-        title="Catalog tables are missing"
-        description="Apply the CMS migrations, then refresh this page."
-      />
-      <Card className="p-5 text-sm leading-6 text-zinc-600">
-        Run <code className="rounded bg-zinc-100 px-1">supabase/migrations/20260910120000_catalog_cms.sql</code> and{" "}
-        <code className="rounded bg-zinc-100 px-1">20260910120100_catalog_cms_policy_tighten.sql</code> in the HINVR
-        SQL editor.
-      </Card>
-    </DeskShell>
+    <GateMessage
+      title="Claim this admin"
+      body="Only for the first owner. It works once, when the team is empty, and only for an email the project owner has put on the bootstrap list. Everyone else: ask an owner to add you."
+      action={<ClaimOwner />}
+    />
   );
 }

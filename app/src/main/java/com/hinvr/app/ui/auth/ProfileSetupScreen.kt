@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +32,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,11 +41,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.hinvr.app.R
 import com.hinvr.app.data.Audience
 import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.data.MemberPlace
+import com.hinvr.app.data.attempt
+import com.hinvr.app.data.decodePlaces
+import com.hinvr.app.data.encodePlaces
 import com.hinvr.app.data.readyPlaces
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.components.HinvrBackground
@@ -69,16 +76,17 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
-    var name by remember { mutableStateOf("") }
-    var city by remember { mutableStateOf("") }
-    var places by remember { mutableStateOf(listOf(MemberPlace(label = "Home"))) }
-    var dial by remember { mutableStateOf(DialCodes.first()) }
-    var phone by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var city by rememberSaveable { mutableStateOf("") }
+    var places by rememberSaveable(stateSaver = SetupPlacesSaver) { mutableStateOf(listOf(MemberPlace(label = "Home"))) }
+    var dialCode by rememberSaveable { mutableStateOf(DialCodes.first().code) }
+    val dial = DialCodes.firstOrNull { it.code == dialCode } ?: DialCodes.first()
+    var phone by rememberSaveable { mutableStateOf("") }
     var menu by remember { mutableStateOf(false) }
-    var language by remember { mutableStateOf(session.storedLanguage.value) }
-    var audience by remember { mutableStateOf(Audience.Me) }
+    var language by rememberSaveable { mutableStateOf(session.storedLanguage.value) }
+    var audience by rememberSaveable { mutableStateOf(Audience.Me) }
     var saving by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
     val phoneOk = when (dial.code) {
         "+91" -> phone.length == 10
         else -> phone.length in 8..12
@@ -130,7 +138,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                             DropdownMenuItem(
                                 text = { Text("${item.flag}  ${item.code}") },
                                 onClick = {
-                                    dial = item
+                                    dialCode = item.code
                                     menu = false
                                 },
                             )
@@ -191,7 +199,7 @@ fun ProfileSetupScreen(onEnter: () -> Unit) {
                     saving = true
                     error = null
                     scope.launch {
-                        val saved = runCatching {
+                        val saved = attempt {
                             session.completeProfile(
                                 name.trim(),
                                 city.trim(),
@@ -259,9 +267,14 @@ private fun ChipRow(
                     .clip(RoundedCornerShape(HinvrPillRadius))
                     .background(if (on) colors.ink else Color.Transparent)
                     .border(1.dp, colors.ink.copy(alpha = 0.2f), RoundedCornerShape(HinvrPillRadius))
-                    .clickable { onSelect(key) }
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .selectable(selected = on, role = Role.RadioButton) { onSelect(key) }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
             )
         }
     }
 }
+
+private val SetupPlacesSaver = Saver<List<MemberPlace>, String>(
+    save = { encodePlaces(it) },
+    restore = { decodePlaces(it) },
+)

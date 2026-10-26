@@ -25,20 +25,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,18 +49,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.i18n.userMessage
+import com.hinvr.app.data.DeskRequest
+import com.hinvr.app.data.DeskRequestState
 import com.hinvr.app.data.MemberPlace
-import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.attempt
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.Mandir
 import com.hinvr.app.ui.components.CatalogPhoto
+import com.hinvr.app.ui.components.DeskStateLine
 import com.hinvr.app.ui.components.HinvrBackground
+import com.hinvr.app.ui.components.HinvrDateDialog
+import com.hinvr.app.ui.components.HinvrGoldOutlineButton
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.PhotoScrim
@@ -75,15 +78,19 @@ import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
+/** What the member reads: their language. */
+@Composable
 private fun visitDateFormat(): DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())
+    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", LocalConfiguration.current.locales[0])
+
+/** What the desk reads: always English, with the ISO date, whatever the app language. */
+private fun deskDate(date: LocalDate): String =
+    "$date (" + date.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)) + ")"
 
 private data class DeskHelp(
     val key: String,
@@ -106,21 +113,24 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     val catalog = LocalCatalogRepository.current
     val session = LocalSessionRepository.current
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val snap by session.snapshot.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val colors = HinvrTheme.colors
     val temples = mandirs.filter { it.passAccepted }
-    var mandirId by remember(initialMandirId) { mutableStateOf(initialMandirId) }
-    var templeQuery by remember { mutableStateOf("") }
-    var visitDate by remember { mutableStateOf<LocalDate?>(null) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var partySize by remember { mutableIntStateOf(2) }
-    var notes by remember { mutableStateOf("") }
-    var assist by remember { mutableStateOf(setOf<String>()) }
-    var selectedPlace by remember { mutableStateOf<MemberPlace?>(null) }
-    var placeError by remember { mutableStateOf<String?>(null) }
-    var submitted by remember { mutableStateOf(false) }
+    // Saveable, so rotation or a trip to the date picker never empties the form.
+    var mandirId by rememberSaveable(initialMandirId) { mutableStateOf(initialMandirId) }
+    var templeQuery by rememberSaveable { mutableStateOf("") }
+    var visitDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var partySize by rememberSaveable { mutableIntStateOf(2) }
+    var notes by rememberSaveable { mutableStateOf("") }
+    var assist by rememberSaveable(stateSaver = StringSetSaver) { mutableStateOf(setOf<String>()) }
+    var selectedPlace by rememberSaveable(stateSaver = MemberPlaceSaver) { mutableStateOf<MemberPlace?>(null) }
+    var placeError by rememberSaveable { mutableStateOf<String?>(null) }
+    var sentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    val sent = sentId?.let { id -> snap.deskRequests.find { it.id == id } }
     val place = selectedPlace ?: snap.places.firstOrNull()
     val selected = temples.find { it.id == mandirId }
     val searching = templeQuery.isNotBlank()
@@ -128,23 +138,21 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     val shown = if (searching) temples.filter { it.matchesTempleQuery(templeQuery) } else popular
     val pinned = selected?.takeIf { !searching && shown.none { temple -> temple.id == it.id } }
     val ready = selected != null && visitDate != null && place != null
-    val noExtraHelp = stringResource(R.string.no_extra_help)
-    val noNote = stringResource(R.string.no_note)
-    val peopleWord = stringResource(R.string.people)
-    val personWord = stringResource(R.string.person)
-    val helpLabels = DeskHelpOptions.associate { it.key to stringResource(it.labelRes) }
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
             SabhaTopBar(title = stringResource(R.string.visit_title), onBack = onBack)
-            if (submitted && selected != null && visitDate != null) {
+            if (sent != null && selected != null && visitDate != null) {
                 VisitSent(
+                    request = sent,
                     mandir = selected,
                     date = visitDate!!,
                     partySize = partySize,
                     assist = assist,
                     place = place,
                     onBack = onBack,
+                    onRetry = { scope.launch { session.retryDeskRequest(sent.id) } },
+                    onEdit = { sentId = null },
                 )
                 return@Column
             }
@@ -338,7 +346,7 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                     onSaveNew = { newPlace ->
                         scope.launch {
                             placeError = null
-                            runCatching { session.addPlace(newPlace) }
+                            attempt { session.addPlace(newPlace) }
                                 .onSuccess { selectedPlace = newPlace }
                                 .onFailure { placeError = context.userMessage(it.message, R.string.err_save_place) }
                         }
@@ -366,22 +374,25 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
                     Spacer(Modifier.height(10.dp))
                 }
                 HinvrPrimaryButton(
-                    text = stringResource(R.string.send_visit),
-                    enabled = ready,
+                    text = if (sending) stringResource(R.string.sending) else stringResource(R.string.send_visit),
+                    enabled = ready && !sending,
                     onClick = {
                         val mandir = selected ?: return@HinvrPrimaryButton
                         val date = visitDate ?: return@HinvrPrimaryButton
                         val chosen = place ?: return@HinvrPrimaryButton
-                        val help = assist.map { helpLabels[it] ?: it }.ifEmpty { listOf(noExtraHelp) }.joinToString()
-                        val note = notes.trim().ifBlank { noNote }
-                        val partyLabel = if (partySize == 1) "1 $personWord" else "$partySize $peopleWord"
+                        // The desk works in English: keys, not the member's translated labels.
+                        val help = assist.toList().ifEmpty { listOf("No extra help") }.joinToString()
+                        val note = notes.trim().ifBlank { "No note" }
+                        val partyLabel = if (partySize == 1) "1 person" else "$partySize people"
+                        val summary = "${templeHeadline(mandir)}, ${mandir.place} · ${deskDate(date)} · $partyLabel · $help · " +
+                            "${chosen.label}: ${chosen.address} · ${snap.displayName.ifBlank { snap.city }} · $note"
                         scope.launch {
-                            session.addLocalRequest(
-                                "VISIT",
-                                "${templeHeadline(mandir)}, ${mandir.place} · ${date.format(visitDateFormat())} · $partyLabel · $help · ${chosen.label}: ${chosen.address} · ${snap.displayName.ifBlank { snap.city }} · $note",
-                                mandir.id,
-                            )
-                            submitted = true
+                            sending = true
+                            try {
+                                sentId = session.submitDeskRequest("VISIT", summary, mandir.id)?.id
+                            } finally {
+                                sending = false
+                            }
                         }
                     },
                 )
@@ -390,8 +401,10 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     }
 
     if (showDatePicker) {
-        VisitDateDialog(
+        HinvrDateDialog(
             current = visitDate,
+            confirmLabel = stringResource(R.string.choose_date),
+            title = stringResource(R.string.choose_visit_date),
             onDismiss = { showDatePicker = false },
             onConfirm = { picked ->
                 visitDate = picked
@@ -401,16 +414,26 @@ fun PlanVisitScreen(onBack: () -> Unit, initialMandirId: String = "") {
     }
 }
 
+/** Success only once the server has it; otherwise an honest "saved, not sent yet". */
 @Composable
 private fun VisitSent(
+    request: DeskRequest,
     mandir: Mandir,
     date: LocalDate,
     partySize: Int,
     assist: Set<String>,
     place: MemberPlace?,
     onBack: () -> Unit,
+    onRetry: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     val colors = HinvrTheme.colors
+    val (title, body) = when (request.state) {
+        DeskRequestState.Sending -> stringResource(R.string.sending) to stringResource(R.string.visit_sending_body)
+        DeskRequestState.Sent -> stringResource(R.string.request_sent) to stringResource(R.string.visit_sent_body)
+        DeskRequestState.Waiting -> stringResource(R.string.request_saved) to stringResource(R.string.request_saved_body)
+        DeskRequestState.Failed -> stringResource(R.string.request_not_sent) to stringResource(R.string.request_not_sent_body)
+    }
     Column(
         Modifier
             .verticalScroll(rememberScrollState())
@@ -418,21 +441,23 @@ private fun VisitSent(
             .padding(horizontal = HinvrSideInset)
             .padding(top = 12.dp, bottom = 28.dp),
     ) {
-        Text(stringResource(R.string.request_sent), style = HinvrTypography.headlineLarge, color = colors.ink)
+        Text(title, style = HinvrTypography.headlineLarge, color = colors.ink)
         Spacer(Modifier.height(10.dp))
-        Text(
-            stringResource(R.string.visit_sent_body),
-            style = HinvrTypography.bodyLarge,
-            color = colors.inkMuted,
-        )
+        Text(body, style = HinvrTypography.bodyLarge, color = colors.inkMuted)
         Spacer(Modifier.height(22.dp))
         VisitRecap(mandir = mandir, date = date, partySize = partySize, assist = assist)
         if (place != null) {
             Spacer(Modifier.height(8.dp))
             Text("${place.label} · ${place.address}", style = HinvrTypography.bodyLarge, color = colors.inkMuted)
         }
+        Spacer(Modifier.height(12.dp))
+        DeskStateLine(request, onRetry)
         Spacer(Modifier.height(22.dp))
         HinvrPrimaryButton(stringResource(R.string.back_to_pass), onBack)
+        if (request.state == DeskRequestState.Failed) {
+            Spacer(Modifier.height(8.dp))
+            HinvrGoldOutlineButton(stringResource(R.string.edit_request), onEdit)
+        }
     }
 }
 
@@ -522,11 +547,12 @@ private fun TemplePhotoChoice(
             },
     ) {
         CatalogPhoto(
-            photoUrl = if (mandir.photoUrl.startsWith("http")) "" else mandir.photoUrl,
+            photoUrl = mandir.photoUrl,
             fallback = mandirArtwork(mandir.id),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             contentDescription = null,
+            placeholderName = headline,
         )
         PhotoScrim()
         if (selected) {
@@ -791,60 +817,6 @@ private fun VisitRecap(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun VisitDateDialog(
-    current: LocalDate?,
-    onDismiss: () -> Unit,
-    onConfirm: (LocalDate) -> Unit,
-) {
-    val today = LocalDate.now()
-    val latest = today.plusMonths(18)
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = (current ?: today).toPickerMillis(),
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val day = utcTimeMillis.toVisitDate()
-                return !day.isBefore(today) && !day.isAfter(latest)
-            }
-
-            override fun isSelectableYear(year: Int): Boolean {
-                return year in today.year..latest.year
-            }
-        },
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val picked = state.selectedDateMillis?.toVisitDate() ?: return@TextButton
-                    onConfirm(picked)
-                },
-            ) {
-                Text(stringResource(R.string.choose_date))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    ) {
-        DatePicker(
-            state = state,
-            title = {
-                Text(
-                    stringResource(R.string.choose_visit_date),
-                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp),
-                    style = HinvrTypography.titleLarge,
-                )
-            },
-            showModeToggle = true,
-        )
-    }
-}
-
 private fun popularTemples(temples: List<Mandir>): List<Mandir> {
     val byId = temples.associateBy { it.id }
     val picked = PopularTempleIds.mapNotNull { byId[it] }.toMutableList()
@@ -858,7 +830,7 @@ private fun popularTemples(temples: List<Mandir>): List<Mandir> {
 }
 
 private fun Mandir.hasOwnTemplePhoto(): Boolean =
-    photoUrl.isNotBlank() || id in PopularTempleIds
+    photoUrl.isNotBlank() || mandirArtwork(id) != null
 
 private fun Mandir.matchesTempleQuery(query: String): Boolean {
     val q = query.trim()
@@ -892,8 +864,12 @@ private fun templeSubline(mandir: Mandir): String = when (mandir.id) {
     else -> mandir.name
 }
 
-private fun LocalDate.toPickerMillis(): Long =
-    atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+private val StringSetSaver = listSaver<Set<String>, String>(
+    save = { it.toList() },
+    restore = { it.toSet() },
+)
 
-private fun Long.toVisitDate(): LocalDate =
-    Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+private val MemberPlaceSaver = listSaver<MemberPlace?, String>(
+    save = { place -> if (place == null) emptyList() else listOf(place.label, place.address) },
+    restore = { saved -> if (saved.size == 2) MemberPlace(saved[0], saved[1]) else null },
+)

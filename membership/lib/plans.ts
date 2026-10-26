@@ -1,6 +1,9 @@
+// Amounts must match public.membership_prices (the server prices every request from that table).
+// Every plan, NRI included, is invoiced in rupees.
 export const PLANS = [
   {
     name: "Darshan",
+    tier: "Darshan",
     price: "₹999",
     amount: 999,
     audience: "For watching and planning",
@@ -8,6 +11,7 @@ export const PLANS = [
   },
   {
     name: "Gold",
+    tier: "Gold",
     price: "₹4,999",
     amount: 4999,
     audience: "For parents and regular visits",
@@ -17,10 +21,10 @@ export const PLANS = [
       "Visit and accessibility requests",
       "Priority concierge chat",
     ],
-    recommended: true,
   },
   {
     name: "Platinum",
+    tier: "Platinum",
     price: "₹14,999",
     amount: 14999,
     audience: "For families needing a human desk",
@@ -29,12 +33,13 @@ export const PLANS = [
       "Phone concierge",
       "Family profile support",
       "Physical card request",
-      "Partner assist priority",
+      "Partner Priority Assist",
     ],
   },
   {
     name: "NRI",
-    price: "$149",
+    tier: "Nri",
+    price: "₹12,499",
     amount: 12499,
     audience: "For family abroad",
     benefits: ["Everything in Platinum", "International support hours"],

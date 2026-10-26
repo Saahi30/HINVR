@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +18,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Assignment
@@ -38,24 +35,28 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
 import com.hinvr.app.data.MembershipTier
-import com.hinvr.app.data.SessionSnapshot
-import com.hinvr.app.data.hasDeskPass
+import com.hinvr.app.data.attempt
+import com.hinvr.app.data.formatValidUntil
 import com.hinvr.app.i18n.LocalAppLanguage
 import com.hinvr.app.i18n.localized
 import com.hinvr.app.navigation.Destinations
 import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.navigation.LocalSessionRepository
 import com.hinvr.app.ui.catalog.HinvrCatalog
+import com.hinvr.app.ui.catalog.Mandir
 import com.hinvr.app.ui.catalog.ServiceTile
 import com.hinvr.app.ui.components.BentoTile
 import com.hinvr.app.ui.components.CatalogPhoto
@@ -65,19 +66,25 @@ import com.hinvr.app.ui.components.HinvrBackground
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.LocalDockClearance
 import com.hinvr.app.ui.components.MandirHeroCard
-import com.hinvr.app.ui.components.mandirArtwork
 import com.hinvr.app.ui.components.MembershipBadge
 import com.hinvr.app.ui.components.PortraitPhotoCard
 import com.hinvr.app.ui.components.SectionTitle
 import com.hinvr.app.ui.components.StatusCard
 import com.hinvr.app.ui.components.StatusLabel
+import com.hinvr.app.ui.components.agoLabel
+import com.hinvr.app.ui.components.mandirArtwork
 import com.hinvr.app.ui.motion.HinvrMotion
-import com.hinvr.app.ui.plans.MembershipGateSheet
+import com.hinvr.app.ui.plans.MandirAssistPrompt
+import com.hinvr.app.ui.plans.MandirAssistSheet
+import com.hinvr.app.ui.plans.assistPromptFor
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
 import kotlinx.coroutines.delay
+
+private val TallTile = 264.dp
+private val ShortTile = 196.dp
 
 @Composable
 fun HomeScreen(
@@ -90,18 +97,20 @@ fun HomeScreen(
 ) {
     val session = LocalSessionRepository.current
     val catalog = LocalCatalogRepository.current
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val snap by session.snapshot.collectAsStateWithLifecycle()
     val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
     val tiles by catalog.services.collectAsStateWithLifecycle()
     val headline by catalog.headline.collectAsStateWithLifecycle()
     val colors = HinvrTheme.colors
     val language = LocalAppLanguage.current
+    val locale = LocalConfiguration.current.locales[0]
     val localizedMandirs = mandirs.localized()
     val localizedTiles = tiles.map { it.localized() }
     val live = localizedMandirs.firstOrNull { it.live }
     val hero = live ?: localizedMandirs.firstOrNull()
     val member = snap.tier != MembershipTier.None
-    var revealContent by remember { mutableStateOf(false) }
+    val near = remember(localizedMandirs, snap.city) { nearbyMandirs(localizedMandirs, snap.city) }
+    var revealContent by rememberSaveable { mutableStateOf(false) }
     var assistPrompt by remember { mutableStateOf<MandirAssistPrompt?>(null) }
     val displayHeadline = if (headline == HinvrCatalog.DefaultHeadline || language == "hi") {
         stringResource(R.string.home_headline)
@@ -109,7 +118,7 @@ fun HomeScreen(
         headline
     }
 
-    LaunchedEffect(Unit) { catalog.refresh() }
+    LaunchedEffect(Unit) { attempt { catalog.refresh() } }
     LaunchedEffect(Unit) {
         delay(90)
         revealContent = true
@@ -140,13 +149,13 @@ fun HomeScreen(
                         contentDescription = if (member) stringResource(R.string.nav_pass) else stringResource(R.string.cd_plans),
                         onClick = { if (member) onOpenPass() else onOpenPlans() },
                     )
-                    Spacer(Modifier.padding(start = 8.dp))
+                    Spacer(Modifier.width(4.dp))
                     CircleIconButton(
                         icon = Icons.Outlined.NotificationsNone,
                         contentDescription = stringResource(R.string.cd_notifications),
                         onClick = onOpenNotifications,
                     )
-                    Spacer(Modifier.padding(start = 8.dp))
+                    Spacer(Modifier.width(4.dp))
                     CircleIconButton(
                         icon = Icons.Outlined.Person,
                         contentDescription = stringResource(R.string.cd_profile),
@@ -176,17 +185,24 @@ fun HomeScreen(
                     maxLines = 2,
                 )
                 Spacer(Modifier.height(16.dp))
-                MembershipBadge(
-                    tier = if (member) {
-                        stringResource(
-                            R.string.tier_member,
-                            if (snap.tier == MembershipTier.Nri) "NRI" else snap.tier.name,
-                        )
-                    } else {
-                        stringResource(R.string.membership)
-                    },
-                    validity = if (member) snap.validUntilLabel else stringResource(R.string.explore_access),
-                )
+                if (snap.loaded) {
+                    val validity = formatValidUntil(snap.validUntil, locale)
+                    MembershipBadge(
+                        tier = if (member) {
+                            stringResource(
+                                R.string.tier_member,
+                                if (snap.tier == MembershipTier.Nri) "NRI" else snap.tier.name,
+                            )
+                        } else {
+                            stringResource(R.string.membership)
+                        },
+                        validity = when {
+                            !member -> stringResource(R.string.explore_access)
+                            validity.isNotBlank() -> stringResource(R.string.valid_till, validity)
+                            else -> ""
+                        },
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
             }
 
@@ -194,9 +210,10 @@ fun HomeScreen(
                 AnimatedVisibility(visible = revealContent, enter = homeReveal(0)) {
                     Column {
                         if (live != null) {
+                            val checked = live.liveCheckedAt?.let { stringResource(R.string.feed_checked, agoLabel(it)) }
                             StatusCard(
                                 title = stringResource(R.string.home_live_darshan, live.name),
-                                subtitle = "${live.city} · ${live.updatedLabel}",
+                                subtitle = listOfNotNull(live.city.ifBlank { null }, checked).joinToString(" · "),
                                 icon = Icons.AutoMirrored.Outlined.Assignment,
                                 onClick = { onOpenRoute(Destinations.livePlayer(live.id)) },
                                 modifier = Modifier.padding(top = 4.dp),
@@ -213,38 +230,41 @@ fun HomeScreen(
                             onOpenConcierge = onOpenConcierge,
                             onOpenRoute = onOpenRoute,
                         )
-                        Spacer(Modifier.height(22.dp))
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.gold))
-                        Spacer(Modifier.height(22.dp))
-                        CatalogPhoto(
-                            photoUrl = "",
-                            fallback = mandirArtwork(hero?.id.orEmpty()),
-                            contentDescription = hero?.name ?: stringResource(R.string.home_courtyard_cd),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(3f / 4f),
-                            contentScale = ContentScale.Crop,
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            hero?.place ?: stringResource(R.string.home_architecture),
-                            style = HinvrTypography.labelSmall,
-                            color = colors.saffron,
-                        )
-                        Text(
-                            hero?.name ?: stringResource(R.string.home_courtyard),
-                            style = HinvrTypography.headlineMedium,
-                            color = colors.ink,
-                        )
+                        if (hero != null) {
+                            Spacer(Modifier.height(22.dp))
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(colors.gold))
+                            Spacer(Modifier.height(22.dp))
+                            CatalogPhoto(
+                                photoUrl = hero.photoUrl,
+                                fallback = mandirArtwork(hero.id),
+                                contentDescription = hero.name,
+                                placeholderName = hero.name,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(3f / 4f),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Text(hero.place, style = HinvrTypography.labelSmall, color = colors.saffron)
+                            Text(hero.name, style = HinvrTypography.headlineMedium, color = colors.ink)
+                        }
                     }
                 }
                 AnimatedVisibility(visible = revealContent, enter = homeReveal(180)) {
                     Column {
                         Spacer(Modifier.height(18.dp))
                         CustomRequestPill(onClick = onOpenConcierge)
-                        Spacer(Modifier.height(32.dp))
-                        SectionTitle(stringResource(R.string.home_near))
-                        Spacer(Modifier.height(14.dp))
+                        if (near.mandirs.isNotEmpty()) {
+                            Spacer(Modifier.height(32.dp))
+                            SectionTitle(
+                                if (near.matchedCity) {
+                                    stringResource(R.string.home_near_city, snap.city.trim())
+                                } else {
+                                    stringResource(R.string.home_across_india)
+                                },
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
                     }
                 }
             }
@@ -254,7 +274,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = HinvrSideInset),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(localizedMandirs, key = { it.id }) { mandir ->
+                    items(near.mandirs, key = { it.id }) { mandir ->
                         PortraitPhotoCard(
                             title = mandir.name,
                             place = mandir.city,
@@ -270,10 +290,10 @@ fun HomeScreen(
 
             AnimatedVisibility(visible = revealContent, enter = homeReveal(330)) {
                 Column(Modifier.padding(horizontal = HinvrSideInset)) {
-                    Spacer(Modifier.height(36.dp))
-                    SectionTitle(stringResource(R.string.home_featured))
-                    Spacer(Modifier.height(14.dp))
                     if (hero != null) {
+                        Spacer(Modifier.height(36.dp))
+                        SectionTitle(stringResource(R.string.home_featured))
+                        Spacer(Modifier.height(14.dp))
                         MandirHeroCard(
                             title = hero.name,
                             place = hero.city,
@@ -286,50 +306,44 @@ fun HomeScreen(
                             onVr = { onOpenRoute(Destinations.vrPlayer(hero.id)) },
                             onPass = onOpenPass,
                             onAssist = {
-                                when {
-                                    !hero.passAccepted -> assistPrompt = MandirAssistPrompt.Desk
-                                    !snap.tier.hasDeskPass -> assistPrompt = MandirAssistPrompt.Gate
-                                    else -> onOpenRoute(Destinations.passVisit(hero.id))
-                                }
+                                assistPrompt = assistPromptFor(hero.passAccepted, snap.tier)
+                                if (assistPrompt == null) onOpenRoute(Destinations.passVisit(hero.id))
                             },
                         )
-                        Spacer(Modifier.height(28.dp))
                     }
+                    Spacer(Modifier.height(28.dp))
                     SectionTitle(stringResource(R.string.home_hosts))
                     Spacer(Modifier.height(14.dp))
+                    HostsComing()
                 }
-            }
-            AnimatedVisibility(visible = revealContent, enter = homeReveal(420)) {
-                HostRail()
             }
             Spacer(Modifier.height(28.dp + LocalDockClearance.current))
         }
-        when (assistPrompt) {
-            MandirAssistPrompt.Gate -> MembershipGateSheet(
-                reason = stringResource(R.string.gate_visit),
-                onDismiss = { assistPrompt = null },
-                onSeePlans = {
-                    assistPrompt = null
-                    onOpenPlans()
-                },
-            )
-            MandirAssistPrompt.Desk -> MembershipGateSheet(
-                reason = stringResource(R.string.gate_not_accepted),
-                onDismiss = { assistPrompt = null },
-                onSeePlans = {
-                    assistPrompt = null
-                    onOpenConcierge()
-                },
-                eyebrow = stringResource(R.string.gate_desk),
-                body = stringResource(R.string.gate_desk_body),
-                actionLabel = stringResource(R.string.ask_concierge),
-            )
-            null -> Unit
-        }
+        MandirAssistSheet(
+            prompt = assistPrompt,
+            onDismiss = { assistPrompt = null },
+            onPlans = onOpenPlans,
+            onConcierge = onOpenConcierge,
+        )
     }
 }
 
-private enum class MandirAssistPrompt { Gate, Desk }
+private data class NearbyMandirs(val mandirs: List<Mandir>, val matchedCity: Boolean)
+
+/**
+ * "Near you" only when the member's city actually matches; otherwise the desk's
+ * order under an honest heading. The catalog has no coordinates yet, so this is by city.
+ */
+private fun nearbyMandirs(all: List<Mandir>, city: String): NearbyMandirs {
+    val needle = city.trim()
+    if (needle.isEmpty()) return NearbyMandirs(all, matchedCity = false)
+    val matches = all.filter {
+        it.city.contains(needle, ignoreCase = true) ||
+            it.place.contains(needle, ignoreCase = true) ||
+            (it.city.isNotBlank() && needle.contains(it.city, ignoreCase = true))
+    }
+    return if (matches.isEmpty()) NearbyMandirs(all, matchedCity = false) else NearbyMandirs(matches, matchedCity = true)
+}
 
 private fun homeReveal(delayMs: Int): EnterTransition =
     fadeIn(
@@ -354,48 +368,16 @@ private fun homeReveal(delayMs: Int): EnterTransition =
         ),
     )
 
+/** No invented people: hosts appear by name only once a partner mandir confirms them. */
 @Composable
-private fun HostRail() {
-    val hosts = listOf(
-        Triple("TIRUPATI", "Ananya Rao", stringResource(R.string.host_tirupati_bio)),
-        Triple("KASHI", "Raghav Mishra", stringResource(R.string.host_kashi_bio)),
-        Triple("SHIRDI", "Meera Patil", stringResource(R.string.host_shirdi_bio)),
-    )
+private fun HostsComing() {
     val colors = HinvrTheme.colors
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = HinvrSideInset),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(hosts) { (city, name, bio) ->
-            Box(Modifier.width(238.dp).padding(top = 22.dp)) {
-                IvoryCard(modifier = Modifier.padding(top = 18.dp)) {
-                    Spacer(Modifier.height(18.dp))
-                    Text(city, style = HinvrTypography.labelSmall, color = colors.saffron)
-                    Text(name, style = HinvrTypography.titleLarge, color = colors.ink)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        bio,
-                        style = HinvrTypography.bodyMedium,
-                        color = colors.inkMuted,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                Box(
-                    Modifier
-                        .padding(start = 18.dp)
-                        .size(54.dp)
-                        .background(colors.olive, CircleShape)
-                        .border(1.dp, colors.gold, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        name.split(" ").mapNotNull { it.firstOrNull() }.joinToString(""),
-                        style = HinvrTypography.titleMedium,
-                        color = colors.cream,
-                    )
-                }
-            }
-        }
+    IvoryCard {
+        Text(stringResource(R.string.hosts_coming_kicker), style = HinvrTypography.labelSmall, color = colors.saffron)
+        Spacer(Modifier.height(6.dp))
+        Text(stringResource(R.string.hosts_coming_title), style = HinvrTypography.titleLarge, color = colors.ink)
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.hosts_coming_body), style = HinvrTypography.bodyMedium, color = colors.inkMuted)
     }
 }
 
@@ -419,33 +401,30 @@ private fun BentoGrid(
     val left = tiles.filterIndexed { index, _ -> index % 2 == 0 }
     val right = tiles.filterIndexed { index, _ -> index % 2 == 1 }
 
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            left.forEach { tile ->
+    @Composable
+    fun column(items: List<ServiceTile>, modifier: Modifier) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items.forEach { tile ->
                 BentoTile(
                     tile.title,
                     tile.benefit,
                     tile.scene,
-                    248.dp,
-                    { open(tile) },
-                    photoUrl = tile.photoUrl,
-                )
-            }
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            right.forEach { tile ->
-                BentoTile(
-                    tile.title,
-                    tile.benefit,
-                    tile.scene,
-                    248.dp,
+                    tileHeight(tile),
                     { open(tile) },
                     photoUrl = tile.photoUrl,
                 )
             }
         }
     }
+
+    // Uneven heights, Crew-style: tall tiles stagger the two columns.
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        column(left, Modifier.weight(1f))
+        column(right, Modifier.weight(1f))
+    }
 }
+
+private fun tileHeight(tile: ServiceTile): Dp = if (tile.tall) TallTile else ShortTile

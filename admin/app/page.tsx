@@ -1,36 +1,36 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
 import { Badge, ButtonLink, Card, PageHeader } from "@/components/ui";
-import { isMissingRelation, requireDesk } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { YoutubeQuotaCard } from "@/components/youtube-quota-card";
-import { attachMembers, catalogHealth, formatWhen, isPaying, parseYoutubeQuota } from "@/lib/ops";
+import { attachMembers, catalogHealth, formatWhen, parseYoutubeQuota } from "@/lib/ops";
+import { can } from "@/lib/roles";
 import type { DeskRequest, Mandir, MemberRow } from "@/lib/types";
 
 export default async function OverviewPage() {
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return (
-      <GateMessage
-        title="This admin is already claimed."
-        body="Ask the owner to add your email. The first account to sign up becomes owner."
-      />
-    );
-  }
+  const gate = await requireStaff();
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
+  const role = desk.staff.role;
+  const seesMembers = can(role, "members");
+  const db = desk.supabase;
+  const count = { count: "exact" as const, head: true };
 
-  const [mandirsRes, membersRes, requestsRes, quotaRes] = await Promise.all([
-    desk.supabase
-      .from("mandirs")
-      .select("id,name,live,vr,published,photo_url,city,place,live_url")
-      .order("sort_order"),
-    desk.supabase.from("profiles").select("id, profile_complete, tier"),
-    desk.supabase
-      .from("desk_requests")
-      .select("id,user_id,kind,summary,city,mandir_id,status,staff_note,created_at")
-      .order("created_at", { ascending: false })
-      .limit(40),
-    desk.supabase.from("app_settings").select("value").eq("key", "youtube_quota").maybeSingle(),
+  const [mandirsRes, quotaRes, membersRes, completeRes, payingRes, openRes, requestsRes] = await Promise.all([
+    db.from("mandirs").select("id,name,live,vr,published,photo_url,city,place,live_url").order("sort_order"),
+    db.from("app_settings").select("value").eq("key", "youtube_quota").maybeSingle(),
+    seesMembers ? db.from("profiles").select("id", count) : null,
+    seesMembers ? db.from("profiles").select("id", count).eq("profile_complete", true) : null,
+    seesMembers ? db.from("profiles").select("id", count).neq("tier", "None") : null,
+    seesMembers ? db.from("desk_requests").select("id", count).in("status", ["new", "open"]) : null,
+    seesMembers
+      ? db
+          .from("desk_requests")
+          .select("id,user_id,kind,summary,city,mandir_id,status,staff_note,created_at")
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : null,
   ]);
   const quota = parseYoutubeQuota(quotaRes.data?.value);
 
@@ -38,24 +38,19 @@ export default async function OverviewPage() {
     Mandir,
     "id" | "name" | "live" | "vr" | "published" | "photo_url" | "city" | "place" | "live_url"
   >[];
-  const members = (membersRes.data ?? []) as Pick<MemberRow, "id" | "profile_complete" | "tier">[];
-  const requestsMissing = isMissingRelation(requestsRes.error);
-  const requests = requestsMissing ? [] : ((requestsRes.data ?? []) as DeskRequest[]);
   const health = catalogHealth(rows as Mandir[]);
-  const complete = members.filter((row) => row.profile_complete).length;
-  const incomplete = members.length - complete;
-  const paying = members.filter((row) => isPaying(row.tier)).length;
-  const openRequests = requests.filter((row) => row.status === "new" || row.status === "open").length;
+  const memberCount = membersRes?.count ?? 0;
+  const complete = completeRes?.count ?? 0;
+  const paying = payingRes?.count ?? 0;
+  const openRequests = openRes?.count ?? 0;
+  const requests = (requestsRes?.data ?? []) as DeskRequest[];
 
-  const profileIds = [...new Set(requests.slice(0, 8).map((row) => row.user_id))];
+  const profileIds = [...new Set(requests.map((row) => row.user_id))];
   const { data: profiles } = profileIds.length
-    ? await desk.supabase
-        .from("profiles")
-        .select("id, display_name, city, phone_e164, tier")
-        .in("id", profileIds)
+    ? await db.from("profiles").select("id, display_name, city, phone_e164, tier").in("id", profileIds)
     : { data: [] };
   const recent = attachMembers(
-    requests.slice(0, 8),
+    requests,
     (profiles ?? []) as Pick<MemberRow, "id" | "display_name" | "city" | "phone_e164" | "tier">[],
   );
 
@@ -67,18 +62,21 @@ export default async function OverviewPage() {
       .slice(0, 6)
       .map((row) => ({ id: row.id, name: row.name, label: "Missing photo" })),
   ].slice(0, 8);
+  const editsCatalog = can(role, "catalog");
 
   return (
-    <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
+    <DeskShell email={desk.email || desk.staff.email} role={role}>
       <PageHeader
         title="Overview"
         description="What the desk needs to watch: members, open requests, and catalog honesty."
         actions={
           <>
-            <ButtonLink href="/requests">Open inbox</ButtonLink>
-            <ButtonLink href="/live" variant="secondary">
-              Live board
-            </ButtonLink>
+            {can(role, "requests") ? <ButtonLink href="/requests">Open inbox</ButtonLink> : null}
+            {can(role, "live") ? (
+              <ButtonLink href="/live" variant="secondary">
+                Live board
+              </ButtonLink>
+            ) : null}
           </>
         }
       />
@@ -86,22 +84,14 @@ export default async function OverviewPage() {
         <YoutubeQuotaCard quota={quota} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat
-          label="Members"
-          value={members.length}
-          hint={`${complete} complete · ${incomplete} incomplete`}
-        />
-        <Stat label="Paying" value={paying} hint={`${members.length - paying} on None`} />
-        <Stat
-          label="Open requests"
-          value={requestsMissing ? 0 : openRequests}
-          hint={requestsMissing ? "Apply desk_ops SQL" : `${requests.length} total fetched`}
-        />
-        <Stat
-          label="Live flagged"
-          value={health.live.length}
-          hint={`${health.liveNoUrl.length} missing a URL`}
-        />
+        {seesMembers ? (
+          <>
+            <Stat label="Members" value={memberCount} hint={`${complete} complete · ${memberCount - complete} incomplete`} />
+            <Stat label="On a plan" value={paying} hint={`${memberCount - paying} with no plan`} />
+            <Stat label="Open requests" value={openRequests} hint="New or open desk requests" />
+          </>
+        ) : null}
+        <Stat label="Live flagged" value={health.live.length} hint={`${health.liveNoUrl.length} missing a URL`} />
         <Stat
           label="Catalog gaps"
           value={health.drafts.length + health.missingPhoto.length}
@@ -109,19 +99,14 @@ export default async function OverviewPage() {
         />
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card className="overflow-hidden">
-          <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-            <h2 className="text-sm font-semibold">Recent requests</h2>
-            <ButtonLink href="/requests" variant="secondary">
-              Inbox
-            </ButtonLink>
-          </div>
-          {requestsMissing ? (
-            <p className="px-4 py-10 text-center text-sm text-zinc-500">
-              Run <code className="rounded bg-zinc-100 px-1">supabase/migrations/20260925120000_desk_ops.sql</code> to
-              see visit, concierge, pooja, and yatra demand.
-            </p>
-          ) : (
+        {seesMembers ? (
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+              <h2 className="text-sm font-semibold">Recent requests</h2>
+              <ButtonLink href="/requests" variant="secondary">
+                Inbox
+              </ButtonLink>
+            </div>
             <ul className="divide-y divide-zinc-100">
               {recent.map((row) => (
                 <li key={row.id} className="flex items-start justify-between gap-3 px-4 py-3">
@@ -145,25 +130,32 @@ export default async function OverviewPage() {
                 </li>
               ) : null}
             </ul>
-          )}
-        </Card>
+          </Card>
+        ) : null}
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
             <h2 className="text-sm font-semibold">Catalog issues</h2>
-            <ButtonLink href="/mandirs" variant="secondary">
-              Mandirs
-            </ButtonLink>
+            {editsCatalog ? (
+              <ButtonLink href="/mandirs" variant="secondary">
+                Mandirs
+              </ButtonLink>
+            ) : null}
           </div>
           <ul className="divide-y divide-zinc-100">
             {issues.map((row) => (
               <li key={`${row.id}-${row.label}`}>
-                <Link href={`/mandirs/${row.id}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-50">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{row.name}</p>
-                    <p className="text-xs text-zinc-500">{row.label}</p>
+                {editsCatalog ? (
+                  <Link
+                    href={`/mandirs/${row.id}`}
+                    className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-50"
+                  >
+                    <IssueRow name={row.name} label={row.label} />
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3">
+                    <IssueRow name={row.name} label={row.label} />
                   </div>
-                  <Badge tone={row.label.includes("URL") ? "red" : "amber"}>{row.label}</Badge>
-                </Link>
+                )}
               </li>
             ))}
             {issues.length === 0 ? (
@@ -173,6 +165,18 @@ export default async function OverviewPage() {
         </Card>
       </div>
     </DeskShell>
+  );
+}
+
+function IssueRow({ name, label }: { name: string; label: string }) {
+  return (
+    <>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{name}</p>
+        <p className="text-xs text-zinc-500">{label}</p>
+      </div>
+      <Badge tone={label.includes("URL") ? "red" : "amber"}>{label}</Badge>
+    </>
   );
 }
 

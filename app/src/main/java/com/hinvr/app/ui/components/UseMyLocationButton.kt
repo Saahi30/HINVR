@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.hinvr.app.R
 import com.hinvr.app.data.DeviceAddress
 import com.hinvr.app.data.ResolvedPlace
+import com.hinvr.app.data.attempt
 import com.hinvr.app.i18n.userMessage
 import kotlinx.coroutines.launch
 
@@ -32,7 +33,7 @@ fun UseMyLocationButton(
         if (busy) return
         busy = true
         scope.launch {
-            runCatching { DeviceAddress.resolve(context) }
+            attempt { DeviceAddress.resolve(context) }
                 .onSuccess(onPlace)
                 .onFailure { onError(context.userMessage(it.message, R.string.err_location)) }
             busy = false

@@ -24,10 +24,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -56,13 +58,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hinvr.app.R
 import com.hinvr.app.ui.catalog.TileScene
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.BenefitLine
 import com.hinvr.app.ui.theme.CardTitleOnPhoto
@@ -105,24 +113,33 @@ fun CircleIconButton(
     background: Color = HinvrTheme.colors.ivory,
 ) {
     val press = rememberPressMotion()
+    // 42dp of stone and gold, inside a 48dp touch target.
     Box(
         modifier = modifier
-            .size(42.dp)
-            .graphicsLayer {
-                scaleX = press.scale
-                scaleY = press.scale
-            }
-            .clip(CircleShape)
-            .background(background)
-            .border(1.dp, HinvrTheme.colors.gold, CircleShape)
+            .size(48.dp)
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
-            ),
+            )
+            .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription, tint = tint, modifier = Modifier.size(20.dp))
+        Box(
+            Modifier
+                .size(42.dp)
+                .graphicsLayer {
+                    scaleX = press.scale
+                    scaleY = press.scale
+                }
+                .clip(CircleShape)
+                .background(background)
+                .border(1.dp, HinvrTheme.colors.gold, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
@@ -249,6 +266,7 @@ fun StatusCard(
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             )
             .padding(horizontal = 18.dp, vertical = 16.dp),
@@ -271,18 +289,27 @@ fun StatusCard(
     }
 }
 
+/**
+ * The one image entry point for catalog photography. A desk photo URL loads with
+ * Coil; while it loads, or if it fails, the bundled photograph for that temple
+ * shows; with neither, the bible's placeholder: linen, gold hairline, serif name.
+ * Never a grey box.
+ */
 @Composable
 fun CatalogPhoto(
     photoUrl: String,
-    fallback: Int,
+    fallback: Int?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.TopCenter,
     contentDescription: String? = null,
+    placeholderName: String = "",
 ) {
     val gradedModifier = modifier.warmPhotoGrade()
-    if (photoUrl.isNotBlank()) {
-        AsyncImage(
+    val remote = photoUrl.startsWith("https://", ignoreCase = true) ||
+        photoUrl.startsWith("http://", ignoreCase = true)
+    when {
+        remote && fallback != null -> AsyncImage(
             model = photoUrl,
             contentDescription = contentDescription,
             modifier = gradedModifier,
@@ -291,14 +318,46 @@ fun CatalogPhoto(
             placeholder = painterResource(fallback),
             error = painterResource(fallback),
         )
-    } else {
-        Image(
+        remote -> SubcomposeAsyncImage(
+            model = photoUrl,
+            contentDescription = contentDescription,
+            modifier = gradedModifier,
+            contentScale = contentScale,
+            alignment = alignment,
+            loading = { LinenPlaceholder(placeholderName, Modifier.fillMaxSize()) },
+            error = { LinenPlaceholder(placeholderName, Modifier.fillMaxSize()) },
+        )
+        fallback != null -> Image(
             painter = painterResource(fallback),
             contentDescription = contentDescription,
             modifier = gradedModifier,
             contentScale = contentScale,
             alignment = alignment,
         )
+        else -> LinenPlaceholder(placeholderName, modifier)
+    }
+}
+
+/** Until a photograph exists: linen, a gold hairline, the name in serif. */
+@Composable
+fun LinenPlaceholder(name: String, modifier: Modifier = Modifier) {
+    val colors = HinvrTheme.colors
+    Box(
+        modifier
+            .background(colors.linen)
+            .padding(10.dp)
+            .border(1.dp, colors.gold.copy(alpha = 0.55f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (name.isNotBlank()) {
+            Text(
+                name,
+                style = HinvrTypography.headlineMedium,
+                color = colors.ink,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
     }
 }
 
@@ -343,11 +402,12 @@ fun BentoTile(
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             ),
     ) {
         CatalogPhoto(
-            photoUrl = "",
+            photoUrl = photoUrl,
             fallback = scene.serviceDrawable(),
             modifier = Modifier
                 .fillMaxSize()
@@ -438,15 +498,17 @@ fun PortraitPhotoCard(
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             ),
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(3f / 4f)) {
             CatalogPhoto(
-                photoUrl = if (photoUrl.startsWith("http")) "" else photoUrl,
+                photoUrl = photoUrl,
                 fallback = if (mandirId.isNotBlank()) mandirArtwork(mandirId) else scene.templeDrawable(),
                 modifier = Modifier.fillMaxSize(),
                 alignment = Alignment.TopCenter,
+                placeholderName = title,
             )
             Row(
                 modifier = Modifier.padding(12.dp).align(Alignment.TopStart),
@@ -490,7 +552,7 @@ fun MandirHeroCard(
     place: String,
     scene: TileScene,
     live: Boolean,
-    onPhoto: () -> Unit,
+    onPhoto: (() -> Unit)?,
     onLive: () -> Unit,
     onVr: () -> Unit,
     onPass: () -> Unit,
@@ -515,16 +577,24 @@ fun MandirHeroCard(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(3f / 4f)
-                .clickable(
-                    interactionSource = press.interactionSource,
-                    indication = null,
-                    onClick = onPhoto,
+                .then(
+                    if (onPhoto != null) {
+                        Modifier.clickable(
+                            interactionSource = press.interactionSource,
+                            indication = null,
+                            role = Role.Button,
+                            onClick = onPhoto,
+                        )
+                    } else {
+                        Modifier
+                    },
                 ),
         ) {
             CatalogPhoto(
-                photoUrl = if (photoUrl.startsWith("http")) "" else photoUrl,
+                photoUrl = photoUrl,
                 fallback = if (mandirId.isNotBlank()) mandirArtwork(mandirId) else scene.templeDrawable(),
                 modifier = Modifier.fillMaxSize(),
+                placeholderName = title,
             )
             if (live) LivePill(Modifier.padding(14.dp).align(Alignment.TopStart))
         }
@@ -558,7 +628,8 @@ internal fun TileScene.templeDrawable(): Int = when (this) {
     else -> R.drawable.temple_tirupati
 }
 
-fun mandirArtwork(id: String): Int = when (id) {
+/** The bundled photograph for a bundled temple; null for one the desk added. */
+fun mandirArtwork(id: String): Int? = when (id) {
     "tirupati" -> R.drawable.temple_tirupati
     "kashi" -> R.drawable.temple_kashi
     "shirdi" -> R.drawable.temple_shirdi
@@ -572,7 +643,7 @@ fun mandirArtwork(id: String): Int = when (id) {
     "golden-temple" -> R.drawable.temple_harmandir
     "siddhivinayak" -> R.drawable.temple_siddhivinayak
     "iskcon-bengaluru" -> R.drawable.temple_iskcon
-    else -> R.drawable.temple_tirupati
+    else -> null
 }
 
 @Composable
@@ -596,9 +667,10 @@ fun GlassDock(
                     style = HinvrTypography.labelLarge,
                     color = colors.ink,
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(HinvrPillRadius))
-                        .clickable(onClick = onClick)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .clickable(role = Role.Button, onClick = onClick)
+                        .padding(horizontal = 12.dp, vertical = 14.dp),
                 )
             }
         }
@@ -659,25 +731,27 @@ fun PassSeal(
                 )
             }
             .border(1.dp, colors.gold, CircleShape)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, role = Role.Tab, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "HI",
-                fontFamily = HinvrDisplay,
-                fontSize = (size.value * 0.22f).sp,
-                color = colors.cream,
-                lineHeight = (size.value * 0.22f).sp,
-            )
-            Text(
-                "NV",
-                fontFamily = HinvrDisplay,
-                fontSize = (size.value * 0.22f).sp,
-                color = colors.cream,
-                lineHeight = (size.value * 0.22f).sp,
-            )
-        }
+        HinvrSealLetters(letterSize = (size.value * 0.22f).sp, top = colors.cream, bottom = colors.cream)
+    }
+}
+
+/**
+ * The stacked HI / NV of the HINVR seal. One drawing for the dock orb, the pass
+ * card and the splash, so the mark never drifts between them.
+ */
+@Composable
+fun HinvrSealLetters(
+    letterSize: TextUnit,
+    top: Color,
+    bottom: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("HI", fontFamily = HinvrDisplay, fontSize = letterSize, color = top, lineHeight = letterSize)
+        Text("NV", fontFamily = HinvrDisplay, fontSize = letterSize, color = bottom, lineHeight = letterSize)
     }
 }
 
@@ -758,10 +832,27 @@ fun FilterChip(
         style = HinvrTypography.labelLarge,
         color = if (selected) colors.cream else colors.ink,
         modifier = Modifier
+            .heightIn(min = 40.dp)
             .clip(RoundedCornerShape(2.dp))
             .background(if (selected) colors.burgundy else colors.ivory)
             .border(1.dp, if (selected) colors.burgundy else colors.gold, RoundedCornerShape(2.dp))
-            .clickable(onClick = onClick)
+            .selectable(selected = selected, role = Role.Checkbox, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    )
+}
+
+/** Names a facility. It looks like a chip but does nothing when tapped, so it is not clickable. */
+@Composable
+fun FacilityTag(label: String) {
+    val colors = HinvrTheme.colors
+    Text(
+        label,
+        style = HinvrTypography.labelLarge,
+        color = colors.ink,
+        modifier = Modifier
+            .clip(RoundedCornerShape(2.dp))
+            .background(colors.ivory.copy(alpha = 0.6f))
+            .border(1.dp, colors.gold.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
             .padding(horizontal = 14.dp, vertical = 8.dp),
     )
 }
@@ -836,6 +927,7 @@ fun CustomRequestPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             )
             .padding(horizontal = 22.dp, vertical = 16.dp),

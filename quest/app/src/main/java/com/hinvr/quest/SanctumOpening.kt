@@ -1,5 +1,6 @@
 package com.hinvr.quest
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -10,7 +11,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,14 +38,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,39 +51,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Calendar
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.delay
 
-private val Gold = Color(0xFFC9A227)
-private val GoldLight = Color(0xFFF1D27A)
-private val Cream = Color(0xFFF3E6D0)
-private val Saffron = Color(0xFFE07A2E)
-private val Marigold = Color(0xFFF2A516)
-private val DiyaAmber = Color(0xFFE8A317)
 private val SealShape = RoundedCornerShape(percent = 50)
-private val GoldKnockout = ColorFilter.colorMatrix(
-    ColorMatrix(
-        floatArrayOf(
-            1f, 0f, 0f, 0f, 0f,
-            0f, 1f, 0f, 0f, 0f,
-            0f, 0f, 1f, 0f, 0f,
-            0.30f, 0.52f, 0.18f, 0f, -0.04f,
-        ),
-    ),
-)
-
-const val OpeningLengthMs = 6000L
-
-private data class Greeting(val hindi: String, val english: String)
+private data class Greeting(@StringRes val hindi: Int, @StringRes val english: Int)
 
 private fun greetingForNow(): Greeting {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when (hour) {
-        in 4..10 -> Greeting("सुप्रभात", "Good morning. Your darshan awaits.")
-        in 11..15 -> Greeting("नमस्ते", "Welcome. Your darshan awaits.")
-        in 16..19 -> Greeting("शुभ संध्या", "Good evening. The aarti lamps are lit.")
-        else -> Greeting("शुभ रात्रि", "The sanctum is quiet. Your darshan awaits.")
+        in 4..10 -> Greeting(R.string.greet_morning_hi, R.string.greet_morning_en)
+        in 11..15 -> Greeting(R.string.greet_day_hi, R.string.greet_day_en)
+        in 16..19 -> Greeting(R.string.greet_evening_hi, R.string.greet_evening_en)
+        else -> Greeting(R.string.greet_night_hi, R.string.greet_night_en)
     }
 }
 
@@ -106,49 +85,49 @@ private fun OpeningSequence() {
     var showMark by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
 
+    // Visual only. The input system owns the clock that ends the greeting (OpeningLengthMs),
+    // so there is exactly one timer, and a trigger can skip it.
     LaunchedEffect(Unit) {
         showHalo = true
-        delay(250)
+        delay(150)
         showSeal = true
-        delay(550)
+        delay(250)
         lightDiya = true
         Ring.markDiyaLit()
-        delay(650)
+        delay(300)
         showGreeting = true
-        delay(650)
+        delay(300)
         showMark = true
-        delay(OpeningLengthMs - 2750)
+        delay(OpeningLengthMs - 1000 - 600)
         leaving = true
-        delay(650)
-        if (Ring.stage == Stage.Splash) Ring.openMenu()
     }
 
-    val haloAlpha by animateFloatAsState(if (showHalo) 1f else 0f, tween(1400), label = "halo")
+    val haloAlpha by animateFloatAsState(if (showHalo) 1f else 0f, tween(700), label = "halo")
     val sealAlpha by animateFloatAsState(
         targetValue = if (showSeal) 1f else 0f,
-        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
         label = "seal-fade",
     )
     val sealScale by animateFloatAsState(
         targetValue = if (showSeal) 1f else 0.86f,
-        animationSpec = tween(1100, easing = LinearOutSlowInEasing),
+        animationSpec = tween(700, easing = LinearOutSlowInEasing),
         label = "seal-scale",
     )
     val flame by animateFloatAsState(
         targetValue = if (lightDiya) 1f else 0.04f,
-        animationSpec = tween(1200, easing = FastOutSlowInEasing),
+        animationSpec = tween(700, easing = FastOutSlowInEasing),
         label = "flame",
     )
-    val greetAlpha by animateFloatAsState(if (showGreeting) 1f else 0f, tween(900), label = "greet")
+    val greetAlpha by animateFloatAsState(if (showGreeting) 1f else 0f, tween(500), label = "greet")
     val greetRise by animateFloatAsState(
         targetValue = if (showGreeting) 0f else 18f,
-        animationSpec = tween(1000, easing = LinearOutSlowInEasing),
+        animationSpec = tween(600, easing = LinearOutSlowInEasing),
         label = "greet-rise",
     )
-    val markAlpha by animateFloatAsState(if (showMark) 1f else 0f, tween(800), label = "mark")
+    val markAlpha by animateFloatAsState(if (showMark) 1f else 0f, tween(500), label = "mark")
     val exit by animateFloatAsState(
         targetValue = if (leaving) 0f else 1f,
-        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        animationSpec = tween(550, easing = FastOutSlowInEasing),
         label = "exit",
     )
     SideEffect { Ring.publishFlame(flame) }
@@ -172,7 +151,7 @@ private fun OpeningSequence() {
                         .size(420.dp)
                         .alpha(haloAlpha),
                 )
-                GaneshaSeal(
+                HinvrSeal(
                     modifier = Modifier.graphicsLayer {
                         alpha = sealAlpha
                         scaleX = sealScale
@@ -190,14 +169,14 @@ private fun OpeningSequence() {
                 },
             ) {
                 Text(
-                    greeting.hindi,
+                    stringResource(greeting.hindi),
                     color = Cream,
                     fontFamily = FontFamily.Serif,
                     fontSize = 54.sp,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    greeting.english,
+                    stringResource(greeting.english),
                     color = Cream.copy(alpha = 0.78f),
                     fontSize = 20.sp,
                     textAlign = TextAlign.Center,
@@ -206,7 +185,7 @@ private fun OpeningSequence() {
             }
             Spacer(Modifier.height(22.dp))
             Text(
-                text = "HINVR",
+                text = stringResource(R.string.app_name),
                 color = Gold,
                 fontFamily = FontFamily.Serif,
                 fontSize = 30.sp,
@@ -216,17 +195,7 @@ private fun OpeningSequence() {
                 modifier = Modifier.alpha(markAlpha),
             )
             Spacer(Modifier.height(8.dp))
-            Box(
-                Modifier
-                    .width(72.dp)
-                    .height(1.5.dp)
-                    .alpha(markAlpha)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color.Transparent, Gold, Color.Transparent),
-                        ),
-                    ),
-            )
+            Box(Modifier.alpha(markAlpha)) { GoldRule() }
         }
     }
 }
@@ -342,8 +311,9 @@ private fun MarigoldShower(modifier: Modifier = Modifier) {
     }
 }
 
+/** The HINVR seal: a lamp over a lotus in a gold-edged oval, drawn here. No deity is drawn. */
 @Composable
-private fun GaneshaSeal(modifier: Modifier = Modifier) {
+private fun HinvrSeal(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(width = 176.dp, height = 256.dp)
@@ -370,24 +340,58 @@ private fun GaneshaSeal(modifier: Modifier = Modifier) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Image(
-            painter = painterResource(R.drawable.ganesha_stencil),
-            contentDescription = null,
-            modifier = Modifier
+        Canvas(
+            Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 28.dp),
-            contentScale = ContentScale.Fit,
-            colorFilter = GoldKnockout,
-        )
+                .padding(horizontal = 22.dp, vertical = 34.dp),
+        ) {
+            val w = size.width
+            val h = size.height
+            val cx = w / 2f
+            // Arch of the niche.
+            drawArc(
+                color = Gold.copy(alpha = 0.55f),
+                startAngle = 180f,
+                sweepAngle = 180f,
+                useCenter = false,
+                topLeft = Offset(w * 0.12f, h * 0.06f),
+                size = Size(w * 0.76f, w * 0.76f),
+                style = Stroke(width = 2f),
+            )
+            // The lamp's flame.
+            val flameTop = h * 0.22f
+            val flame = Path().apply {
+                moveTo(cx, flameTop)
+                cubicTo(cx + w * 0.10f, flameTop + h * 0.08f, cx + w * 0.08f, flameTop + h * 0.16f, cx, flameTop + h * 0.19f)
+                cubicTo(cx - w * 0.08f, flameTop + h * 0.16f, cx - w * 0.10f, flameTop + h * 0.08f, cx, flameTop)
+                close()
+            }
+            drawPath(flame, Brush.verticalGradient(listOf(FlameCore, DiyaAmber), startY = flameTop, endY = flameTop + h * 0.19f))
+            // The lamp's bowl.
+            val bowlY = h * 0.43f
+            drawArc(
+                color = Gold,
+                startAngle = 0f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(cx - w * 0.18f, bowlY - w * 0.09f),
+                size = Size(w * 0.36f, w * 0.18f),
+            )
+            // Lotus: seven petals fanned under the lamp.
+            val base = Offset(cx, h * 0.82f)
+            for (i in -3..3) {
+                rotate(i * 22f, base) {
+                    val petal = Path().apply {
+                        moveTo(base.x, base.y)
+                        cubicTo(base.x + w * 0.11f, base.y - h * 0.12f, base.x + w * 0.05f, base.y - h * 0.26f, base.x, base.y - h * 0.30f)
+                        cubicTo(base.x - w * 0.05f, base.y - h * 0.26f, base.x - w * 0.11f, base.y - h * 0.12f, base.x, base.y)
+                        close()
+                    }
+                    drawPath(petal, Gold.copy(alpha = 0.55f + 0.13f * (3 - abs(i))))
+                    drawPath(petal, GoldLight.copy(alpha = 0.6f), style = Stroke(width = 1.4f))
+                }
+            }
+            drawLine(Gold.copy(alpha = 0.7f), Offset(w * 0.18f, h * 0.86f), Offset(w * 0.82f, h * 0.86f), strokeWidth = 2f)
+        }
     }
-}
-
-@Composable
-fun HallBackdrop() {
-    Image(
-        painter = painterResource(R.drawable.sanctum_hall),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
-    )
 }

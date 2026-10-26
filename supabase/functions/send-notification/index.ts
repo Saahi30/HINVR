@@ -1,47 +1,39 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getCaller, hasRole, readEnv, serviceClient, staffRole } from "../_shared/auth.ts";
 import { sendPush } from "../_shared/fcm.ts";
-import { json } from "../_shared/http.ts";
+import { json, readJson, withCors } from "../_shared/http.ts";
 
-Deno.serve(async (req: Request) => {
+/**
+ * Broadcast a notice to every registered phone. Owner and admin only.
+ * POST { preview: true }           -> { tokens } (how many phones would get it; nothing is sent)
+ * POST { title, body }             -> sends
+ */
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Couldn't send that notice." }, 405);
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const url = Deno.env.get("SUPABASE_URL") ?? "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
-  if (!url || !anonKey || !serviceKey || !authHeader.toLowerCase().startsWith("bearer ")) {
-    return json({ error: "Sign in again." }, 401);
+  const env = readEnv();
+  if (!env) return json({ error: "Function isn't configured." }, 500);
+  const caller = await getCaller(req, env);
+  if (!caller) return json({ error: "Sign in again." }, 401);
+
+  const admin = serviceClient(env);
+  const role = await staffRole(admin, caller.userId);
+  if (!hasRole(role, ["owner", "admin"])) return json({ error: "Only an owner or admin can send notices." }, 403);
+
+  const payload = await readJson(req);
+  if (payload.preview === true) {
+    const { count, error } = await admin.from("device_tokens").select("token", { count: "exact", head: true });
+    if (error) return json({ error: "Couldn't look up phones." }, 500);
+    return json({ tokens: count ?? 0 });
   }
 
-  let title = "";
-  let body = "";
-  try {
-    const payload = await req.json();
-    title = String(payload?.title ?? "").trim().slice(0, 80);
-    body = String(payload?.body ?? "").trim().slice(0, 400);
-  } catch {
-    return json({ error: "Write a title and a message." }, 400);
-  }
+  const title = String(payload.title ?? "").trim().slice(0, 80);
+  const body = String(payload.body ?? "").trim().slice(0, 400);
   if (!title || !body) return json({ error: "Write a title and a message." }, 400);
-
-  const userClient = createClient(url, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  const userId = userData.user?.id;
-  if (userError || !userId) return json({ error: "Sign in again." }, 401);
-
-  const admin = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: staff } = await admin.from("staff").select("user_id").eq("user_id", userId).maybeSingle();
-  if (!staff) return json({ error: "No access." }, 403);
 
   const { data: notice, error: insertError } = await admin
     .from("notifications")
-    .insert({ title, body, created_by: userId })
+    .insert({ title, body, created_by: caller.userId })
     .select("id")
     .single();
   if (insertError || !notice?.id) return json({ error: "Couldn't save that notice." }, 500);
@@ -68,4 +60,4 @@ Deno.serve(async (req: Request) => {
 
   await admin.from("notifications").update({ sent_count: sent }).eq("id", notice.id);
   return json({ id: notice.id, sent, failed, tokens: tokens.length });
-});
+}));

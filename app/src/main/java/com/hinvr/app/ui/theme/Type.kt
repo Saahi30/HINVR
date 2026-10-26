@@ -3,6 +3,7 @@
 package com.hinvr.app.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -32,8 +33,15 @@ private val EnglishDisplay = FontFamily(
     Font(R.font.fraunces_italic, FontWeight.Bold, FontStyle.Italic, variationSettings = WarmDisplay),
 )
 
-var HinvrDisplay: FontFamily = EnglishDisplay
-    private set
+/**
+ * Hindi swaps the whole type scale. The switch is snapshot state, so composables
+ * that read these styles recompose when the language changes; it is flipped by
+ * [applyHinvrType] outside composition.
+ */
+private val hindiType = mutableStateOf(false)
+
+val HinvrDisplay: FontFamily
+    get() = if (hindiType.value) HindiDisplay else EnglishDisplay
 
 val Figtree = FontFamily(
     Font(R.font.figtree_regular, FontWeight.Normal),
@@ -128,8 +136,8 @@ private fun buildTypography(display: FontFamily, text: FontFamily, tracking: Boo
 private val EnglishTypography = buildTypography(EnglishDisplay, Figtree, tracking = true, italicDisplay = true)
 private val HindiTypography = buildTypography(HindiDisplay, HindiText, tracking = false, italicDisplay = false)
 
-var HinvrTypography: Typography = EnglishTypography
-    private set
+val HinvrTypography: Typography
+    get() = if (hindiType.value) HindiTypography else EnglishTypography
 
 private val EnglishCardTitle = TextStyle(
     fontFamily = Figtree,
@@ -145,22 +153,15 @@ private val EnglishBenefit = TextStyle(
     lineHeight = 16.sp,
 )
 
-var CardTitleOnPhoto: TextStyle = EnglishCardTitle
-    private set
+private val HindiCardTitle = EnglishCardTitle.copy(fontFamily = HindiText)
+private val HindiBenefit = EnglishBenefit.copy(fontFamily = HindiText)
 
-var BenefitLine: TextStyle = EnglishBenefit
-    private set
+val CardTitleOnPhoto: TextStyle
+    get() = if (hindiType.value) HindiCardTitle else EnglishCardTitle
+
+val BenefitLine: TextStyle
+    get() = if (hindiType.value) HindiBenefit else EnglishBenefit
 
 fun applyHinvrType(hindi: Boolean) {
-    if (hindi) {
-        HinvrDisplay = HindiDisplay
-        HinvrTypography = HindiTypography
-        CardTitleOnPhoto = EnglishCardTitle.copy(fontFamily = HindiText)
-        BenefitLine = EnglishBenefit.copy(fontFamily = HindiText)
-    } else {
-        HinvrDisplay = EnglishDisplay
-        HinvrTypography = EnglishTypography
-        CardTitleOnPhoto = EnglishCardTitle
-        BenefitLine = EnglishBenefit
-    }
+    if (hindiType.value != hindi) hindiType.value = hindi
 }

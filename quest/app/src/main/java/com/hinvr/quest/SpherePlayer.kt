@@ -2,9 +2,11 @@ package com.hinvr.quest
 
 import android.content.Context
 import android.media.MediaPlayer
+import android.util.Log
 import android.view.Surface
 import java.io.File
 
+/** Plays a downloaded 360 tour onto the sphere panel's surface. */
 object SpherePlayer {
     private var appContext: Context? = null
     private var surface: Surface? = null
@@ -29,7 +31,11 @@ object SpherePlayer {
     }
 
     fun play(tour: HomeChoice): Boolean {
-        val file = fileFor(tour) ?: return false
+        val file = fileFor(tour)
+        if (file == null) {
+            Ring.sphereStatus(SphereStatus.Failed)
+            return false
+        }
         stop()
         pending = file
         if (surface != null) start(file)
@@ -37,11 +43,16 @@ object SpherePlayer {
     }
 
     fun replay() {
-        val current = player ?: return
+        val current = player
+        if (current == null) {
+            Ring.sphere?.tour?.let { play(it) }
+            return
+        }
         runCatching {
             current.seekTo(0)
             current.start()
-        }
+            Ring.sphereStatus(SphereStatus.Playing)
+        }.onFailure { fail("replay", it) }
     }
 
     fun pauseForApp() {
@@ -73,15 +84,25 @@ object SpherePlayer {
             MediaPlayer().apply {
                 setSurface(target)
                 setDataSource(file.path)
-                setOnPreparedListener { it.start() }
-                setOnCompletionListener { Ring.markTourEnded() }
-                setOnErrorListener { _, _, _ ->
-                    Ring.markTourEnded()
+                setOnPreparedListener {
+                    it.start()
+                    Ring.sphereStatus(SphereStatus.Playing)
+                }
+                setOnCompletionListener { Ring.sphereStatus(SphereStatus.Ended) }
+                setOnErrorListener { _, what, extra ->
+                    fail("playback $what/$extra", null)
                     true
                 }
                 prepareAsync()
             }
-        }.getOrNull()
-        if (player == null) Ring.markTourEnded()
+        }.onFailure { fail("open ${file.name}", it) }.getOrNull()
+    }
+
+    /** A broken file or decoder is a failure, never "darshan complete". */
+    private fun fail(what: String, error: Throwable?) {
+        Log.w("HinvrSphere", "Tour failed: $what", error)
+        runCatching { player?.release() }
+        player = null
+        Ring.sphereStatus(SphereStatus.Failed)
     }
 }

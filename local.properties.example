@@ -1,14 +1,27 @@
 # Copy these lines into local.properties (that file is gitignored).
 # Dashboard → Project Settings → Data API: Project URL
 # Dashboard → Project Settings → API Keys: publishable (or legacy anon)
-# Auth → Providers → Phone: enable SMS
-# Then run supabase/migrations/20260908120000_create_profiles.sql
+# Auth → Providers → Email: enabled. Members sign in with email and password;
+# the phone provider stays off.
+# Then apply supabase/migrations in order.
 
-# Phone SMS is mocked (any 6 digits). Set false when a provider is wired.
 # Catalog (mandirs, photos, live/VR links) loads whenever URL + key are set.
-MOCK_PHONE_OTP=true
 SUPABASE_URL=
 SUPABASE_PUBLISHABLE_KEY=
+# Optional. Where "Manage subscription" opens.
+# MEMBERSHIP_URL=https://hinvr-membership.vercel.app
+
+# Push: drop the Firebase file at app/google-services.json (gitignored).
+# Without it the app builds and push stays off.
+
+# Optional release settings. Gradle -P flags or environment variables of the
+# same name also work. Never commit the keystore or its passwords.
+# hinvr.versionCode=1
+# hinvr.versionName=0.1.0
+# HINVR_KEYSTORE_PATH=../keys/hinvr-release.jks
+# HINVR_KEYSTORE_PASSWORD=
+# HINVR_KEY_ALIAS=
+# HINVR_KEY_PASSWORD=
 
 # Web desk: copy the same URL + key into admin/.env.local as
 # NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY

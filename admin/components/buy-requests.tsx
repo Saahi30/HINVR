@@ -5,34 +5,21 @@ import { useRouter } from "next/navigation";
 import { Alert, Badge, Button, Card, fieldClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { formatWhen } from "@/lib/ops";
-import { formatInr, membershipWindow, nextSerial, tierLabel } from "@/lib/membership";
-import type { BuyRequestRow } from "@/lib/types";
+import { formatDate, formatInr, oneYearFrom, tierLabel, todayIst } from "@/lib/membership";
+import type { ApprovedMembership, BuyRequestRow } from "@/lib/types";
 
-type Draft = {
-  memberId: string;
-  invoice: string;
-  purchasedOn: string;
-  validFrom: string;
-  validUntilIso: string;
-  validUntilLabel: string;
-  note: string;
-};
+type Draft = { validFrom: string; note: string };
 
-export function BuyRequests({
-  initial,
-  memberIds,
-  invoiceNumbers,
-}: {
-  initial: BuyRequestRow[];
-  memberIds: string[];
-  invoiceNumbers: string[];
-}) {
+/**
+ * Approve and decline go through approve_membership_request / decline_membership_request:
+ * one transaction that locks the request, issues the member ID and invoice number from
+ * server sequences, and prices the plan from membership_prices.
+ */
+export function BuyRequests({ initial }: { initial: BuyRequestRow[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
-  const [usedMembers, setUsedMembers] = useState(memberIds);
-  const [usedInvoices, setUsedInvoices] = useState(invoiceNumbers);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<Draft>({ validFrom: todayIst(), note: "" });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [ok, setOk] = useState(false);
@@ -42,107 +29,65 @@ export function BuyRequests({
   const recent = rows.filter((row) => row.status !== "pending").slice(0, 6);
 
   function openApprove(row: BuyRequestRow) {
-    const window = membershipWindow();
-    const memberId = row.member_id.trim() || nextSerial(usedMembers, "HNV");
     setOpenId(row.id);
-    setDraft({
-      memberId,
-      invoice: nextSerial(usedInvoices, "INV"),
-      note: "",
-      ...window,
-    });
+    setDraft({ validFrom: todayIst(), note: "" });
     setMessage("");
     setOk(false);
   }
 
   async function approve(row: BuyRequestRow) {
-    if (!draft) return;
-    const memberId = draft.memberId.trim();
-    const invoice = draft.invoice.trim();
-    if (!memberId || !invoice || !draft.purchasedOn || !draft.validFrom || !draft.validUntilIso) {
-      setMessage("Member ID, invoice, and dates are required.");
+    if (!draft.validFrom) {
+      setMessage("Pick the date the plan starts.");
       setOk(false);
       return;
     }
     setBusyId(row.id);
     setMessage("");
     setOk(false);
-    const supabase = createClient();
-    const profile = await supabase
-      .from("profiles")
-      .update({
-        tier: row.tier,
-        member_id: memberId,
-        valid_until: draft.validUntilLabel,
-      })
-      .eq("id", row.user_id);
-    if (profile.error) {
-      setBusyId(null);
-      setMessage(profile.error.message);
-      return;
-    }
-    const purchase = await supabase.from("membership_purchases").insert({
-      user_id: row.user_id,
-      tier: row.tier,
-      member_id: memberId,
-      amount_inr: row.amount_inr,
-      invoice_number: invoice,
-      purchased_on: draft.purchasedOn,
-      valid_from: draft.validFrom,
-      valid_until: draft.validUntilIso,
+    const { data, error } = await createClient().rpc("approve_membership_request", {
+      p_request_id: row.id,
+      p_valid_from: draft.validFrom,
+      p_note: draft.note.trim(),
     });
-    if (purchase.error && !/duplicate|unique/i.test(purchase.error.message)) {
-      setBusyId(null);
-      setMessage(`The plan is on the account. The invoice did not save: ${purchase.error.message}`);
-      return;
-    }
-    const request = await supabase
-      .from("membership_requests")
-      .update({ status: "approved", staff_note: draft.note.trim() })
-      .eq("id", row.id);
     setBusyId(null);
-    if (request.error) {
-      setMessage(request.error.message);
+    if (error || !data) {
+      setMessage(error?.message ?? "Couldn't approve this request.");
+      router.refresh();
       return;
     }
-    setUsedMembers((current) => (current.includes(memberId) ? current : [...current, memberId]));
-    setUsedInvoices((current) => (current.includes(invoice) ? current : [...current, invoice]));
+    const result = data as ApprovedMembership;
     setRows((current) =>
       current.map((item) =>
         item.id === row.id
-          ? { ...item, status: "approved", staff_note: draft.note.trim(), member_id: memberId, current_tier: row.tier }
+          ? { ...item, status: "approved", staff_note: draft.note.trim(), member_id: result.member_id, current_tier: row.tier }
           : item,
       ),
     );
     setOpenId(null);
-    setDraft(null);
     setOk(true);
-    setMessage(`${row.display_name || "Member"} is now ${tierLabel(row.tier)}. The pass updates when they reopen the app.`);
+    setMessage(
+      `${row.display_name || "Member"} is now ${tierLabel(result.tier)} (${result.member_id}) until ${formatDate(result.valid_until)}. Invoice ${result.invoice_number}. The pass updates when they reopen the app.`,
+    );
     router.refresh();
   }
 
   async function decline(row: BuyRequestRow) {
+    const note = (notes[row.id] ?? "").trim();
+    if (!confirm(`Decline ${row.display_name || "this member"}'s ${tierLabel(row.tier)} request?`)) return;
     setBusyId(row.id);
     setMessage("");
     setOk(false);
-    const note = (notes[row.id] ?? "").trim();
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("membership_requests")
-      .update({ status: "declined", staff_note: note })
-      .eq("id", row.id);
+    const { error } = await createClient().rpc("decline_membership_request", { p_request_id: row.id, p_reason: note });
     setBusyId(null);
     if (error) {
       setMessage(error.message);
+      router.refresh();
       return;
     }
     setRows((current) =>
       current.map((item) => (item.id === row.id ? { ...item, status: "declined", staff_note: note } : item)),
     );
-    if (openId === row.id) {
-      setOpenId(null);
-      setDraft(null);
-    }
+    if (openId === row.id) setOpenId(null);
     setOk(true);
     setMessage("Request declined.");
     router.refresh();
@@ -170,65 +115,36 @@ export function BuyRequests({
             </div>
             <p className="mt-2 text-xs text-zinc-500">
               On the account now: {tierLabel(row.current_tier)}
-              {row.member_id ? ` · ${row.member_id}` : ""}
+              {row.member_id ? ` · ${row.member_id}` : ""} · price set by the server from the plan table
             </p>
-            {openId === row.id && draft ? (
+            {openId === row.id ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="mb-1.5 block font-medium text-zinc-700">Member ID</span>
-                  <input
-                    value={draft.memberId}
-                    onChange={(event) => setDraft({ ...draft, memberId: event.target.value })}
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1.5 block font-medium text-zinc-700">Invoice</span>
-                  <input
-                    value={draft.invoice}
-                    onChange={(event) => setDraft({ ...draft, invoice: event.target.value })}
-                    className={fieldClass}
-                  />
-                </label>
                 <label className="block text-sm">
                   <span className="mb-1.5 block font-medium text-zinc-700">Valid from</span>
                   <input
                     type="date"
                     value={draft.validFrom}
-                    onChange={(event) => setDraft({ ...draft, purchasedOn: event.target.value, validFrom: event.target.value })}
+                    onChange={(event) => setDraft({ ...draft, validFrom: event.target.value })}
                     className={fieldClass}
                   />
                 </label>
-                <label className="block text-sm">
+                <div className="text-sm">
                   <span className="mb-1.5 block font-medium text-zinc-700">Valid until</span>
-                  <input
-                    type="date"
-                    value={draft.validUntilIso}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      const label = value
-                        ? new Date(`${value}T00:00:00`).toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "";
-                      setDraft({ ...draft, validUntilIso: value, validUntilLabel: label || value });
-                    }}
-                    className={fieldClass}
-                  />
-                </label>
+                  <p className="py-2 text-zinc-700">{formatDate(oneYearFrom(draft.validFrom))} · 23:59 IST</p>
+                </div>
                 <label className="block text-sm sm:col-span-2">
-                  <span className="mb-1.5 block font-medium text-zinc-700">Note on the pass</span>
+                  <span className="mb-1.5 block font-medium text-zinc-700">Note to the member</span>
                   <input
                     value={draft.note}
+                    maxLength={1000}
                     onChange={(event) => setDraft({ ...draft, note: event.target.value })}
                     placeholder="Optional"
                     className={fieldClass}
                   />
                 </label>
                 <p className="text-xs text-zinc-500 sm:col-span-2">
-                  The phone shows “{draft.validUntilLabel}” as the validity. This does not charge a card.
+                  {row.member_id ? `Keeps member ID ${row.member_id}.` : "Issues the next member ID."} Issues the next
+                  invoice number. This does not charge a card.
                 </p>
               </div>
             ) : (
@@ -236,6 +152,7 @@ export function BuyRequests({
                 <span className="mb-1.5 block font-medium text-zinc-700">Decline note</span>
                 <input
                   value={notes[row.id] ?? ""}
+                  maxLength={1000}
                   onChange={(event) => setNotes((current) => ({ ...current, [row.id]: event.target.value }))}
                   placeholder="Optional, shown in the app"
                   className={fieldClass}
@@ -246,7 +163,7 @@ export function BuyRequests({
               {openId === row.id ? (
                 <>
                   <Button type="button" disabled={busyId === row.id} onClick={() => approve(row)}>
-                    {busyId === row.id ? "Saving…" : "Confirm plan"}
+                    {busyId === row.id ? "Saving…" : `Confirm ${tierLabel(row.tier)}`}
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => setOpenId(null)}>
                     Back

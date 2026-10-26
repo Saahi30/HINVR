@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
 import { LiveCheckButton } from "@/components/live-check-button";
 import { YoutubeQuotaCard } from "@/components/youtube-quota-card";
 import { Badge, ButtonLink, Card, PageHeader } from "@/components/ui";
-import { requireDesk } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { catalogHealth, formatWhen, parseYoutubeQuota } from "@/lib/ops";
 import type { LiveSource, Mandir } from "@/lib/types";
 
@@ -14,11 +14,9 @@ type SourceLite = Pick<
 >;
 
 export default async function LivePage() {
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
-  }
+  const gate = await requireStaff("live");
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
 
   const [{ data }, { data: sourceData }, { data: quotaRow }] = await Promise.all([
     desk.supabase

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Ops desk for the HINVR app: catalog, requests, live, and members.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full bg-bg font-sans text-ink">{children}</body>

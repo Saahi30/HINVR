@@ -9,21 +9,12 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-
-/** Shared layout tokens; screens should compose these instead of inventing spacing. */
-object HinvrSpacing {
-    val xs = 6.dp
-    val sm = 12.dp
-    val md = 20.dp
-    val lg = 32.dp
-    val xl = 48.dp
-}
 
 enum class Atmosphere { Sabha, Sanctum }
 
@@ -138,31 +129,34 @@ object HinvrTheme {
         get() = LocalHinvrColors.current
 }
 
+/**
+ * Status and navigation bar icons for the atmosphere: dark on Sabha linen, light
+ * on Sanctum stone. Runs when the atmosphere changes, not on every recomposition.
+ */
 @Composable
 fun ApplyAtmosphereBars(
     atmosphere: Atmosphere,
     darkIcons: Boolean = atmosphere == Atmosphere.Sabha,
 ) {
     val view = LocalView.current
-    val navColor = if (atmosphere == Atmosphere.Sabha) {
-        Linen.toArgb()
-    } else {
-        TempleStoneDeep.toArgb()
-    }
-    SideEffect {
-        val activity = view.context as? ComponentActivity ?: return@SideEffect
-        val transparent = android.graphics.Color.TRANSPARENT
-        activity.enableEdgeToEdge(
-            statusBarStyle = if (darkIcons) {
-                SystemBarStyle.light(transparent, transparent)
-            } else {
-                SystemBarStyle.dark(transparent)
-            },
-            navigationBarStyle = if (darkIcons) {
-                SystemBarStyle.light(navColor, navColor)
-            } else {
-                SystemBarStyle.dark(navColor)
-            },
-        )
+    DisposableEffect(view, atmosphere, darkIcons) {
+        val activity = view.context as? ComponentActivity
+        if (activity != null) {
+            val navColor = if (atmosphere == Atmosphere.Sabha) Linen.toArgb() else TempleStoneDeep.toArgb()
+            val transparent = android.graphics.Color.TRANSPARENT
+            activity.enableEdgeToEdge(
+                statusBarStyle = if (darkIcons) {
+                    SystemBarStyle.light(transparent, transparent)
+                } else {
+                    SystemBarStyle.dark(transparent)
+                },
+                navigationBarStyle = if (darkIcons) {
+                    SystemBarStyle.light(navColor, navColor)
+                } else {
+                    SystemBarStyle.dark(navColor)
+                },
+            )
+        }
+        onDispose { }
     }
 }

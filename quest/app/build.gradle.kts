@@ -14,6 +14,9 @@ val cloudProperties = Properties().apply {
         .forEach { file -> file.inputStream().use { load(it) } }
 }
 
+fun releaseProp(key: String): String =
+    (System.getenv(key) ?: cloudProperties.getProperty(key, "")).orEmpty()
+
 fun cloudProp(key: String): String =
     cloudProperties.getProperty(key, "").orEmpty().replace("\\", "\\\\").replace("\"", "\\\"")
 
@@ -36,11 +39,28 @@ android {
             enableV1Signing = true
             enableV2Signing = true
         }
+        // Release keys come from quest/local.properties or the environment; nothing is committed.
+        val storeFile = releaseProp("HINVR_QUEST_STORE_FILE")
+        if (storeFile.isNotBlank()) {
+            create("release") {
+                this.storeFile = file(storeFile)
+                storePassword = releaseProp("HINVR_QUEST_STORE_PASSWORD")
+                keyAlias = releaseProp("HINVR_QUEST_KEY_ALIAS")
+                keyPassword = releaseProp("HINVR_QUEST_KEY_PASSWORD")
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Card art is photographic and already compressed; some files are JPEG data under a
+            // .png name, which PNG crunching rejects. Crunching would gain nothing here anyway.
+            isCrunchPngs = false
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -67,8 +87,13 @@ android {
     }
 
     lint {
-        abortOnError = false
-        checkReleaseBuilds = false
+        abortOnError = true
+        checkReleaseBuilds = true
+        warningsAsErrors = false
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 }
 
@@ -111,6 +136,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.zxing.core)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
+    testImplementation(libs.json)
 
     implementation(libs.meta.spatial.sdk)
     implementation(libs.meta.spatial.sdk.compose)

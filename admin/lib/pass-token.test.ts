@@ -1,14 +1,27 @@
+// Tests the one pass-token module the edge functions and the desk share. Run: npm test
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { classifyScan } from "./pass-code.ts";
-import { membershipEndUnix, signPassToken, verifyPassToken, PassTokenError } from "../../supabase/functions/_shared/pass-token.ts";
+import {
+  CLOCK_SKEW_SECONDS,
+  MAX_TOKEN_LENGTH,
+  membershipEndUnix,
+  PassTokenError,
+  signPassToken,
+  verifyPassToken,
+  type PassClaims,
+} from "../../supabase/functions/_shared/pass-token.ts";
 
-const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-const privateJwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
-const publicJwk = await crypto.subtle.exportKey("jwk", pair.publicKey);
-const keys = new Map([["primary", publicJwk]]);
-const now = Math.floor(Date.now() / 1000);
+async function keyPair() {
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  return {
+    privateJwk: await crypto.subtle.exportKey("jwk", pair.privateKey),
+    publicJwk: await crypto.subtle.exportKey("jwk", pair.publicKey),
+  };
+}
 
-const claims = {
+const now = 1_800_000_000;
+const claims: PassClaims = {
   j: "6f0b9c2e-1a2b-4c3d-8e9f-001122334455",
   u: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   m: "HNV-2026-0001",
@@ -16,50 +29,83 @@ const claims = {
   v: now + 86400 * 30,
   e: now + 6 * 60 * 60,
   g: 2,
-  p: "desk" as const,
+  p: "desk",
 };
 
-const token = await signPassToken(privateJwk, "primary", claims);
-assert.equal(token.startsWith("HNV1.primary."), true);
-assert.equal(token.includes("|"), false);
-const verified = await verifyPassToken(token, keys, now);
-assert.equal(verified.m, "HNV-2026-0001");
-assert.equal(verified.g, 2);
-assert.equal(verified.e, claims.e);
+function rejectsWith(pattern: RegExp) {
+  return (error: unknown) => error instanceof PassTokenError && pattern.test(error.message);
+}
 
-const forged = "HNV|HNV-2026-0001|Gold|28 Sep 2027|aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-assert.equal(classifyScan(forged).kind, "rejected");
-assert.equal(classifyScan(forged, true).kind, "rejected");
-assert.equal(classifyScan("HNV-2026-0001", true).kind, "rejected");
-assert.equal(classifyScan("HNV-2026-0001").kind, "manual");
-assert.equal(classifyScan(token).kind, "signed");
+test("sign and verify round trip", async () => {
+  const { privateJwk, publicJwk } = await keyPair();
+  const token = await signPassToken(privateJwk, "primary", claims);
+  assert.ok(token.startsWith("HNV1.primary."));
+  assert.equal(token.split(".").length, 4);
+  const verified = await verifyPassToken(token, new Map([["primary", publicJwk]]), now);
+  assert.equal(verified.m, claims.m);
+  assert.equal(verified.g, 2);
+  assert.equal(verified.kid, "primary");
+});
 
-const parts = token.split(".");
-const flipped = parts[2].slice(0, -1) + (parts[2].endsWith("A") ? "B" : "A");
-await assert.rejects(() => verifyPassToken(`${parts[0]}.${parts[1]}.${flipped}.${parts[3]}`, keys, now), PassTokenError);
+test("expiry and clock skew", async () => {
+  const { privateJwk, publicJwk } = await keyPair();
+  const keys = new Map([["primary", publicJwk]]);
+  const token = await signPassToken(privateJwk, "primary", { ...claims, e: now });
+  await verifyPassToken(token, keys, now + CLOCK_SKEW_SECONDS);
+  await assert.rejects(() => verifyPassToken(token, keys, now + CLOCK_SKEW_SECONDS + 1), rejectsWith(/expired/i));
+  const ended = await signPassToken(privateJwk, "primary", { ...claims, v: now - CLOCK_SKEW_SECONDS - 1 });
+  await assert.rejects(() => verifyPassToken(ended, keys, now), rejectsWith(/ended/i));
+});
 
-const expired = await signPassToken(privateJwk, "primary", { ...claims, e: now - 120 });
-await assert.rejects(
-  () => verifyPassToken(expired, keys, now),
-  (error) => error instanceof PassTokenError && /expired/i.test(error.message),
-);
+test("unknown kid and wrong key", async () => {
+  const { privateJwk, publicJwk } = await keyPair();
+  const other = await keyPair();
+  const token = await signPassToken(privateJwk, "primary", claims);
+  await assert.rejects(() => verifyPassToken(token, new Map([["2026-11", publicJwk]]), now), rejectsWith(/key/i));
+  await assert.rejects(
+    () => verifyPassToken(token, new Map([["primary", other.publicJwk]]), now),
+    rejectsWith(/signature/i),
+  );
+});
 
-const ended = await signPassToken(privateJwk, "primary", { ...claims, v: now - 86400 });
-await assert.rejects(
-  () => verifyPassToken(ended, keys, now),
-  (error) => error instanceof PassTokenError && /ended/i.test(error.message),
-);
+test("tampered payload or kid is refused", async () => {
+  const { privateJwk, publicJwk } = await keyPair();
+  const keys = new Map([["primary", publicJwk], ["other", publicJwk]]);
+  const token = await signPassToken(privateJwk, "primary", claims);
+  const [head, kid, payload, signature] = token.split(".");
+  const forged = Buffer.from(JSON.stringify({ ...claims, t: "Platinum" })).toString("base64url");
+  await assert.rejects(() => verifyPassToken(`${head}.${kid}.${forged}.${signature}`, keys, now), rejectsWith(/signature/i));
+  await assert.rejects(() => verifyPassToken(`${head}.other.${payload}.${signature}`, keys, now), rejectsWith(/signature/i));
+  await assert.rejects(() => verifyPassToken(`${head}.${kid}.${payload}.${signature}x`, keys, now), PassTokenError);
+});
 
-const other = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-const otherPublic = await crypto.subtle.exportKey("jwk", other.publicKey);
-await assert.rejects(
-  () => verifyPassToken(token, new Map([["primary", otherPublic]]), now),
-  (error) => error instanceof PassTokenError && /signature/i.test(error.message),
-);
+test("length cap and shape", async () => {
+  const { publicJwk } = await keyPair();
+  const keys = new Map([["primary", publicJwk]]);
+  await assert.rejects(() => verifyPassToken(`HNV1.primary.${"a".repeat(MAX_TOKEN_LENGTH)}.b`, keys, now), rejectsWith(/not a signed pass/));
+  await assert.rejects(() => verifyPassToken("HNV1.primary.only-three", keys, now), PassTokenError);
+  await assert.rejects(() => verifyPassToken("HNV|HNV-2026-0001|Gold", keys, now), PassTokenError);
+});
 
-const isoEnd = membershipEndUnix("2027-09-28");
-assert.equal(isoEnd, Math.floor(Date.UTC(2027, 8, 28, 23, 59, 59) / 1000));
-assert.equal(membershipEndUnix("28 Sep 2027") != null, true);
-assert.equal(membershipEndUnix(""), null);
+test("signing refuses a bad kid or a public key", async () => {
+  const { privateJwk, publicJwk } = await keyPair();
+  await assert.rejects(() => signPassToken(privateJwk, "has.dot", claims), PassTokenError);
+  await assert.rejects(() => signPassToken(publicJwk, "primary", claims), PassTokenError);
+});
 
-console.log("pass credential checks passed");
+test("membership ends 23:59:59 IST", () => {
+  assert.equal(membershipEndUnix("2027-09-28"), Date.UTC(2027, 8, 28, 18, 29, 59) / 1000);
+  assert.equal(membershipEndUnix("2027-02-31"), null);
+  assert.equal(membershipEndUnix("28 Sep 2027"), null);
+  assert.equal(membershipEndUnix(""), null);
+  assert.equal(membershipEndUnix(null), null);
+});
+
+test("scan classification", async () => {
+  const { privateJwk } = await keyPair();
+  const token = await signPassToken(privateJwk, "primary", claims);
+  assert.equal(classifyScan(token, true).kind, "signed");
+  assert.equal(classifyScan("HNV|HNV-2026-0001|Gold|28 Sep 2027", true).kind, "rejected");
+  assert.equal(classifyScan("HNV-2026-0001", true).kind, "rejected");
+  assert.equal(classifyScan("HNV-2026-0001").kind, "manual");
+});

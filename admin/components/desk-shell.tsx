@@ -3,24 +3,61 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { IconBell, IconClose, IconGrid, IconHome, IconInbox, IconLive, IconMenu, IconScan, IconShield, IconTemple, IconUsers } from "@/components/icons";
+import {
+  IconBell,
+  IconClose,
+  IconGrid,
+  IconHome,
+  IconInbox,
+  IconLive,
+  IconLog,
+  IconMenu,
+  IconScan,
+  IconShield,
+  IconTemple,
+  IconUsers,
+} from "@/components/icons";
 import { cx } from "@/components/ui";
+import { can, isStaffRole, ROLE_LABELS, type Capability } from "@/lib/roles";
 
-const catalog = [
-  { href: "/", label: "Overview", icon: IconGrid, exact: true },
-  { href: "/mandirs", label: "Mandirs", icon: IconTemple },
-  { href: "/home", label: "Home screen", icon: IconHome },
+type NavItem = { href: string; label: string; icon: typeof IconGrid; exact?: boolean; need?: Capability };
+
+const sections: Array<{ title: string; items: NavItem[] }> = [
+  {
+    title: "Catalog",
+    items: [
+      { href: "/", label: "Overview", icon: IconGrid, exact: true },
+      { href: "/mandirs", label: "Mandirs", icon: IconTemple, need: "catalog" },
+      { href: "/home", label: "Home screen", icon: IconHome, need: "catalog" },
+    ],
+  },
+  {
+    title: "Ops",
+    items: [
+      { href: "/requests", label: "Requests", icon: IconInbox, need: "requests" },
+      { href: "/scan", label: "Scan pass", icon: IconScan, need: "scan" },
+      { href: "/live", label: "Live", icon: IconLive, need: "live" },
+      { href: "/notifications", label: "Notifications", icon: IconBell, need: "notify" },
+    ],
+  },
+  { title: "Audience", items: [{ href: "/members", label: "Members", icon: IconUsers, need: "members" }] },
+  {
+    title: "Workspace",
+    items: [
+      { href: "/staff", label: "Team", icon: IconShield },
+      { href: "/audit", label: "Audit log", icon: IconLog, need: "audit" },
+    ],
+  },
 ];
 
-const ops = [
-  { href: "/requests", label: "Requests", icon: IconInbox },
-  { href: "/scan", label: "Scan pass", icon: IconScan },
-  { href: "/live", label: "Live", icon: IconLive },
-  { href: "/notifications", label: "Notifications", icon: IconBell },
-];
-
-const audience = [{ href: "/members", label: "Members", icon: IconUsers }];
-const workspace = [{ href: "/staff", label: "Team", icon: IconShield }];
+/** "Production", "Preview", … from NEXT_PUBLIC_DESK_ENV (or Vercel's env). Hidden when unset. */
+const ENV_LABEL =
+  process.env.NEXT_PUBLIC_DESK_ENV ||
+  (process.env.NEXT_PUBLIC_VERCEL_ENV
+    ? process.env.NEXT_PUBLIC_VERCEL_ENV[0].toUpperCase() + process.env.NEXT_PUBLIC_VERCEL_ENV.slice(1)
+    : process.env.NODE_ENV === "development"
+      ? "Local"
+      : "");
 
 function crumbs(pathname: string) {
   if (pathname === "/") return ["Overview"];
@@ -34,6 +71,7 @@ function crumbs(pathname: string) {
   if (pathname.startsWith("/notifications")) return ["Ops", "Notifications"];
   if (pathname.startsWith("/members")) return ["Audience", "Members"];
   if (pathname.startsWith("/staff")) return ["Workspace", "Team"];
+  if (pathname.startsWith("/audit")) return ["Workspace", "Audit log"];
   if (pathname.startsWith("/setup")) return ["Workspace", "Setup"];
   return ["Admin"];
 }
@@ -44,7 +82,7 @@ function NavList({
   onNavigate,
 }: {
   pathname: string;
-  items: Array<{ href: string; label: string; icon: typeof IconGrid; exact?: boolean }>;
+  items: NavItem[];
   onNavigate?: () => void;
 }) {
   return (
@@ -93,28 +131,25 @@ function Sidebar({
           <p className="text-[11px] text-zinc-500">Admin</p>
         </div>
       </div>
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
-        <div>
-          <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Catalog</p>
-          <NavList pathname={pathname} items={catalog} onNavigate={onNavigate} />
-        </div>
-        <div>
-          <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Ops</p>
-          <NavList pathname={pathname} items={ops} onNavigate={onNavigate} />
-        </div>
-        <div>
-          <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Audience</p>
-          <NavList pathname={pathname} items={audience} onNavigate={onNavigate} />
-        </div>
-        <div>
-          <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">Workspace</p>
-          <NavList pathname={pathname} items={workspace} onNavigate={onNavigate} />
-        </div>
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Desk">
+        {sections.map((section) => {
+          const staffRole = isStaffRole(role) ? role : null;
+          const items = section.items.filter((item) => !item.need || can(staffRole, item.need));
+          if (items.length === 0) return null;
+          return (
+            <div key={section.title}>
+              <p className="mb-1.5 px-2.5 text-[10px] font-medium tracking-[0.14em] text-zinc-500 uppercase">
+                {section.title}
+              </p>
+              <NavList pathname={pathname} items={items} onNavigate={onNavigate} />
+            </div>
+          );
+        })}
       </nav>
       <div className="border-t border-white/10 px-4 py-3">
         <p className="truncate text-xs text-zinc-300">{email}</p>
         <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-500">
-          <span className="capitalize">{role || "staff"}</span>
+          <span>{isStaffRole(role) ? ROLE_LABELS[role] : role || "Staff"}</span>
           <form action="/auth/signout" method="post">
             <button className="text-zinc-400 hover:text-white">Sign out</button>
           </form>
@@ -180,7 +215,9 @@ export function DeskShell({
               ))}
             </p>
           </div>
-          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">Production</span>
+          {ENV_LABEL ? (
+            <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{ENV_LABEL}</span>
+          ) : null}
         </header>
         <main className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
@@ -191,15 +228,21 @@ export function DeskShell({
 export function GateMessage({
   title,
   body,
+  action,
 }: {
   title: string;
   body: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col justify-center px-6 py-24">
       <p className="text-[11px] font-medium tracking-[0.16em] text-zinc-500 uppercase">HINVR Admin</p>
       <h1 className="mt-3 text-2xl font-semibold tracking-tight">{title}</h1>
       <p className="mt-3 text-sm leading-6 text-zinc-500">{body}</p>
+      {action ? <div className="mt-5">{action}</div> : null}
+      <form action="/auth/signout" method="post" className="mt-8">
+        <button className="text-sm text-zinc-500 hover:text-zinc-900">Sign out</button>
+      </form>
     </div>
   );
 }

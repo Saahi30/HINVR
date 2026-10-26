@@ -24,26 +24,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.OffsetDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val Stone = Color(0xF2100B08)
-private val Cream = Color(0xFFF3E6D0)
-private val CreamMuted = Color(0xFFD9C7A8)
-private val Gold = Color(0xFFC9A227)
-private val Vermillion = Color(0xFFE0674F)
-private val Rounded = RoundedCornerShape(28.dp)
 
 @Composable
 fun ProfilePanel() {
+    if (Ring.stage != Stage.Profile) return
     val profile = QuestAccount.profile ?: return
     var confirming by remember { mutableStateOf(false) }
     LaunchedEffect(Ring.stage) {
@@ -53,20 +44,20 @@ fun ProfilePanel() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .clip(Rounded)
-            .background(Stone)
-            .border(1.dp, Gold.copy(alpha = 0.6f), Rounded)
+            .clip(PanelShape)
+            .background(InkGlass)
+            .border(1.dp, Gold.copy(alpha = 0.6f), PanelShape)
             .padding(horizontal = 40.dp, vertical = 30.dp),
     ) {
         Text(
-            "HINVR MEMBER",
+            stringResource(R.string.profile_heading),
             color = Gold,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 1.6.sp,
         )
         Text(
-            profile.displayName.ifBlank { "Member" },
+            profile.displayName.ifBlank { stringResource(R.string.profile_member) },
             color = Cream,
             fontFamily = FontFamily.Serif,
             fontSize = 40.sp,
@@ -80,39 +71,38 @@ fun ProfilePanel() {
         Spacer(Modifier.height(22.dp))
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Detail("MEMBERSHIP", tierLabel(profile.tier))
-                Detail("MEMBER ID", profile.memberId.ifBlank { "—" })
-                Detail("VALID UNTIL", profile.validUntil.ifBlank { "—" })
+                Detail(stringResource(R.string.profile_membership), tierLabel(profile.tier))
+                Detail(stringResource(R.string.profile_member_id), profile.memberId.ifBlank { "—" })
+                Detail(stringResource(R.string.profile_valid_until), MemberFormat.validUntil(profile.validUntil))
             }
             Spacer(Modifier.width(24.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Detail("CITY", profile.city.ifBlank { "—" })
-                Detail("HEADSET", profile.deviceName.ifBlank { "Meta Quest" })
-                Detail("PAIRED SINCE", shortDate(profile.pairedAt))
+                Detail(stringResource(R.string.profile_city), profile.city.ifBlank { "—" })
+                Detail(stringResource(R.string.profile_headset), profile.deviceName.ifBlank { "Meta Quest" })
+                Detail(stringResource(R.string.profile_paired_since), MemberFormat.shortDate(profile.pairedAt, ZoneId.systemDefault()))
             }
         }
-        Spacer(Modifier.height(18.dp))
-        MandirCredits()
         Spacer(Modifier.weight(1f))
         QuestAccount.unpairError?.let {
-            Text(it, color = Vermillion, fontSize = 16.sp)
+            Text(stringResource(it), color = Vermillion, fontSize = 16.sp)
             Spacer(Modifier.height(10.dp))
         }
         if (confirming && !QuestAccount.unpairing) {
             Text(
-                "You’ll need your phone to pair this headset again.",
+                stringResource(R.string.profile_unpair_warning),
                 color = CreamMuted,
                 fontSize = 16.sp,
             )
             Spacer(Modifier.height(10.dp))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Pill("Back to menu") { Ring.back() }
+            Pill(stringResource(R.string.action_back_to_menu)) { Ring.back() }
+            Pill(stringResource(R.string.action_credits), filled = false, tint = CreamMuted) { Ring.openCredits() }
             Pill(
                 when {
-                    QuestAccount.unpairing -> "Unpairing…"
-                    confirming -> "Tap again to unpair"
-                    else -> "Unpair this headset"
+                    QuestAccount.unpairing -> stringResource(R.string.profile_unpairing)
+                    confirming -> stringResource(R.string.profile_unpair_confirm)
+                    else -> stringResource(R.string.profile_unpair)
                 },
                 filled = false,
                 tint = Vermillion,
@@ -121,7 +111,7 @@ fun ProfilePanel() {
                 if (!confirming) confirming = true else QuestAccount.unpair()
             }
             if (confirming && !QuestAccount.unpairing) {
-                Pill("Cancel", filled = false, tint = CreamMuted) { confirming = false }
+                Pill(stringResource(R.string.action_cancel), filled = false, tint = CreamMuted) { confirming = false }
             }
         }
     }
@@ -137,14 +127,14 @@ fun ProfileChip() {
         Row(
             modifier = Modifier
                 .clip(shape)
-                .background(Color(0xE6100B08))
+                .background(InkVeil)
                 .border(1.dp, Gold.copy(alpha = 0.45f), shape)
                 .clickable { Ring.openProfile() }
                 .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                profile.displayName.ifBlank { "Member" },
+                profile.displayName.ifBlank { stringResource(R.string.profile_member) },
                 color = Cream,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -154,7 +144,7 @@ fun ProfileChip() {
             Text(
                 "  ·  ${tierLabel(profile.tier).uppercase()}  ›",
                 color = Gold,
-                fontSize = 11.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.1.sp,
                 maxLines = 1,
@@ -166,19 +156,14 @@ fun ProfileChip() {
 @Composable
 private fun Detail(label: String, value: String) {
     Column {
-        Text(label, color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.3.sp)
+        Text(label, color = Gold, fontSize = 14.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.3.sp)
         Text(value, color = Cream, fontSize = 21.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
+@Composable
 private fun tierLabel(tier: String): String = when (tier) {
-    "", "None" -> "No membership yet"
+    "", "None" -> stringResource(R.string.profile_no_membership)
     "Nri" -> "NRI"
     else -> tier
-}
-
-private fun shortDate(iso: String): String {
-    val parsed = runCatching { OffsetDateTime.parse(iso) }.getOrNull() ?: return "—"
-    return DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
-        .format(parsed.atZoneSameInstant(ZoneId.systemDefault()))
 }

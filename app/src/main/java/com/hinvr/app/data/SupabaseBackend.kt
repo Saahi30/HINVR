@@ -1,10 +1,8 @@
 package com.hinvr.app.data
 
-import com.hinvr.app.BuildConfig
-import com.hinvr.app.ui.catalog.Mandir
-import com.hinvr.app.ui.catalog.ServiceTile
-import com.hinvr.app.ui.catalog.parseTileScene
 import android.content.Intent
+import android.util.Log
+import com.hinvr.app.BuildConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.FlowType
@@ -15,6 +13,7 @@ import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.exception.AuthWeakPasswordException
 import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
@@ -24,191 +23,19 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.serializer.KotlinXSerializer
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
-
-@Serializable
-data class ProfileRow(
-    val id: String,
-    @SerialName("display_name") val displayName: String = "",
-    val city: String = "",
-    @SerialName("language_tag") val languageTag: String = "en",
-    val audience: String = "Me",
-    @SerialName("profile_complete") val profileComplete: Boolean = false,
-    val tier: String = "None",
-    @SerialName("member_id") val memberId: String = "",
-    @SerialName("valid_until") val validUntil: String = "",
-    @SerialName("phone_e164") val phoneE164: String = "",
-    val addresses: List<MemberPlace> = emptyList(),
-)
-
-@Serializable
-private data class PhonePatch(
-    @SerialName("phone_e164") val phoneE164: String,
-)
-
-@Serializable
-private data class DeskRequestInsert(
-    @SerialName("user_id") val userId: String,
-    val kind: String,
-    val summary: String,
-    val city: String = "",
-    @SerialName("mandir_id") val mandirId: String? = null,
-)
-
-@Serializable
-private data class MembershipRequestInsert(
-    @SerialName("user_id") val userId: String,
-    val tier: String,
-    @SerialName("amount_inr") val amountInr: Int,
-)
-
-@Serializable
-private data class MembershipRequestPatch(
-    val tier: String,
-    @SerialName("amount_inr") val amountInr: Int,
-)
-
-@Serializable
-data class MembershipRequestRow(
-    val tier: String = "",
-    val status: String = "",
-    @SerialName("staff_note") val staffNote: String = "",
-)
-
-@Serializable
-private data class PhysicalCardInsert(
-    @SerialName("user_id") val userId: String,
-    @SerialName("member_id") val memberId: String,
-    @SerialName("ship_name") val shipName: String,
-    @SerialName("ship_address") val shipAddress: String,
-)
-
-@Serializable
-private data class PhysicalCardRow(
-    val status: String = "",
-)
-
-@Serializable
-private data class PassCheckInRow(
-    val id: String = "",
-    val place: String = "",
-    val note: String = "",
-    @SerialName("created_at") val createdAt: String = "",
-)
-
-data class MemberDeskState(
-    val request: MembershipRequestRow?,
-    val checkIns: List<PassCheckIn>,
-    val cardStatus: String? = null,
-)
-
-data class RemoteUser(
-    val id: String,
-    val phone: String,
-    val email: String,
-    val displayName: String,
-    val profile: ProfileRow?,
-)
-
-@Serializable
-data class MandirRow(
-    val id: String,
-    val name: String,
-    val place: String = "",
-    val city: String = "",
-    val scene: String = "",
-    @SerialName("photo_url") val photoUrl: String = "",
-    val live: Boolean = false,
-    val vr: Boolean = false,
-    @SerialName("pass_accepted") val passAccepted: Boolean = false,
-    @SerialName("next_aarti") val nextAarti: String? = null,
-    val timings: String = "",
-    @SerialName("updated_label") val updatedLabel: String = "",
-    @SerialName("live_url") val liveUrl: String = "",
-    @SerialName("vr_url") val vrUrl: String = "",
-    val deity: String = "",
-    val summary: String = "",
-    val history: String = "",
-    val significance: String = "",
-    val architecture: String = "",
-    @SerialName("dress_code") val dressCode: String = "",
-    @SerialName("best_time") val bestTime: String = "",
-    @SerialName("visitor_notes") val visitorNotes: String = "",
-    val facilities: String = "",
-    val address: String = "",
-    @SerialName("official_website") val officialWebsite: String = "",
-    @SerialName("contact_phone") val contactPhone: String = "",
-)
-
-@Serializable
-data class ServiceRow(
-    val id: String,
-    val title: String,
-    val benefit: String,
-    @SerialName("photo_url") val photoUrl: String = "",
-    val route: String,
-    val scene: String = "",
-    val tall: Boolean = false,
-)
-
-@Serializable
-data class HomeSettingsValue(
-    val headline: String = "",
-    val eyebrow: String = "",
-)
-
-@Serializable
-data class SettingRow(
-    val key: String,
-    val value: HomeSettingsValue = HomeSettingsValue(),
-)
-
-@Serializable
-data class NoticeRow(
-    val id: String,
-    val title: String = "",
-    val body: String = "",
-    @SerialName("created_at") val createdAt: String = "",
-)
-
-@Serializable
-private data class DeviceTokenArg(
-    @SerialName("p_token") val token: String,
-)
-
-@Serializable
-data class VrDeviceRow(
-    @SerialName("device_id") val deviceId: String,
-    val name: String = "",
-    @SerialName("paired_at") val pairedAt: String = "",
-    @SerialName("last_seen_at") val lastSeenAt: String = "",
-)
-
-@Serializable
-data class VrPairingCode(
-    val code: String,
-    @SerialName("expires_at") val expiresAt: String,
-)
-
-@Serializable
-private data class VrDeviceArg(
-    @SerialName("p_device_id") val deviceId: String,
-)
-
-data class RemoteCatalog(
-    val mandirs: List<Mandir>,
-    val services: List<ServiceTile>,
-    val headline: String?,
-)
 
 /**
  * Supabase client for email accounts, session, [profiles], and the public catalog.
@@ -236,7 +63,14 @@ class SupabaseBackend {
                 host = PASSWORD_RESET_HOST
             }
             install(Postgrest) {
-                serializer = KotlinXSerializer(Json { ignoreUnknownKeys = true })
+                // coerceInputValues turns a JSON null into the field default, so a
+                // nullable column the desk left empty never fails a whole decode.
+                serializer = KotlinXSerializer(
+                    Json {
+                        ignoreUnknownKeys = true
+                        coerceInputValues = true
+                    },
+                )
             }
         }
     } else {
@@ -255,8 +89,10 @@ class SupabaseBackend {
             }
         } catch (e: AuthException) {
             throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
@@ -267,8 +103,10 @@ class SupabaseBackend {
                 this.email = email
                 this.password = password
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
@@ -284,13 +122,17 @@ class SupabaseBackend {
         try {
             sb.auth.resetPasswordForEmail(email, redirectUrl = PASSWORD_RESET_URL)
             true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            if (!redirectRejected(e)) throw AuthException(humanize(e), e)
+            if (!redirectRejected(e)) throw authFailure(e)
             try {
                 sb.auth.resetPasswordForEmail(email, redirectUrl = null)
                 false
+            } catch (again: CancellationException) {
+                throw again
             } catch (again: Exception) {
-                throw AuthException(humanize(again), again)
+                throw authFailure(again)
             }
         }
     }
@@ -302,7 +144,7 @@ class SupabaseBackend {
         try {
             val code = queryParam(trimmed, "code")
             val type = queryParam(trimmed, "type")
-            val opensApp = trimmed.startsWith("$PASSWORD_RESET_URL", ignoreCase = true)
+            val opensApp = trimmed.startsWith(PASSWORD_RESET_URL, ignoreCase = true)
             if (!code.isNullOrBlank() && (opensApp || type.equals("recovery", ignoreCase = true))) {
                 sb.auth.exchangeCodeForSession(code)
                 return@io
@@ -326,8 +168,10 @@ class SupabaseBackend {
             }
         } catch (e: AuthException) {
             throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
@@ -337,14 +181,16 @@ class SupabaseBackend {
             sb.auth.updateUser {
                 password = newPassword
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
     suspend fun hasSession(): Boolean = io {
         val sb = client ?: return@io false
-        sb.auth.awaitInitialization()
+        awaitAuth(sb)
         sb.auth.currentSessionOrNull() != null
     }
 
@@ -363,26 +209,37 @@ class SupabaseBackend {
         )
     }
 
-    suspend fun currentUser(): RemoteUser? = io {
-        if (!configured) return@io null
-        val sb = client ?: return@io null
-        val user = try {
-            sb.auth.awaitInitialization()
-            sb.auth.currentUserOrNull()
-        } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
-        } ?: return@io null
-        val profile = runCatching {
+    /**
+     * Reads session and profile, and says how sure that answer is. Only an auth
+     * server that has rejected this session yields [RemoteSync.SignedOut]; a slow
+     * or missing network is [RemoteSync.Offline] and leaves the member's pass alone.
+     */
+    suspend fun sync(): RemoteSync = io {
+        val sb = client ?: return@io RemoteSync.Offline
+        val status = awaitAuth(sb) ?: return@io RemoteSync.Offline
+        val user = when (status) {
+            is SessionStatus.Authenticated -> status.session.user ?: sb.auth.currentUserOrNull()
+            is SessionStatus.RefreshFailure, SessionStatus.Initializing -> return@io RemoteSync.Offline
+            is SessionStatus.NotAuthenticated -> return@io RemoteSync.SignedOut
+        } ?: return@io RemoteSync.Offline
+        val profile = try {
             sb.from("profiles").select {
                 filter { eq("id", user.id) }
             }.decodeSingleOrNull<ProfileRow>()
-        }.getOrNull()
-        RemoteUser(
-            id = user.id,
-            phone = profile?.phoneE164?.ifBlank { user.phone.orEmpty() }.orEmpty(),
-            email = user.email.orEmpty(),
-            displayName = profile?.displayName.orEmpty(),
-            profile = profile,
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Profile read failed; keeping the last profile.", e)
+            return@io RemoteSync.SessionOnly(user.id, user.email.orEmpty(), user.phone.orEmpty())
+        }
+        RemoteSync.Fresh(
+            RemoteUser(
+                id = user.id,
+                phone = profile?.phoneE164?.ifBlank { user.phone.orEmpty() } ?: user.phone.orEmpty(),
+                email = user.email.orEmpty(),
+                displayName = profile?.displayName.orEmpty(),
+                profile = profile,
+            ),
         )
     }
 
@@ -397,29 +254,24 @@ class SupabaseBackend {
         val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id
             ?: throw AuthException("Sign in again.")
-        val existing = runCatching {
-            sb.from("profiles").select {
-                filter { eq("id", userId) }
-            }.decodeSingleOrNull<ProfileRow>()
-        }.getOrNull()
         try {
             sb.from("profiles").upsert(
-                ProfileRow(
+                ProfileUpsert(
                     id = userId,
                     displayName = name,
                     city = city,
                     languageTag = languageTag,
                     audience = audience.name,
                     profileComplete = true,
-                    tier = existing?.tier ?: MembershipTier.None.name,
-                    memberId = existing?.memberId.orEmpty(),
-                    validUntil = existing?.validUntil.orEmpty(),
-                    phoneE164 = phoneE164.ifBlank { existing?.phoneE164.orEmpty() },
-                    addresses = addresses.ifEmpty { existing?.addresses.orEmpty() },
+                    phoneE164 = phoneE164,
+                    // An empty list clears saved places; that is the member's choice.
+                    addresses = addresses,
                 ),
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
@@ -427,18 +279,14 @@ class SupabaseBackend {
         val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id
             ?: throw AuthException("Sign in again.")
-        val pending = try {
-            sb.from("membership_requests").select {
+        try {
+            val pending = sb.from("membership_requests").select {
                 filter {
                     eq("user_id", userId)
                     eq("status", "pending")
                 }
                 limit(1)
             }.decodeList<MembershipRequestRow>()
-        } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
-        }
-        try {
             if (pending.isNotEmpty()) {
                 sb.from("membership_requests").update(
                     MembershipRequestPatch(tier = tier.name, amountInr = amountInr),
@@ -457,8 +305,10 @@ class SupabaseBackend {
                     ),
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
@@ -490,108 +340,95 @@ class SupabaseBackend {
                     limit(1)
                 }.decodeList<PhysicalCardRow>().firstOrNull()
                 if (latest == null || latest.status == "cancelled") "" else latest.status
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 null
             }
             MemberDeskState(request = request, checkIns = checkIns, cardStatus = cardStatus)
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             null
         }
     }
 
-    suspend fun savePhone(phoneE164: String) = io {
-        if (!hasCloud || phoneE164.isBlank()) return@io
-        val sb = client ?: return@io
-        val userId = sb.auth.currentUserOrNull()?.id ?: return@io
-        runCatching {
-            sb.from("profiles").update(PhonePatch(phoneE164)) {
-                filter { eq("id", userId) }
-            }
-        }
-    }
-
-    /** Best-effort. Keeps the local desk card even if Cloud is off or the insert fails. */
+    /** One insert. The caller keeps the request queued on [DeskSendResult.Transient]. */
     suspend fun createDeskRequest(
         kind: String,
         summary: String,
         city: String,
         mandirId: String? = null,
-    ): Boolean = io {
-        if (!hasCloud) return@io false
-        val sb = client ?: return@io false
-        val userId = try {
-            sb.auth.currentUserOrNull()?.id
-        } catch (_: Exception) {
-            null
-        } ?: return@io false
+    ): DeskSendResult = io {
+        val sb = client ?: return@io DeskSendResult.Transient
+        val status = awaitAuth(sb) ?: return@io DeskSendResult.Transient
+        val userId = when (status) {
+            is SessionStatus.Authenticated -> status.session.user?.id ?: sb.auth.currentUserOrNull()?.id
+            is SessionStatus.NotAuthenticated -> return@io DeskSendResult.Rejected("Sign in again.")
+            else -> null
+        } ?: return@io DeskSendResult.Transient
         try {
             sb.from("desk_requests").insert(
                 DeskRequestInsert(
                     userId = userId,
                     kind = kind,
-                    summary = summary,
+                    summary = clampDeskSummary(summary),
                     city = city,
                     mandirId = mandirId?.ifBlank { null },
                 ),
             )
-            true
-        } catch (_: Exception) {
-            false
+            DeskSendResult.Accepted
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (isTransient(e)) {
+                DeskSendResult.Transient
+            } else {
+                Log.w(TAG, "Desk request refused.", e)
+                DeskSendResult.Rejected(humanize(e))
+            }
         }
     }
 
-    /** One-time browser URL that signs this member into the membership site. */
+    /**
+     * One-time browser URL that signs this member into the membership site. The
+     * token rides in the fragment (#token_hash=…), so it never reaches a server log
+     * or a Referer. The handoff only accepts a token minted in the last five
+     * minutes, so the session is refreshed right before the call.
+     */
     suspend fun membershipPageUrl(): String = io {
-        val sb = requireClient()
-        sb.auth.awaitInitialization()
-        val access = sb.auth.currentAccessTokenOrNull()
-            ?: throw AuthException("Sign in again.")
-        val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/membership-handoff"
-        val connection = (URI(endpoint).toURL().openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            setRequestProperty("Authorization", "Bearer $access")
-            setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
-            setRequestProperty("Content-Type", "application/json")
-            doOutput = true
-            connectTimeout = 15_000
-            readTimeout = 15_000
-        }
-        connection.outputStream.use { it.write("{}".toByteArray()) }
-        val code = connection.responseCode
-        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
-            ?.bufferedReader()
-            ?.readText()
-            .orEmpty()
-        val body = runCatching { JSONObject(text) }.getOrNull()
-        val token = body?.optString("token_hash").orEmpty()
-        if (code !in 200..299 || token.isBlank()) {
-            throw AuthException(body?.optString("error").orEmpty().ifBlank {
-                if (code == 401) "Sign in again." else "Couldn't open membership."
-            })
-        }
-        val type = body?.optString("type").orEmpty().ifBlank { "magiclink" }
-        val base = BuildConfig.MEMBERSHIP_URL.trim()
-        val joiner = if ('?' in base) "&" else "?"
-        base + joiner +
-            "handoff=" + URLEncoder.encode(token, Charsets.UTF_8.name()) +
+        val parsed = postFunction(
+            "membership-handoff",
+            JSONObject(),
+            fallback = "Couldn't open membership.",
+            forceRefresh = true,
+        )
+        val token = parsed.optString("token_hash")
+        if (token.isBlank()) throw AuthException("Couldn't open membership.")
+        val type = parsed.optString("type").ifBlank { "magiclink" }
+        val base = BuildConfig.MEMBERSHIP_URL.trim().substringBefore('#')
+        base + "#token_hash=" + URLEncoder.encode(token, Charsets.UTF_8.name()) +
             "&type=" + URLEncoder.encode(type, Charsets.UTF_8.name())
     }
 
     data class IssuedPass(val token: String, val expiresAt: Long)
 
     suspend fun issuePass(rotate: Boolean): IssuedPass = io {
-        val body = JSONObject().put("rotate", rotate).put("purpose", "desk")
-        val parsed = postFunction("pass-credential", body)
+        val body = JSONObject().put("rotate", rotate)
+        val parsed = postFunction("pass-credential", body, fallback = "Couldn't refresh the pass.")
         val token = parsed.optString("token")
         val expires = parsed.optString("expires_at")
-        if (token.isBlank() || !token.startsWith("HNV1.") || expires.isBlank()) {
+        if (token.isBlank() || !token.startsWith(PassTokenPrefix) || expires.isBlank()) {
             throw AuthException("Couldn't refresh the pass.")
         }
-        IssuedPass(token, java.time.Instant.parse(expires).toEpochMilli())
+        val expiresAt = runCatching { java.time.Instant.parse(expires).toEpochMilli() }
+            .recoverCatching { java.time.OffsetDateTime.parse(expires).toInstant().toEpochMilli() }
+            .getOrElse { throw AuthException("Couldn't refresh the pass.") }
+        IssuedPass(token, expiresAt)
     }
 
     suspend fun googleWalletUrl(): String = io {
-        val parsed = postFunction("pass-wallet", JSONObject())
+        val parsed = postFunction("pass-wallet", JSONObject(), fallback = "Couldn't open Google Wallet.")
         val url = parsed.optString("url")
         if (!url.startsWith("https://pay.google.com/")) {
             throw AuthException(parsed.optString("error").ifBlank { "Couldn't open Google Wallet." })
@@ -602,58 +439,112 @@ class SupabaseBackend {
     suspend fun requestPhysicalCard(name: String, address: String) = io {
         val sb = requireClient()
         val userId = sb.auth.currentUserOrNull()?.id ?: throw AuthException("Sign in again.")
-        val memberId = try {
-            sb.from("profiles").select {
-                filter { eq("id", userId) }
-            }.decodeSingleOrNull<ProfileRow>()?.memberId.orEmpty()
-        } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
-        }
         try {
             sb.from("physical_card_requests").insert(
                 PhysicalCardInsert(
                     userId = userId,
-                    memberId = memberId,
                     shipName = name.trim(),
                     shipAddress = address.trim(),
                 ),
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val message = e.message.orEmpty()
             if (message.contains("duplicate", ignoreCase = true) || message.contains("unique", ignoreCase = true)) {
                 throw AuthException("You're already on the physical card list.")
             }
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
-    private suspend fun postFunction(name: String, body: JSONObject): JSONObject = io {
+    /**
+     * Edge functions take the member's access token by hand, so refresh it first
+     * when it is close to expiry (or always, with [force]); supabase-kt only
+     * refreshes its own requests.
+     */
+    private suspend fun freshAccessToken(sb: SupabaseClient, force: Boolean = false): String {
+        when (val status = awaitAuth(sb)) {
+            is SessionStatus.Authenticated -> {
+                if (force || status.session.expiresAt - Clock.System.now() < TokenRefreshMargin) {
+                    try {
+                        sb.auth.refreshCurrentSession()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        throw authFailure(e)
+                    }
+                }
+            }
+            is SessionStatus.NotAuthenticated -> throw AuthException("Sign in again.")
+            else -> throw AuthException("No network. Try again.", transient = true)
+        }
+        return sb.auth.currentAccessTokenOrNull() ?: throw AuthException("Sign in again.")
+    }
+
+    private suspend fun postFunction(
+        name: String,
+        body: JSONObject,
+        fallback: String,
+        forceRefresh: Boolean = false,
+    ): JSONObject {
         val sb = requireClient()
-        sb.auth.awaitInitialization()
-        val access = sb.auth.currentAccessTokenOrNull() ?: throw AuthException("Sign in again.")
+        return try {
+            postFunctionOnce(name, body, fallback, freshAccessToken(sb, forceRefresh))
+        } catch (stale: StaleSessionException) {
+            // The function wants a newer token than the one we sent: refresh once, retry once.
+            Log.i(TAG, "$name asked for a fresher session; retrying once.")
+            try {
+                postFunctionOnce(name, body, fallback, freshAccessToken(sb, force = true))
+            } catch (_: StaleSessionException) {
+                throw AuthException("Sign in again.")
+            }
+        }
+    }
+
+    private fun postFunctionOnce(
+        name: String,
+        body: JSONObject,
+        fallback: String,
+        access: String,
+    ): JSONObject {
         val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/$name"
-        val connection = (URI(endpoint).toURL().openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            setRequestProperty("Authorization", "Bearer $access")
-            setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
-            setRequestProperty("Content-Type", "application/json")
-            doOutput = true
-            connectTimeout = 20_000
-            readTimeout = 20_000
+        try {
+            val connection = (URI(endpoint).toURL().openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Authorization", "Bearer $access")
+                setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
+                setRequestProperty("Content-Type", "application/json")
+                doOutput = true
+                connectTimeout = 15_000
+                readTimeout = 20_000
+            }
+            try {
+                connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()
+                    ?.readText()
+                    .orEmpty()
+                val parsed = runCatching { JSONObject(text) }.getOrNull()
+                if (code !in 200..299) {
+                    val serverMessage = parsed?.optString("error").orEmpty()
+                    if (serverMessage.isNotBlank()) Log.w(TAG, "$name returned $code: $serverMessage")
+                    throw when {
+                        code == 401 && parsed?.optString("code") == "stale_session" -> StaleSessionException()
+                        code == 401 -> AuthException("Sign in again.")
+                        code == 429 -> AuthException("Too many tries. Wait a minute, then try again.", transient = true)
+                        code >= 500 -> AuthException(fallback, transient = true)
+                        else -> AuthException(serverMessage.ifBlank { fallback })
+                    }
+                }
+                return parsed ?: throw AuthException(fallback)
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: IOException) {
+            throw AuthException("No network. Try again.", e, transient = true)
         }
-        connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-        val code = connection.responseCode
-        val text = (if (code in 200..299) connection.inputStream else connection.errorStream)
-            ?.bufferedReader()
-            ?.readText()
-            .orEmpty()
-        val parsed = runCatching { JSONObject(text) }.getOrNull()
-        if (code !in 200..299) {
-            throw AuthException(parsed?.optString("error").orEmpty().ifBlank {
-                if (code == 401) "Sign in again." else "Couldn't refresh the pass."
-            })
-        }
-        parsed ?: throw AuthException("Couldn't refresh the pass.")
     }
 
     suspend fun registerDeviceToken(token: String) = io {
@@ -667,20 +558,28 @@ class SupabaseBackend {
     suspend fun fetchNotifications(): List<NoticeRow> = io {
         if (!hasCloud) return@io emptyList()
         val sb = client ?: return@io emptyList()
-        sb.auth.awaitInitialization()
+        awaitAuth(sb)
         if (sb.auth.currentUserOrNull() == null) return@io emptyList()
-        sb.from("notifications").select(Columns.list("id", "title", "body", "created_at")) {
-            order("created_at", Order.DESCENDING)
-            limit(40)
-        }.decodeList()
+        try {
+            sb.from("notifications").select(Columns.list("id", "title", "body", "created_at")) {
+                order("created_at", Order.DESCENDING)
+                limit(40)
+            }.decodeList()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw authFailure(e)
+        }
     }
 
     /** A single-use code the headset scans. */
     suspend fun startVrPairing(): VrPairingCode = io {
         try {
             requireClient().postgrest.rpc("start_vr_pairing").decodeAs<VrPairingCode>()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
@@ -692,26 +591,30 @@ class SupabaseBackend {
                 filter { eq("user_id", userId) }
                 order("paired_at", Order.DESCENDING)
             }.decodeList()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
     suspend fun unlinkVrDevice(deviceId: String) = io {
         try {
             requireClient().postgrest.rpc("unlink_vr_device", VrDeviceArg(deviceId))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            throw AuthException(humanize(e), e)
+            throw authFailure(e)
         }
     }
 
     suspend fun signOut() = io {
         val sb = client ?: return@io
-        runCatching {
-            sb.auth.awaitInitialization()
+        attempt {
+            awaitAuth(sb)
             sb.auth.signOut()
         }.onFailure {
-            runCatching { sb.auth.clearSession() }
+            attempt { sb.auth.clearSession() }
         }
     }
 
@@ -720,6 +623,7 @@ class SupabaseBackend {
         return client ?: throw AuthException("HINVR isn’t connected. Try again.")
     }
 
+    /** The published catalog, or null when it could not be read. An empty list is a real answer. */
     suspend fun fetchCatalog(): RemoteCatalog? = io {
         if (!hasCloud) return@io null
         val sb = client ?: return@io null
@@ -727,63 +631,65 @@ class SupabaseBackend {
             val mandirs = sb.from("mandirs").select {
                 filter { eq("published", true) }
                 order("sort_order", Order.ASCENDING)
-            }.decodeList<MandirRow>().map { row ->
-                Mandir(
-                    id = row.id,
-                    name = row.name,
-                    place = row.place,
-                    city = row.city,
-                    scene = parseTileScene(row.scene, row.id),
-                    live = row.live,
-                    vr = row.vr,
-                    passAccepted = row.passAccepted,
-                    nextAarti = row.nextAarti,
-                    updatedLabel = row.updatedLabel.ifBlank { "Updated just now" },
-                    timings = row.timings,
-                    photoUrl = row.photoUrl,
-                    liveUrl = row.liveUrl,
-                    vrUrl = row.vrUrl,
-                    deity = row.deity,
-                    summary = row.summary,
-                    history = row.history,
-                    significance = row.significance,
-                    architecture = row.architecture,
-                    dressCode = row.dressCode,
-                    bestTime = row.bestTime,
-                    visitorNotes = row.visitorNotes,
-                    facilities = row.facilities,
-                    address = row.address,
-                    officialWebsite = row.officialWebsite,
-                    contactPhone = row.contactPhone,
-                )
-            }
+            }.decodeList<MandirRow>()
             val services = sb.from("home_services").select {
                 filter { eq("published", true) }
                 order("sort_order", Order.ASCENDING)
-            }.decodeList<ServiceRow>().map { row ->
-                ServiceTile(
-                    title = row.title,
-                    benefit = row.benefit,
-                    scene = parseTileScene(row.scene, row.id),
-                    route = row.route,
-                    tall = row.tall,
-                    photoUrl = row.photoUrl,
-                )
-            }
-            val headline = runCatching {
+            }.decodeList<ServiceRow>()
+            val headline = try {
                 sb.from("app_settings").select {
                     filter { eq("key", "home") }
                 }.decodeSingleOrNull<SettingRow>()?.value?.headline?.ifBlank { null }
-            }.getOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
             RemoteCatalog(mandirs, services, headline)
-        } catch (_: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Catalog read failed; keeping the last catalog.", e)
             null
         }
     }
 
+    private companion object {
+        const val TAG = "HinvrBackend"
+        val TokenRefreshMargin = 60.seconds
+    }
 }
 
-class AuthException(message: String, cause: Throwable? = null) : Exception(message, cause)
+/**
+ * A member-facing failure. [transient] marks a network or server hiccup: worth
+ * retrying, and never a reason to discard the member's local pass or session.
+ */
+/** 401 {code:"stale_session"}: the token was valid but too old for this function. */
+private class StaleSessionException : Exception("stale_session")
+
+class AuthException(
+    message: String,
+    cause: Throwable? = null,
+    val transient: Boolean = false,
+) : Exception(message, cause)
+
+/** Waits for supabase-kt to load and refresh the stored session, but never forever. */
+private suspend fun awaitAuth(sb: SupabaseClient): SessionStatus? {
+    withTimeoutOrNull(AuthInitTimeoutMs) { sb.auth.awaitInitialization() } ?: return null
+    return sb.auth.sessionStatus.value
+}
+
+private const val AuthInitTimeoutMs = 8_000L
+
+internal fun isTransient(e: Throwable): Boolean {
+    if (e is IOException) return true
+    if (e is AuthException) return e.transient
+    val status = (e as? RestException)?.statusCode ?: return e.cause?.let(::isTransient) ?: false
+    return status == 408 || status == 429 || status >= 500
+}
+
+private fun authFailure(e: Throwable): AuthException =
+    AuthException(humanize(e), e, transient = isTransient(e))
 
 private fun humanize(e: Throwable): String {
     if (e is AuthWeakPasswordException) {
@@ -813,15 +719,21 @@ private fun humanize(e: Throwable): String {
         message.contains("password", ignoreCase = true) &&
             (message.contains("least", ignoreCase = true) || message.contains("weak", ignoreCase = true)) ->
             "Choose a stronger password. At least 6 characters."
-        status == 429 || message.contains("rate", ignoreCase = true) ->
+        status == 429 || message.contains("rate limit", ignoreCase = true) ->
             "Too many tries. Wait a minute, then try again."
-        message.contains("Unable to resolve host", ignoreCase = true) ||
+        status == 401 || code.contains("session_not_found", ignoreCase = true) ->
+            "Sign in again."
+        e is IOException ||
+            message.contains("Unable to resolve host", ignoreCase = true) ||
             message.contains("timeout", ignoreCase = true) ||
             message.contains("failed to connect", ignoreCase = true) ||
             message.contains("Unable to connect", ignoreCase = true) ->
             "No network. Try again."
-        message.isNotBlank() -> message
-        else -> "Couldn’t reach HINVR. Try again."
+        else -> {
+            // Raw server text is for logcat, not for members.
+            Log.w("HinvrBackend", "Unmapped error: $message", e)
+            "Something went wrong. Try again."
+        }
     }
 }
 
@@ -833,7 +745,7 @@ private fun redirectRejected(e: Throwable): Boolean {
 
 private fun queryParam(source: String, name: String): String? {
     val raw = Regex("(?:^|[?&#])$name=([^&#\\s]+)").find(source)?.groupValues?.getOrNull(1) ?: return null
-    return runCatching { URLDecoder.decode(raw, Charsets.UTF_8) }.getOrDefault(raw)
+    return runCatching { URLDecoder.decode(raw, "UTF-8") }.getOrDefault(raw)
 }
 
 private const val PASSWORD_RESET_SCHEME = "hinvr"

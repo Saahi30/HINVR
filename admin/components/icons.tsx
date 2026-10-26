@@ -97,3 +97,12 @@ export function IconLive({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function IconLog({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M5.5 4h8M5.5 8h8M5.5 12h8" stroke="currentColor" strokeLinecap="round" />
+      <path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}

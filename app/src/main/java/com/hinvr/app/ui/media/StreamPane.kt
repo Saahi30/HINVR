@@ -1,6 +1,7 @@
 package com.hinvr.app.ui.media
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.Color
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -16,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import com.hinvr.app.ui.theme.TempleStoneDeep
 
 private const val PlayerOrigin = "https://hinvr.app/"
@@ -71,14 +73,19 @@ internal fun parseYoutube(raw: String): YoutubePlayable? {
     return videoId?.let { YoutubePlayable(videoId = it) }
 }
 
+/**
+ * The standard YouTube embed, used the way YouTube intends: full player chrome and
+ * controls, nothing laid over it, the app's own browser identity. It starts muted
+ * (the only autoplay browsers allow) and the member unmutes from the player.
+ * The fullscreen button is off because the pane already fills the screen sideways.
+ */
 private fun youtubePlayerHtml(playable: YoutubePlayable): String {
     val videoId = playable.videoId.orEmpty()
     val channelId = playable.channelId.orEmpty()
+    val params = "autoplay=1&mute=1&controls=1&playsinline=1&rel=0&fs=0&origin=https://hinvr.app"
     val iframeSrc = when {
-        videoId.isNotBlank() ->
-            "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&playsinline=1&fs=0&iv_load_policy=3&disablekb=1&cc_load_policy=0&showinfo=0&enablejsapi=1&origin=https://hinvr.app"
-        channelId.isNotBlank() ->
-            "https://www.youtube-nocookie.com/embed/live_stream?channel=$channelId&autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&playsinline=1&fs=0&iv_load_policy=3&disablekb=1&cc_load_policy=0&enablejsapi=1&origin=https://hinvr.app"
+        videoId.isNotBlank() -> "https://www.youtube-nocookie.com/embed/$videoId?$params"
+        channelId.isNotBlank() -> "https://www.youtube-nocookie.com/embed/live_stream?channel=$channelId&$params"
         else -> return ""
     }.replace("&", "&amp;")
     return """
@@ -86,57 +93,19 @@ private fun youtubePlayerHtml(playable: YoutubePlayable): String {
         <html>
           <head>
             <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
             <style>
               html, body { margin:0; padding:0; width:100%; height:100%; background:#100B08; overflow:hidden; }
-              #crop {
-                position:fixed; inset:0; overflow:hidden; background:#100B08;
-              }
-              iframe {
-                position:absolute;
-                top:-70px; left:-4%;
-                width:108%; height:calc(100% + 140px);
-                border:0; background:#100B08;
-              }
-              #shield {
-                position:fixed; inset:0; z-index:4;
-                background:transparent;
-              }
+              iframe { position:fixed; inset:0; width:100%; height:100%; border:0; background:#100B08; }
             </style>
           </head>
           <body>
-            <div id="crop">
-              <iframe
-                src="$iframeSrc"
-                title="HINVR darshan"
-                allow="autoplay; encrypted-media; fullscreen"
-                referrerpolicy="origin"
-                allowfullscreen>
-              </iframe>
-            </div>
-            <div id="shield"></div>
-            <script>
-              var player;
-              function readyApi() {
-                if (!window.YT || !YT.Player) return;
-                player = new YT.Player(document.querySelector('iframe'), {
-                  events: {
-                    onReady: function(e) {
-                      try { e.target.mute(); e.target.playVideo(); } catch (err) {}
-                      try { e.target.unMute(); e.target.setVolume(100); } catch (err) {}
-                    }
-                  }
-                });
-              }
-              document.getElementById('shield').addEventListener('click', function() {
-                if (!player) return;
-                try { player.unMute(); player.playVideo(); } catch (err) {}
-              });
-              var tag = document.createElement('script');
-              tag.src = 'https://www.youtube.com/iframe_api';
-              document.body.appendChild(tag);
-              window.onYouTubeIframeAPIReady = readyApi;
-            </script>
+            <iframe
+              src="$iframeSrc"
+              title="HINVR darshan"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              referrerpolicy="strict-origin-when-cross-origin">
+            </iframe>
           </body>
         </html>
     """.trimIndent()
@@ -153,7 +122,17 @@ private class InAppStreamClient : WebViewClient() {
             return true
         }
         if (!request.isForMainFrame) return false
-        return url != "about:blank" && !url.startsWith(PlayerOrigin)
+        if (url == "about:blank" || url.startsWith(PlayerOrigin)) return false
+        // "Watch on YouTube" and the logo leave the player: hand them to YouTube or
+        // the browser instead of loading the full site inside the darshan pane.
+        if (url.startsWith("https://")) {
+            runCatching {
+                view.context.startActivity(
+                    Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+        }
+        return true
     }
 }
 
@@ -180,16 +159,16 @@ fun StreamPane(url: String, modifier: Modifier = Modifier) {
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
+                            // Lets the muted start happen; sound still waits for the member.
                             mediaPlaybackRequiresUserGesture = false
                             loadsImagesAutomatically = true
                             useWideViewPort = true
                             loadWithOverviewMode = true
                             javaScriptCanOpenWindowsAutomatically = false
                             setSupportMultipleWindows(false)
-                            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                             cacheMode = WebSettings.LOAD_DEFAULT
-                            userAgentString =
-                                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                            // The WebView's own user agent: no desktop disguise.
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)

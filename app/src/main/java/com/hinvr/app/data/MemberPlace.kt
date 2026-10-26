@@ -28,3 +28,14 @@ fun List<MemberPlace>.readyPlaces(): List<MemberPlace>? {
     if (filled.isEmpty() || filled.any { it.label.isBlank() || it.address.isBlank() }) return null
     return filled
 }
+
+/**
+ * For the profile editor, where clearing every place is allowed: all-blank rows
+ * mean an empty list. Null only when a row is half filled.
+ */
+fun List<MemberPlace>.placesToSave(): List<MemberPlace>? {
+    val filled = map { MemberPlace(label = it.label.trim(), address = it.address.trim()) }
+        .filter { it.label.isNotEmpty() || it.address.isNotEmpty() }
+    if (filled.isEmpty()) return emptyList()
+    return filled.readyPlaces()
+}

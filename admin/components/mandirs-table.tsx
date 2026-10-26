@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Alert, Badge, Button, Card, fieldClass } from "@/components/ui";
+import { Alert, Badge, Card, FilterChip, fieldClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { Mandir } from "@/lib/types";
 
 type Filter = "all" | "published" | "draft" | "live";
 
-export function MandirsTable({ initial }: { initial: Mandir[] }) {
+export function MandirsTable({ initial, canDelete }: { initial: Mandir[]; canDelete: boolean }) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
   const [query, setQuery] = useState("");
@@ -69,18 +69,9 @@ export function MandirsTable({ initial }: { initial: Mandir[] }) {
           className={`${fieldClass} max-w-xs`}
         />
         {(["all", "published", "draft", "live"] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setFilter(item)}
-            className={
-              filter === item
-                ? "rounded-md bg-zinc-900 px-3 py-2 text-sm text-white"
-                : "rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600"
-            }
-          >
+          <FilterChip key={item} active={filter === item} onClick={() => setFilter(item)}>
             {item[0].toUpperCase() + item.slice(1)}
-          </button>
+          </FilterChip>
         ))}
       </div>
       {message ? <Alert>{message}</Alert> : null}
@@ -129,14 +120,16 @@ export function MandirsTable({ initial }: { initial: Mandir[] }) {
                     >
                       {row.published ? "Unpublish" : "Publish"}
                     </button>
-                    <button
-                      type="button"
-                      disabled={busyId === row.id}
-                      onClick={() => remove(row)}
-                      className="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        disabled={busyId === row.id}
+                        onClick={() => remove(row)}
+                        className="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
                   </div>
                 </td>
               </tr>

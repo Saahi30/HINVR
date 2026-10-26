@@ -1,27 +1,35 @@
 package com.hinvr.quest
 
+import android.os.SystemClock
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
+/** What the server's live check last said about a mandir's stream. */
+enum class LiveState { Live, NotLive, Unknown }
+
 data class RingCard(
-    val panelId: Int,
     val mandirId: String?,
     val title: String,
     val place: String,
     @DrawableRes val photo: Int?,
     val liveUrl: String = "",
+    val live: LiveState = LiveState.Unknown,
     val state: String = "",
 ) {
     val region: String
         get() = state.ifBlank { KnownStates[mandirId].orEmpty() }.ifBlank { "Other" }
+
+    val hasStream: Boolean get() = liveUrl.isNotBlank()
 }
 
-private val KnownStates = mapOf(
+internal val KnownStates = mapOf(
     "tirupati" to "Andhra Pradesh",
     "kashi" to "Uttar Pradesh",
     "shirdi" to "Maharashtra",
@@ -71,55 +79,170 @@ private val StatePhotos = mapOf(
     "Telangana" to R.drawable.state_telangana,
 )
 
-enum class Stage { Splash, Pair, Menu, States, Live, Tour, Profile, Mandir }
-
 enum class ChoiceBadge { Live, Vr360, Sanctum }
 
+data class MenuChoice(
+    @StringRes val title: Int,
+    @StringRes val place: Int,
+    val badge: ChoiceBadge,
+    @DrawableRes val photo: Int,
+)
+
+/** A recorded 360 walk. Never live. */
 data class HomeChoice(
     val title: String,
     val place: String,
-    val badge: ChoiceBadge,
     @DrawableRes val photo: Int,
     val url: String = "",
     val localFile: String = "",
 )
 
 val MenuChoices = listOf(
-    HomeChoice("Live Darshan", "THE MANDIRS", ChoiceBadge.Live, R.drawable.temple_tirupati),
-    HomeChoice("Guided Tour", "THREE TEMPLES", ChoiceBadge.Vr360, R.drawable.temple_kedarnath),
-    HomeChoice("Enter Mandir", "HINVR SANCTUM", ChoiceBadge.Sanctum, R.drawable.temple_kashi),
+    MenuChoice(R.string.menu_live, R.string.menu_live_place, ChoiceBadge.Live, R.drawable.temple_tirupati),
+    MenuChoice(R.string.menu_tour, R.string.menu_tour_place, ChoiceBadge.Vr360, R.drawable.temple_kedarnath),
+    MenuChoice(R.string.menu_mandir, R.string.menu_mandir_place, ChoiceBadge.Sanctum, R.drawable.sanctum_panorama),
 )
 
 val TourChoices = listOf(
     HomeChoice(
         "Mahakaleshwar",
         "UJJAIN",
-        ChoiceBadge.Vr360,
-        R.drawable.temple_kashi,
+        R.drawable.temple_mahakal,
         url = "https://www.youtube.com/embed/A5YdinFdV54",
         localFile = "mahakaleshwar.mkv",
     ),
     HomeChoice(
         "Badrinath Temple",
         "BADRINATH",
-        ChoiceBadge.Vr360,
-        R.drawable.temple_kedarnath,
+        R.drawable.temple_badrinath,
         url = "https://www.youtube.com/embed/VDNIuBQBSmk",
         localFile = "badrinath.mkv",
     ),
     HomeChoice(
         "Ayodhya",
         "AYODHYA",
-        ChoiceBadge.Vr360,
-        R.drawable.temple_tirupati,
+        R.drawable.temple_ram_lalla,
         url = "https://www.youtube.com/embed/tkCsr4LT5yQ",
         localFile = "ayodhya.mkv",
     ),
 )
 
+/** Offline fallback only. Once the server answers, its catalog is the catalog. */
+val BundledMandirs: List<RingCard> = listOf(
+    RingCard(
+        "tirupati",
+        "Sri Venkateswara",
+        "TIRUPATI",
+        R.drawable.temple_tirupati,
+        liveUrl = "https://www.youtube.com/embed/live_stream?channel=UCTboTRX74UydvU_cBdm_cCQ",
+    ),
+    RingCard("kashi", "Kashi Vishwanath", "KASHI", R.drawable.temple_kashi, liveUrl = "https://www.youtube.com/embed/J0nRdUOQps8"),
+    RingCard("shirdi", "Sai Baba", "SHIRDI", R.drawable.temple_shirdi, liveUrl = "https://www.youtube.com/embed/6Uf3aMujHa8"),
+    RingCard("kedarnath", "Kedarnath", "KEDARNATH", R.drawable.temple_kedarnath),
+    RingCard("somnath", "Somnath", "SOMNATH", R.drawable.temple_somnath, liveUrl = "https://www.youtube.com/embed/J4z7CIrvsuw"),
+    RingCard("vaishno-devi", "Vaishno Devi", "KATRA", R.drawable.temple_vaishno_devi),
+    RingCard("meenakshi", "Meenakshi Amman", "MADURAI", R.drawable.temple_meenakshi),
+    RingCard("jagannath", "Jagannath Temple", "PURI", R.drawable.temple_jagannath, liveUrl = "https://www.youtube.com/embed/oX0HEkwdWqo"),
+    RingCard("dwarkadhish", "Dwarkadhish", "DWARKA", R.drawable.temple_dwarkadhish, liveUrl = "https://www.youtube.com/embed/hT6FO4Qgz0c"),
+    RingCard("badrinath", "Badrinath", "BADRINATH", R.drawable.temple_badrinath),
+    RingCard("golden-temple", "Sri Harmandir Sahib", "AMRITSAR", R.drawable.temple_harmandir),
+    RingCard("siddhivinayak", "Siddhivinayak", "MUMBAI", R.drawable.temple_siddhivinayak, liveUrl = "https://www.youtube.com/embed/1vGVGya72bQ"),
+    RingCard("iskcon-bengaluru", "ISKCON Bengaluru", "BENGALURU", R.drawable.temple_iskcon),
+    RingCard("mahakal", "Mahakaleshwar", "UJJAIN", R.drawable.temple_mahakal, liveUrl = "https://www.youtube.com/embed/vOIx1wXmc7I"),
+    RingCard("ram-lalla", "Ram Lalla", "AYODHYA", R.drawable.temple_ram_lalla, liveUrl = "https://www.youtube.com/embed/xThGBtk3E_A"),
+    RingCard("khatu-shyam", "Khatu Shyam", "SIKAR", R.drawable.temple_khatu_shyam, liveUrl = "https://www.youtube.com/embed/dke2IQtIfUM"),
+    RingCard("salasar", "Salasar Balaji", "SALASAR", R.drawable.temple_salasar, liveUrl = "https://www.youtube.com/embed/QWVlSo719SE"),
+    RingCard("ambaji", "Ambaji", "AMBAJI", R.drawable.temple_ambaji, liveUrl = "https://www.youtube.com/embed/GQJytXfwUj0"),
+    RingCard("vitthal", "Vitthal", "PANDHARPUR", R.drawable.temple_vitthal, liveUrl = "https://www.youtube.com/embed/k5T1w4Nd-e8"),
+    RingCard("pashupatinath", "Pashupatinath", "KATHMANDU", R.drawable.temple_pashupatinath, liveUrl = "https://www.youtube.com/embed/eKc3whu62Hs"),
+    RingCard("ashapura", "Ashapura Mata", "LAKHPAT", R.drawable.temple_ashapura, liveUrl = "https://www.youtube.com/embed/SEQ3p6hELo8"),
+    RingCard("sarangpur", "Kashtbhanjan Dev", "SARANGPUR", R.drawable.temple_sarangpur, liveUrl = "https://www.youtube.com/embed/KomUNKwJu6c"),
+    RingCard("mohankheda", "Mohankheda", "DHAR", R.drawable.temple_mohankheda, liveUrl = "https://www.youtube.com/embed/gMln5rnVe6w"),
+    RingCard("narnarayan-bhuj", "NarNarayan Dev", "BHUJ", R.drawable.temple_narnarayan_bhuj, liveUrl = "https://www.youtube.com/embed/oJ8nu5DDRoc"),
+    RingCard("narnarayan-kalupur", "NarNarayan Kalupur", "AHMEDABAD", R.drawable.temple_narnarayan_kalupur, liveUrl = "https://www.youtube.com/embed/5ppU7BqHdvs"),
+    RingCard("gopinathji", "Gopinathji", "GADHADA", R.drawable.temple_gopinathji, liveUrl = "https://www.youtube.com/embed/xWi4BUuDb7k"),
+    RingCard("ranchhodraiji", "Ranchhodraiji", "DAKOR", R.drawable.temple_ranchhodraiji, liveUrl = "https://www.youtube.com/embed/sylr5qU9uoU"),
+    RingCard("laxmi-narayan", "Laxmi Narayan", "DARSHAN", R.drawable.temple_laxmi_narayan, liveUrl = "https://www.youtube.com/embed/IIuk2Y9dqHc"),
+    RingCard("radha-govinda", "Radha Govinda", "HYDERABAD", R.drawable.temple_radha_govinda, liveUrl = "https://www.youtube.com/embed/TP7KeclRHcc"),
+    RingCard("mahalaxmi", "Shri Mahalaxmi", "DARSHAN", R.drawable.temple_mahalaxmi, liveUrl = "https://www.youtube.com/embed/DHRoHpI_rcI"),
+)
+
+/** Pure catalog rules, kept apart from Compose state so they can be unit tested. */
+object CatalogRules {
+    /** The cron checks every 10 minutes; a "live" older than this is no longer a claim we repeat. */
+    const val LiveFreshMs = 30 * 60_000L
+
+    fun liveState(live: Boolean, checkedAtMs: Long?, nowMs: Long): LiveState = when {
+        !live -> LiveState.NotLive
+        // Staff set the flag by hand for mandirs without a checked feed.
+        checkedAtMs == null -> LiveState.Live
+        nowMs - checkedAtMs <= LiveFreshMs -> LiveState.Live
+        else -> LiveState.Unknown
+    }
+
+    /**
+     * The server's list wins: its order, its streams (a blank stream means no stream), and only
+     * what it publishes. Bundled rows only lend their licensed card photo and a state name.
+     */
+    fun merge(bundled: List<RingCard>, remote: List<RingCard>): List<RingCard> {
+        val local = bundled.associateBy { it.mandirId }
+        return remote.filter { !it.mandirId.isNullOrBlank() }.distinctBy { it.mandirId }.map { row ->
+            val known = local[row.mandirId]
+            row.copy(
+                title = row.title.ifBlank { known?.title.orEmpty() },
+                place = row.place.ifBlank { known?.place.orEmpty() },
+                photo = row.photo ?: known?.photo,
+                state = row.state.ifBlank { known?.region ?: KnownStates[row.mandirId].orEmpty() },
+            )
+        }
+    }
+
+    fun states(mandirs: List<RingCard>): List<RingCard> = mandirs
+        .groupBy { it.region }
+        .entries
+        .sortedBy { it.key.lowercase() }
+        .map { (region, rows) ->
+            RingCard(
+                mandirId = null,
+                title = region,
+                place = if (rows.size == 1) "1 MANDIR" else "${rows.size} MANDIRS",
+                photo = StatePhotos[region] ?: rows.firstNotNullOfOrNull { it.photo },
+                state = region,
+                live = if (rows.any { it.live == LiveState.Live }) LiveState.Live else LiveState.Unknown,
+            )
+        }
+
+    fun inState(mandirs: List<RingCard>, state: String?): List<RingCard> = mandirs
+        .filter { it.region.equals(state, ignoreCase = true) }
+        .sortedBy { it.title.lowercase() }
+
+    /** Jyotirlinga streams first, since the sanctum's murti is a Shiva lingam. Live beats not live. */
+    private val ShivaFirst = listOf("kashi", "somnath", "mahakal")
+
+    fun defaultDarshan(choices: List<RingCard>): RingCard? {
+        val shiva = choices.filter { it.mandirId in ShivaFirst }.sortedBy { ShivaFirst.indexOf(it.mandirId) }
+        return shiva.firstOrNull { it.live == LiveState.Live }
+            ?: shiva.firstOrNull()
+            ?: choices.firstOrNull { it.live == LiveState.Live }
+            ?: choices.firstOrNull()
+    }
+}
+
 object Ring {
-    var stage by mutableStateOf(Stage.Splash)
+    var nav by mutableStateOf(NavState())
         private set
+
+    val stage: Stage get() = nav.stage
+    val index: Int get() = nav.index
+    val selectedId: String? get() = nav.selectedId
+    val stateName: String? get() = nav.stateName
+    val showsCards: Boolean get() = nav.showsCards
+
+    val stream: StreamSource? get() = (nav.overlay as? Overlay.Stream)?.source
+    val isWatching: Boolean get() = nav.overlay is Overlay.Stream
+    val leaving: Boolean get() = (nav.overlay as? Overlay.Stream)?.leaving == true
+    val sphere: Overlay.Sphere? get() = nav.overlay as? Overlay.Sphere
+    val inSphere: Boolean get() = nav.overlay is Overlay.Sphere
 
     var flame by mutableFloatStateOf(0.04f)
         private set
@@ -127,387 +250,223 @@ object Ring {
     var diyaLit by mutableStateOf(false)
         private set
 
+    var greeting by mutableIntStateOf(0)
+        private set
+
+    /** When the opening first reached the member's eyes, in elapsedRealtime. 0 until then. */
+    var splashShownAtMs by mutableLongStateOf(0L)
+        private set
+
+    val splashShown: Boolean get() = splashShownAtMs != 0L
+
+    var usePassthrough by mutableStateOf(false)
+        private set
+
+    /** Bumped when the floor was recentred, so head-anchored panels re-anchor. */
+    var recenters by mutableIntStateOf(0)
+        private set
+
     fun publishFlame(value: Float) {
         flame = value.coerceIn(0f, 1f)
     }
 
     fun markDiyaLit() {
+        if (diyaLit) return
         diyaLit = true
+        SanctumSound.welcome()
     }
-
-    var greeting by mutableIntStateOf(0)
-        private set
-
-    var splashShown by mutableStateOf(false)
-        private set
 
     fun markSplashShown() {
-        if (stage == Stage.Splash) splashShown = true
+        if (stage == Stage.Splash && splashShownAtMs == 0L) splashShownAtMs = SystemClock.elapsedRealtime()
     }
-
-    var usePassthrough by mutableStateOf(false)
-        private set
 
     fun setPassthrough(enabled: Boolean) {
         usePassthrough = enabled
     }
 
-    fun greetAgain() {
-        if (inSphere || isWatching || handedOffToYoutube) return
-        if (Mandir.inside) Mandir.leave()
-        stage = Stage.Splash
-        index = 0
-        selectedId = null
-        stateName = null
-        flame = 0.04f
-        diyaLit = false
-        splashShown = false
-        greeting++
+    fun recentered() {
+        recenters++
     }
 
-    private val bundled: List<RingCard> = listOf(
-        RingCard(
-            R.id.ring_tirupati,
-            "tirupati",
-            "Sri Venkateswara",
-            "TIRUPATI",
-            R.drawable.temple_tirupati,
-            liveUrl = "https://www.youtube.com/embed/live_stream?channel=UCTboTRX74UydvU_cBdm_cCQ",
-        ),
-        RingCard(
-            R.id.ring_kashi,
-            "kashi",
-            "Kashi Vishwanath",
-            "KASHI",
-            R.drawable.temple_kashi,
-            liveUrl = "https://www.youtube.com/embed/J0nRdUOQps8",
-        ),
-        RingCard(
-            R.id.ring_shirdi,
-            "shirdi",
-            "Sai Baba",
-            "SHIRDI",
-            R.drawable.temple_shirdi,
-            liveUrl = "https://www.youtube.com/embed/6Uf3aMujHa8",
-        ),
-        RingCard(R.id.ring_kedarnath, "kedarnath", "Kedarnath", "KEDARNATH", R.drawable.temple_kedarnath),
-        RingCard(
-            R.id.ring_somnath,
-            "somnath",
-            "Somnath",
-            "SOMNATH",
-            R.drawable.temple_somnath,
-            liveUrl = "https://www.youtube.com/embed/J4z7CIrvsuw",
-        ),
-        RingCard(R.id.ring_vaishno_devi, "vaishno-devi", "Vaishno Devi", "KATRA", R.drawable.temple_vaishno_devi),
-        RingCard(R.id.ring_meenakshi, "meenakshi", "Meenakshi Amman", "MADURAI", R.drawable.temple_meenakshi),
-        RingCard(
-            R.id.ring_jagannath,
-            "jagannath",
-            "Jagannath Temple",
-            "PURI",
-            R.drawable.temple_jagannath,
-            liveUrl = "https://www.youtube.com/embed/oX0HEkwdWqo",
-        ),
-        RingCard(
-            R.id.ring_dwarkadhish,
-            "dwarkadhish",
-            "Dwarkadhish",
-            "DWARKA",
-            R.drawable.temple_dwarkadhish,
-            liveUrl = "https://www.youtube.com/embed/hT6FO4Qgz0c",
-        ),
-        RingCard(R.id.ring_badrinath, "badrinath", "Badrinath", "BADRINATH", R.drawable.temple_badrinath),
-        RingCard(R.id.ring_golden_temple, "golden-temple", "Sri Harmandir Sahib", "AMRITSAR", R.drawable.temple_harmandir),
-        RingCard(
-            R.id.ring_siddhivinayak,
-            "siddhivinayak",
-            "Siddhivinayak",
-            "MUMBAI",
-            R.drawable.temple_siddhivinayak,
-            liveUrl = "https://www.youtube.com/embed/1vGVGya72bQ",
-        ),
-        RingCard(R.id.ring_iskcon, "iskcon-bengaluru", "ISKCON Bengaluru", "BENGALURU", R.drawable.temple_iskcon),
-        RingCard(R.id.ring_mahakal, "mahakal", "Mahakaleshwar", "UJJAIN", R.drawable.temple_mahakal, liveUrl = "https://www.youtube.com/embed/vOIx1wXmc7I"),
-        RingCard(R.id.ring_ram_lalla, "ram-lalla", "Ram Lalla", "AYODHYA", R.drawable.temple_ram_lalla, liveUrl = "https://www.youtube.com/embed/xThGBtk3E_A"),
-        RingCard(R.id.ring_khatu_shyam, "khatu-shyam", "Khatu Shyam", "SIKAR", R.drawable.temple_khatu_shyam, liveUrl = "https://www.youtube.com/embed/dke2IQtIfUM"),
-        RingCard(R.id.ring_salasar, "salasar", "Salasar Balaji", "SALASAR", R.drawable.temple_salasar, liveUrl = "https://www.youtube.com/embed/QWVlSo719SE"),
-        RingCard(R.id.ring_ambaji, "ambaji", "Ambaji", "AMBAJI", R.drawable.temple_ambaji, liveUrl = "https://www.youtube.com/embed/GQJytXfwUj0"),
-        RingCard(R.id.ring_vitthal, "vitthal", "Vitthal", "PANDHARPUR", R.drawable.temple_vitthal, liveUrl = "https://www.youtube.com/embed/k5T1w4Nd-e8"),
-        RingCard(R.id.ring_pashupatinath, "pashupatinath", "Pashupatinath", "KATHMANDU", R.drawable.temple_pashupatinath, liveUrl = "https://www.youtube.com/embed/eKc3whu62Hs"),
-        RingCard(R.id.ring_ashapura, "ashapura", "Ashapura Mata", "LAKHPAT", R.drawable.temple_ashapura, liveUrl = "https://www.youtube.com/embed/SEQ3p6hELo8"),
-        RingCard(R.id.ring_sarangpur, "sarangpur", "Kashtbhanjan Dev", "SARANGPUR", R.drawable.temple_sarangpur, liveUrl = "https://www.youtube.com/embed/KomUNKwJu6c"),
-        RingCard(R.id.ring_mohankheda, "mohankheda", "Mohankheda", "DHAR", R.drawable.temple_mohankheda, liveUrl = "https://www.youtube.com/embed/gMln5rnVe6w"),
-        RingCard(R.id.ring_narnarayan_bhuj, "narnarayan-bhuj", "NarNarayan Dev", "BHUJ", R.drawable.temple_narnarayan_bhuj, liveUrl = "https://www.youtube.com/embed/oJ8nu5DDRoc"),
-        RingCard(R.id.ring_narnarayan_kalupur, "narnarayan-kalupur", "NarNarayan Kalupur", "AHMEDABAD", R.drawable.temple_narnarayan_kalupur, liveUrl = "https://www.youtube.com/embed/5ppU7BqHdvs"),
-        RingCard(R.id.ring_gopinathji, "gopinathji", "Gopinathji", "GADHADA", R.drawable.temple_gopinathji, liveUrl = "https://www.youtube.com/embed/xWi4BUuDb7k"),
-        RingCard(R.id.ring_ranchhodraiji, "ranchhodraiji", "Ranchhodraiji", "DAKOR", R.drawable.temple_ranchhodraiji, liveUrl = "https://www.youtube.com/embed/sylr5qU9uoU"),
-        RingCard(R.id.ring_laxmi_narayan, "laxmi-narayan", "Laxmi Narayan", "DARSHAN", R.drawable.temple_laxmi_narayan, liveUrl = "https://www.youtube.com/embed/IIuk2Y9dqHc"),
-        RingCard(R.id.ring_radha_govinda, "radha-govinda", "Radha Govinda", "HYDERABAD", R.drawable.temple_radha_govinda, liveUrl = "https://www.youtube.com/embed/TP7KeclRHcc"),
-        RingCard(R.id.ring_mahalaxmi, "mahalaxmi", "Shri Mahalaxmi", "DARSHAN", R.drawable.temple_mahalaxmi, liveUrl = "https://www.youtube.com/embed/DHRoHpI_rcI"),
-    )
+    // --- Catalog ---
 
-    var mandirs by mutableStateOf(bundled)
+    var mandirs by mutableStateOf(BundledMandirs)
         private set
 
-    var stateName by mutableStateOf<String?>(null)
+    /** True once the server's catalog replaced the bundled one. */
+    var fromServer by mutableStateOf(false)
         private set
 
-    val states: List<RingCard>
-        get() = mandirs
-            .groupBy { it.region }
-            .entries
-            .sortedBy { it.key.lowercase() }
-            .map { (region, rows) ->
-                RingCard(
-                    panelId = 0,
-                    mandirId = null,
-                    title = region,
-                    place = if (rows.size == 1) "1 MANDIR" else "${rows.size} MANDIRS",
-                    photo = StatePhotos[region] ?: rows.first().photo,
-                    state = region,
-                )
-            }
+    var states by mutableStateOf(CatalogRules.states(BundledMandirs))
+        private set
+
+    private var inStateKey: Pair<List<RingCard>, String?>? = null
+    private var inStateRows: List<RingCard> = emptyList()
 
     val mandirsInState: List<RingCard>
-        get() = mandirs
-            .filter { it.region.equals(stateName, ignoreCase = true) }
-            .sortedBy { it.title.lowercase() }
+        get() {
+            val key = mandirs to stateName
+            if (inStateKey?.first !== key.first || inStateKey?.second != key.second) {
+                inStateKey = key
+                inStateRows = CatalogRules.inState(mandirs, stateName)
+            }
+            return inStateRows
+        }
 
     fun replaceFromCloud(remote: List<RingCard>) {
-        if (remote.isEmpty()) return
-        val remoteById = remote.associateBy { it.mandirId }
-        val bundledIds = bundled.mapNotNullTo(mutableSetOf()) { it.mandirId }
-        mandirs = bundled.map { local ->
-            val row = remoteById[local.mandirId] ?: return@map local
-            local.copy(
-                title = row.title.ifBlank { local.title },
-                place = row.place.ifBlank { local.place },
-                photo = local.photo ?: row.photo,
-                liveUrl = row.liveUrl.ifBlank { local.liveUrl },
-                state = row.state.ifBlank { local.region },
-            )
-        } + remote.filter { it.mandirId !in bundledIds }.map { row ->
-            row.copy(photo = row.photo ?: R.drawable.temple_kashi)
-        }
+        mandirs = CatalogRules.merge(BundledMandirs, remote)
+        states = CatalogRules.states(mandirs)
+        fromServer = true
         clampIndex()
-    }
-
-    var index by mutableIntStateOf(0)
-        private set
-
-    var selectedId by mutableStateOf<String?>(null)
-        private set
-
-    var watchingUrl by mutableStateOf<String?>(null)
-        private set
-
-    var watchingTitle by mutableStateOf("")
-        private set
-
-    var watchingSpherical by mutableStateOf(false)
-        private set
-
-    var leaving by mutableStateOf(false)
-        private set
-
-    val isWatching: Boolean get() = watchingUrl != null
-
-    var sphereTour by mutableStateOf<HomeChoice?>(null)
-        private set
-
-    var tourEnded by mutableStateOf(false)
-        private set
-
-    val inSphere: Boolean get() = sphereTour != null
-
-    var handedOffToYoutube by mutableStateOf(false)
-        private set
-
-    fun consumeYoutubeHandoff(): Boolean {
-        val away = handedOffToYoutube
-        handedOffToYoutube = false
-        return away
-    }
-
-    fun markTourEnded() {
-        if (inSphere) tourEnded = true
-    }
-
-    fun watchTourAgain() {
-        if (!inSphere) return
-        tourEnded = false
-        SpherePlayer.replay()
-    }
-
-    fun leaveSphere() {
-        if (!inSphere) return
-        SpherePlayer.stop()
-        sphereTour = null
-        tourEnded = false
-        openMenu()
+        Mandir.catalogChanged()
     }
 
     val deckSize: Int
         get() = when (stage) {
-            Stage.Splash, Stage.Pair, Stage.Profile, Stage.Mandir -> 1
+            Stage.Splash, Stage.Pair, Stage.Credits, Stage.Profile, Stage.Mandir -> 1
             Stage.Menu -> MenuChoices.size
             Stage.States -> states.size
             Stage.Live -> mandirsInState.size
             Stage.Tour -> TourChoices.size
         }
 
+    // --- Navigation ---
+
+    /** Every screen change goes through here, so leaving a screen always cleans up after it. */
+    private fun go(next: NavState) {
+        val prev = nav
+        if (prev == next) return
+        nav = next
+        val prevSphere = prev.overlay as? Overlay.Sphere
+        val nextSphere = next.overlay as? Overlay.Sphere
+        if (prevSphere != null && nextSphere?.tour != prevSphere.tour) SpherePlayer.stop()
+        if (prev.stage == Stage.Mandir && next.stage != Stage.Mandir) Mandir.exit()
+        if (next.stage == Stage.Mandir && prev.stage != Stage.Mandir) Mandir.enter()
+        if (next.stage == Stage.Splash && prev.stage != Stage.Splash) {
+            flame = 0.04f
+            diyaLit = false
+            splashShownAtMs = 0L
+            greeting++
+        }
+        if (prev.stage == Stage.Splash && next.stage != Stage.Splash) {
+            splashShownAtMs = 0L
+            if (flame < 0.85f) flame = 1f
+        }
+    }
+
+    fun greetAgain() = go(Nav.greet(nav))
+
+    /** Past the greeting only once this headset is paired with a member. */
+    fun openMenu() = go(Nav.menu(nav, QuestAccount.isPaired))
+
+    fun endSplash() {
+        if (stage == Stage.Splash) openMenu()
+    }
+
+    fun back() {
+        val parent = if (stage == Stage.Live) states.indexOfFirst { it.state == stateName }.coerceAtLeast(0) else 0
+        go(Nav.back(nav, QuestAccount.isPaired, parent))
+    }
+
+    fun openProfile() = go(Nav.profile(nav, QuestAccount.isPaired))
+
+    fun openCredits() = go(Nav.credits(nav))
+
+    /** The link is gone: stop whatever is playing and wait for a new pairing. */
+    fun requirePairing() = go(Nav.requirePairing(nav))
+
+    fun leaveStream() = go(Nav.back(nav, QuestAccount.isPaired))
+
+    fun finishLeave() = go(Nav.finishLeave(nav))
+
+    fun consumeYoutubeHandoff(): Boolean {
+        val away = nav.overlay == Overlay.Handoff
+        go(Nav.returnFromHandoff(nav))
+        return away
+    }
+
+    fun sphereStatus(status: SphereStatus) = go(Nav.sphereStatus(nav, status))
+
+    fun watchTourAgain() {
+        val tour = sphere ?: return
+        go(Nav.sphereStatus(nav, SphereStatus.Loading))
+        if (tour.status == SphereStatus.Failed) SpherePlayer.play(tour.tour) else SpherePlayer.replay()
+    }
+
+    /** "Back to menu" from the end of a tour. */
+    fun leaveSphere() {
+        if (!inSphere) return
+        openMenu()
+    }
+
+    fun openMandir(explore: Boolean = false) {
+        QuestCatalog.refresh()
+        go(Nav.mandir(nav, QuestAccount.isPaired))
+        if (explore && stage == Stage.Mandir) Mandir.beginVisit()
+    }
+
     fun scroll(delta: Int) {
         val size = deckSize
-        if (delta == 0 || isWatching || !showsCards || size == 0) return
-        index = (index + delta).floorMod(size)
-        selectedId = null
+        if (delta == 0 || !showsCards || nav.overlay != Overlay.None || size == 0) return
+        nav = nav.copy(index = (index + delta).floorMod(size), selectedId = null)
     }
 
     fun lookAt(cardIndex: Int) {
-        if (isWatching || !showsCards || deckSize == 0) return
-        val wrapped = cardIndex.floorMod(deckSize)
+        val size = deckSize
+        if (!showsCards || nav.overlay != Overlay.None || size == 0) return
+        val wrapped = cardIndex.floorMod(size)
         if (index == wrapped) return
-        index = wrapped
-        selectedId = null
+        nav = nav.copy(index = wrapped, selectedId = null)
     }
 
+    /** A click on a card. Menu and tour cards open at once; mandir cards centre first. */
     fun focus(cardIndex: Int) {
-        if (isWatching || !showsCards || deckSize == 0) return
-        val wrapped = cardIndex.floorMod(deckSize)
-        if (stage == Stage.Splash || stage == Stage.Menu || stage == Stage.Tour) {
-            index = wrapped
-            selectCentered()
-            return
-        }
-        if (wrapped == index) {
+        val size = deckSize
+        if (!showsCards || nav.overlay != Overlay.None || size == 0) return
+        val wrapped = cardIndex.floorMod(size)
+        if (stage == Stage.Menu || stage == Stage.Tour || wrapped == index) {
+            nav = nav.copy(index = wrapped)
             selectCentered()
         } else {
-            index = wrapped
-            selectedId = null
+            nav = nav.copy(index = wrapped, selectedId = null)
         }
     }
 
-    fun selectCentered() {
-        if (isWatching) return
+    private fun selectCentered() {
         when (stage) {
-            Stage.Splash -> openMenu()
-            Stage.Pair, Stage.Profile, Stage.Mandir -> Unit
+            Stage.Splash, Stage.Pair, Stage.Credits, Stage.Profile, Stage.Mandir -> Unit
             Stage.Menu -> when (index) {
-                0 -> openStates()
-                1 -> openTour()
+                0 -> {
+                    QuestCatalog.refresh()
+                    go(Nav.openStates(nav))
+                }
+                1 -> go(Nav.openTour(nav))
                 else -> openMandir()
             }
             Stage.States -> {
                 val card = states.getOrNull(index) ?: return
-                stateName = card.state
-                stage = Stage.Live
-                index = 0
-                selectedId = null
+                go(Nav.openState(nav, card.state))
             }
             Stage.Live -> {
                 val card = mandirsInState.getOrNull(index) ?: return
-                selectedId = card.mandirId
-                watch(card.liveUrl, card.title, spherical = false)
+                nav = nav.copy(selectedId = card.mandirId)
+                // A mandir without a stream says so on its card; there is nothing to open.
+                if (!card.hasStream) return
+                go(Nav.watch(nav, StreamSource(card.liveUrl, card.title, spherical = false, live = card.live)))
             }
             Stage.Tour -> {
-                val tour = TourChoices[index]
+                val tour = TourChoices.getOrNull(index) ?: return
                 when {
-                    SpherePlayer.play(tour) -> {
-                        sphereTour = tour
-                        tourEnded = false
+                    SpherePlayer.fileFor(tour) != null -> {
+                        go(Nav.sphere(nav, tour))
+                        SphereStage.ensure()
+                        SpherePlayer.play(tour)
                     }
-                    Tour360.open(tour.url) -> handedOffToYoutube = true
-                    else -> watch(tour.url, tour.title, spherical = true)
+                    Tour360.open(tour.url) -> go(Nav.handoff(nav))
+                    else -> go(Nav.watch(nav, StreamSource(tour.url, tour.title, spherical = true, live = LiveState.NotLive)))
                 }
             }
         }
-    }
-
-    /** Past the greeting only once this headset is paired with a member. */
-    fun openMenu() {
-        splashShown = false
-        if (!QuestAccount.isPaired) {
-            stage = Stage.Pair
-            index = 0
-            selectedId = null
-            if (flame < 0.85f) flame = 1f
-            return
-        }
-        stage = Stage.Menu
-        index = 0
-        selectedId = null
-        stateName = null
-        if (flame < 0.85f) flame = 1f
-    }
-
-    fun back() {
-        if (inSphere) {
-            leaveSphere()
-            return
-        }
-        if (isWatching) {
-            leaveStream()
-            return
-        }
-        when (stage) {
-            Stage.Splash, Stage.Pair, Stage.Menu -> Unit
-            Stage.States, Stage.Tour, Stage.Profile, Stage.Mandir -> {
-                if (stage == Stage.Mandir) Mandir.leave()
-                openMenu()
-            }
-            Stage.Live -> {
-                val name = stateName
-                stage = Stage.States
-                index = states.indexOfFirst { it.state == name }.coerceAtLeast(0)
-                selectedId = null
-            }
-        }
-    }
-
-    val showsCards: Boolean
-        get() = stage == Stage.Menu || stage == Stage.States || stage == Stage.Live || stage == Stage.Tour
-
-    fun openProfile() {
-        if (!QuestAccount.isPaired || isWatching || inSphere || Mandir.inside) return
-        stage = Stage.Profile
-        index = 0
-        selectedId = null
-    }
-
-    /** The link is gone: stop whatever is playing and wait for a new pairing. */
-    fun requirePairing() {
-        if (inSphere) {
-            SpherePlayer.stop()
-            sphereTour = null
-            tourEnded = false
-        }
-        if (isWatching) finishLeave()
-        if (Mandir.inside) Mandir.leave()
-        if (stage == Stage.Splash) return
-        stage = Stage.Pair
-        index = 0
-        selectedId = null
-    }
-
-    fun leaveStream() {
-        if (!isWatching || leaving) return
-        leaving = true
-    }
-
-    fun finishLeave() {
-        watchingUrl = null
-        watchingTitle = ""
-        watchingSpherical = false
-        leaving = false
-    }
-
-    private fun openStates() {
-        QuestCatalog.refresh()
-        stage = Stage.States
-        index = 0
-        selectedId = null
-        stateName = null
     }
 
     private fun clampIndex() {
@@ -517,35 +476,10 @@ object Ring {
             else -> return
         }
         if (size == 0) {
-            if (stage == Stage.Live) {
-                stage = Stage.States
-                index = 0
-            }
+            if (stage == Stage.Live) go(Nav.backToStates(nav, 0))
             return
         }
-        if (index >= size) index = 0
-    }
-
-    private fun openTour() {
-        stage = Stage.Tour
-        index = 0
-        selectedId = null
-    }
-
-    fun openMandir(explore: Boolean = false) {
-        QuestCatalog.refresh()
-        stage = Stage.Mandir
-        index = 0
-        selectedId = null
-        Mandir.enter()
-        if (explore) Mandir.beginVisit()
-        MandirScene.show()
-    }
-
-    private fun watch(url: String, title: String, spherical: Boolean) {
-        watchingUrl = url
-        watchingTitle = title
-        watchingSpherical = spherical
+        if (index >= size) nav = nav.copy(index = 0)
     }
 }
 
@@ -554,4 +488,49 @@ object RingSlots {
     val shown = mutableStateListOf<Int>().apply { repeat(COUNT) { add(-1) } }
 }
 
-private fun Int.floorMod(size: Int): Int = ((this % size) + size) % size
+/** Which cards get one of the sixteen panels. Pure, so the windowing can be tested. */
+object RingWindow {
+    /**
+     * Cards that should be on panels when the member faces [facingDeg] relative to the ring's
+     * anchor. With [count] ≤ [slots] every card is shown.
+     */
+    fun wanted(count: Int, slots: Int, facingDeg: Float): Set<Int> {
+        if (count <= 0) return emptySet()
+        if (count <= slots) return (0 until count).toSet()
+        val spacing = 360f / count
+        val nearest = kotlin.math.round(facingDeg / spacing).toInt()
+        val half = slots / 2
+        return (0 until slots).mapTo(LinkedHashSet()) { (nearest + it - half).floorMod(count) }
+    }
+
+    /**
+     * Keeps cards that stay wanted on the panel they already have, so nothing flickers,
+     * and hands freed panels to newly wanted cards. Returns true when any panel changed.
+     */
+    fun assign(shown: MutableList<Int>, wanted: Set<Int>): Boolean {
+        var changed = false
+        val placed = HashSet<Int>()
+        val free = ArrayList<Int>(shown.size)
+        for (slot in shown.indices) {
+            val card = shown[slot]
+            if (card in wanted && placed.add(card)) continue
+            free.add(slot)
+        }
+        for (card in wanted) {
+            if (card in placed) continue
+            val slot = if (free.isEmpty()) break else free.removeAt(0)
+            if (shown[slot] != card) {
+                shown[slot] = card
+                changed = true
+            }
+            placed.add(card)
+        }
+        for (slot in free) {
+            if (shown[slot] != -1) {
+                shown[slot] = -1
+                changed = true
+            }
+        }
+        return changed
+    }
+}

@@ -1,16 +1,14 @@
-import { redirect } from "next/navigation";
 import { SendNotice } from "@/components/send-notice";
-import { DeskShell, GateMessage } from "@/components/desk-shell";
-import { Card, PageHeader } from "@/components/ui";
-import { isMissingRelation, requireDesk } from "@/lib/auth";
+import { Denied } from "@/components/denied";
+import { DeskShell } from "@/components/desk-shell";
+import { Alert, Card, PageHeader } from "@/components/ui";
+import { requireStaff } from "@/lib/auth";
 import type { NoticeRow } from "@/lib/types";
 
 export default async function NotificationsPage() {
-  const desk = await requireDesk();
-  if (desk.needsSetup) redirect("/setup");
-  if (!desk.staff) {
-    return <GateMessage title="No access." body="This admin already has an owner." />;
-  }
+  const gate = await requireStaff("notify");
+  if (!gate.ok) return <Denied reason={gate.reason} desk={gate.desk} />;
+  const desk = gate.desk;
 
   const { data, error } = await desk.supabase
     .from("notifications")
@@ -18,23 +16,12 @@ export default async function NotificationsPage() {
     .order("created_at", { ascending: false })
     .limit(40);
 
-  if (isMissingRelation(error)) {
-    return (
-      <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
-        <PageHeader title="Notifications" description="A notice from the desk, on every signed-in phone." />
-        <p className="rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-500">
-          Apply <code className="rounded bg-zinc-100 px-1">supabase/migrations/20260929120000_notifications.sql</code> in
-          the HINVR SQL editor, then refresh.
-        </p>
-      </DeskShell>
-    );
-  }
-
   const notices = (data ?? []) as NoticeRow[];
 
   return (
     <DeskShell email={desk.email || desk.staff.email} role={desk.staff.role}>
       <PageHeader title="Notifications" description="A notice from the desk, on every signed-in phone." />
+      {error ? <Alert>Couldn&apos;t load sent notices: {error.message}</Alert> : null}
       <Card className="mb-6 p-4">
         <SendNotice />
       </Card>

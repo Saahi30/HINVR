@@ -1,79 +1,55 @@
 package com.hinvr.quest
 
 import android.content.Context
-import android.media.MediaPlayer
 
+enum class Ambience(val volume: Float) {
+    Off(0f),
+    Hall(0.10f),
+    Mandir(0.16f),
+}
+
+/**
+ * The aarti chant under the hall and the sanctum, and the bell that greets the member.
+ * Both are credited CC0 recordings from assets/mandir/audio (see ASSET_CREDITS.md).
+ */
 object SanctumSound {
     private var appContext: Context? = null
-    private var bell: MediaPlayer? = null
-    private var loop: MediaPlayer? = null
-    private var bellStarted = false
-    private var loopMissing = false
-    private var playing = false
-    private var held = false
+    private var chant: LoopPlayer? = null
+    private var mode = Ambience.Off
 
     fun attach(context: Context) {
         appContext = context.applicationContext
     }
 
-    fun onFrame(stage: Stage, watching: Boolean, diyaLit: Boolean) {
-        val context = appContext ?: return
-        if (!diyaLit) bellStarted = false
-        if (diyaLit && !bellStarted) {
-            bellStarted = true
-            runCatching { bell?.release() }
-            bell = create(context, "temple_bell", looping = false)
-            bell?.start()
-        }
-        val bellBusy = runCatching { bell?.isPlaying == true }.getOrDefault(false)
-        val wantLoop = stage != Stage.Splash && !watching && !held && !bellBusy
-        if (!wantLoop) {
-            if (playing) {
-                runCatching { loop?.pause() }
-                playing = false
-            }
+    /** Cheap to call every frame: it only acts when the wanted ambience changes. */
+    fun sync(wanted: Ambience) {
+        if (wanted == mode) return
+        mode = wanted
+        if (wanted == Ambience.Off) {
+            chant?.stop()
             return
         }
-        if (loop == null && !loopMissing) {
-            loop = create(context, "sanctum_loop", looping = true)
-            if (loop == null) loopMissing = true
-        }
-        if (loop != null && !playing) {
-            runCatching { loop?.start() }
-            playing = true
-        }
+        val context = appContext ?: return
+        val loop = chant ?: LoopPlayer(context.assets, "mandir/audio/aarti_chant.wav", crossfadeMs = 5_000) {
+            mode.volume * AudioMix.ambienceGain
+        }.also { chant = it }
+        if (!AudioMix.held) loop.play()
     }
 
-    fun hold() {
-        held = true
-        if (playing) {
-            runCatching { loop?.pause() }
-            playing = false
-        }
+    /** The diya catches at the end of the greeting. */
+    fun welcome() {
+        MandirSound.flat("aarti_bell", 0.7f)
     }
 
-    fun releaseHold() {
-        held = false
+    fun onHold(held: Boolean) {
+        val loop = chant ?: return
+        if (held) loop.pause() else if (mode != Ambience.Off) loop.play()
     }
 
     fun release() {
-        runCatching { bell?.release() }
-        runCatching { loop?.release() }
-        bell = null
-        loop = null
-        playing = false
+        chant?.release()
+        chant = null
+        mode = Ambience.Off
         appContext = null
-    }
-
-    private fun create(context: Context, name: String, looping: Boolean): MediaPlayer? {
-        val id = context.resources.getIdentifier(name, "raw", context.packageName)
-        if (id == 0) return null
-        return runCatching {
-            MediaPlayer.create(context, id)?.apply {
-                isLooping = looping
-                val level = if (looping) 0.22f else 0.85f
-                setVolume(level, level)
-            }
-        }.getOrNull()
     }
 }

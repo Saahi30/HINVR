@@ -21,11 +21,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
 
-private val DiyaAmber = Color(0xFFE8A317)
-private val FlameCore = Color(0xFFFFF1C1)
-private val Saffron = Color(0xFFC45C26)
-private val AntiqueGold = Color(0xFFC9A227)
-
 @Composable
 fun DiyaFlame(
     lit: Float,
@@ -90,7 +85,7 @@ fun DiyaFlame(
             drawPath(
                 path = flame,
                 brush = Brush.verticalGradient(
-                    colors = listOf(FlameCore, DiyaAmber, Saffron.copy(alpha = 0.85f)),
+                    colors = listOf(FlameCore, DiyaAmber, Ember.copy(alpha = 0.85f)),
                     startY = h * 0.48f - flameH,
                     endY = h * 0.50f,
                 ),
@@ -125,7 +120,7 @@ fun DiyaFlame(
         drawPath(
             bowl,
             Brush.verticalGradient(
-                colors = listOf(AntiqueGold.copy(alpha = 0.95f), Color(0xFF6F5814)),
+                colors = listOf(Gold.copy(alpha = 0.95f), Color(0xFF6F5814)),
                 startY = bowlTop,
                 endY = h * 0.82f,
             ),

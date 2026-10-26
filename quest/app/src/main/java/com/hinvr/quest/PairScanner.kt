@@ -33,7 +33,8 @@ object PairScanner {
 
     private val permissions = arrayOf(Manifest.permission.CAMERA, HeadsetCamera)
     private val main = Handler(Looper.getMainLooper())
-    private var activity: Activity? = null
+    private var activityRef = java.lang.ref.WeakReference<Activity>(null)
+    private val activity: Activity? get() = activityRef.get()
     private var resumed = false
     private var asked = false
     private var generation = 0
@@ -43,6 +44,7 @@ object PairScanner {
     private var session: CameraCaptureSession? = null
     private var open = false
     private var nextDecodeAt = 0L
+    private var retryAtMs = 0L
     private var luma = ByteArray(0)
     private val qr = QRCodeReader()
     private val hints = mapOf(
@@ -51,11 +53,12 @@ object PairScanner {
     )
 
     fun attach(activity: Activity) {
-        this.activity = activity
+        activityRef = java.lang.ref.WeakReference(activity)
     }
 
     fun onResume() {
         resumed = true
+        permitted = null
     }
 
     fun onPause() {
@@ -65,15 +68,17 @@ object PairScanner {
 
     fun detach() {
         close()
-        activity = null
+        activityRef.clear()
     }
 
     /** Ask again after the member turned the camera down. */
     fun askAgain() {
         asked = false
+        permitted = null
     }
 
     fun onPermissionResult() {
+        permitted = null
         QuestAccount.cameraBlocked(!granted())
     }
 
@@ -84,6 +89,7 @@ object PairScanner {
             if (open) close()
             return
         }
+        if (open) return
         if (!granted()) {
             if (!asked) {
                 asked = true
@@ -93,12 +99,21 @@ object PairScanner {
             return
         }
         QuestAccount.cameraBlocked(false)
-        if (!open) start(host)
+        // A camera that wouldn't open is retried every couple of seconds, not every frame.
+        val now = SystemClock.elapsedRealtime()
+        if (now < retryAtMs) return
+        retryAtMs = now + 2_000L
+        start(host)
     }
 
+    /** Asked of the system once per resume or permission answer, not every frame. */
+    private var permitted: Boolean? = null
+
     private fun granted(): Boolean {
+        permitted?.let { return it }
         val host = activity ?: return false
         return permissions.all { host.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+            .also { permitted = it }
     }
 
     private fun start(host: Activity) {

@@ -1,13 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { json } from "../_shared/http.ts";
+import { hasRole, staffRole } from "../_shared/auth.ts";
+import { json, readJson, withCors } from "../_shared/http.ts";
 import {
   embedUrl,
   fetchVideos,
+  QuotaMeter,
   quotaDay,
-  quotaSnap,
   recentUploads,
-  resetQuotaRun,
   resolveHandle,
   searchLive,
   YOUTUBE_DAILY_LIMIT,
@@ -48,21 +48,31 @@ async function loadQuota(admin: SupabaseClient) {
   return { day, used, runs, prev };
 }
 
+/** Adds this run's units in one atomic statement, so overlapping runs cannot overwrite each other. */
 async function saveQuota(
   admin: SupabaseClient,
   started: { day: string; used: number; runs: number },
-  extra: { live?: number; replaced?: number } = {},
+  meter: QuotaMeter,
+  extra: { live?: number; replaced?: number; review?: number } = {},
 ) {
-  const run = quotaSnap();
-  const value: QuotaRecord = {
-    day: started.day,
-    used: started.used + run.units,
-    limit: YOUTUBE_DAILY_LIMIT,
-    runs: started.runs + 1,
-    last: { at: new Date().toISOString(), ...run, ...extra },
-  };
-  await admin.from("app_settings").upsert({ key: "youtube_quota", value });
-  return value;
+  const last = { at: new Date().toISOString(), ...meter.toJSON(), ...extra };
+  const { data, error } = await admin.rpc("add_youtube_quota", {
+    p_day: started.day,
+    p_units: meter.units,
+    p_limit: YOUTUBE_DAILY_LIMIT,
+    p_last: last,
+  });
+  if (error || !data) {
+    console.error("add_youtube_quota", error?.message);
+    return {
+      day: started.day,
+      used: started.used + meter.units,
+      limit: YOUTUBE_DAILY_LIMIT,
+      runs: started.runs + 1,
+      last,
+    } as QuotaRecord;
+  }
+  return data as QuotaRecord;
 }
 
 const SEARCH_COOLDOWN_MS = 3 * 60 * 60 * 1000;
@@ -75,21 +85,24 @@ function sameSecret(a: string, b: string) {
   return diff === 0;
 }
 
-async function allowed(req: Request, url: string, anonKey: string, admin: SupabaseClient) {
+type Trigger = { kind: "cron" } | { kind: "staff"; userId: string };
+
+/** The schedule proves itself with LIVE_CHECK_SECRET; staff with a catalog role may run it by hand. */
+async function allowed(req: Request, url: string, anonKey: string, admin: SupabaseClient): Promise<Trigger | null> {
   const secret = Deno.env.get("LIVE_CHECK_SECRET") ?? "";
-  if (sameSecret(req.headers.get("x-live-check-secret") ?? "", secret)) return true;
+  if (sameSecret(req.headers.get("x-live-check-secret") ?? "", secret)) return { kind: "cron" };
 
   const authHeader = req.headers.get("Authorization") ?? "";
-  if (!anonKey || !authHeader.toLowerCase().startsWith("bearer ")) return false;
+  if (!anonKey || !authHeader.toLowerCase().startsWith("bearer ")) return null;
   const userClient = createClient(url, anonKey, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data } = await userClient.auth.getUser();
   const userId = data.user?.id;
-  if (!userId) return false;
-  const { data: staff } = await admin.from("staff").select("user_id").eq("user_id", userId).maybeSingle();
-  return Boolean(staff);
+  if (!userId) return null;
+  const role = await staffRole(admin, userId);
+  return hasRole(role, ["owner", "admin", "editor"]) ? { kind: "staff", userId } : null;
 }
 
 const isPlayable = (video: VideoState | undefined) => Boolean(video?.live && video.embeddable);
@@ -109,16 +122,18 @@ function titleFits(title: string, name: string, city: string, extra: string) {
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length >= 4);
-  return words.length === 0 || words.some((word) => blob.includes(word));
+  // No usable words in the name means no way to tell the stream is this mandir's.
+  return words.length > 0 && words.some((word) => blob.includes(word));
 }
 
-async function pullVideos(ids: string[], videos: Map<string, VideoState>, key: string) {
+async function pullVideos(meter: QuotaMeter, ids: string[], videos: Map<string, VideoState>, key: string) {
   const missing = ids.filter((id) => id && !videos.has(id));
   if (!missing.length) return;
-  for (const [id, video] of await fetchVideos(missing, key)) videos.set(id, video);
+  for (const [id, video] of await fetchVideos(meter, missing, key)) videos.set(id, video);
 }
 
 async function findReplacement(
+  meter: QuotaMeter,
   mandir: MandirRow,
   list: Outcome[],
   videos: Map<string, VideoState>,
@@ -139,12 +154,12 @@ async function findReplacement(
     budget.left -= 1;
     let ids: string[] = [];
     try {
-      ids = await searchLive(query.q, key, query.channelId);
+      ids = await searchLive(meter, query.q, key, query.channelId);
     } catch {
       continue;
     }
     try {
-      await pullVideos(ids, videos, key);
+      await pullVideos(meter, ids, videos, key);
     } catch {
       continue;
     }
@@ -158,7 +173,21 @@ async function findReplacement(
   return { target, video: null as VideoState | null };
 }
 
-Deno.serve(async (req: Request) => {
+/** Channels that may go straight to the app for this mandir: the channel IDs of its official sources. */
+function officialChannels(sources: Source[]) {
+  const byMandir = new Map<string, Set<string>>();
+  for (const source of sources) {
+    if (!source.official || !source.channel_id.startsWith("UC")) continue;
+    const set = byMandir.get(source.mandir_id) ?? new Set<string>();
+    set.add(source.channel_id);
+    byMandir.set(source.mandir_id, set);
+  }
+  return byMandir;
+}
+
+type Review = { video: VideoState; at: string };
+
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
 
   const url = Deno.env.get("SUPABASE_URL") ?? "";
@@ -167,20 +196,26 @@ Deno.serve(async (req: Request) => {
   const youtubeKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
   if (!url || !serviceKey) return json({ error: "Function isn't configured." }, 500);
 
-  let find = false;
-  try {
-    const payload = await req.json();
-    find = payload?.find === true;
-  } catch {
-    find = false;
-  }
+  const payload = await readJson(req);
 
   const admin = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  if (!(await allowed(req, url, anonKey, admin))) return json({ error: "No access." }, 401);
+  const trigger = await allowed(req, url, anonKey, admin);
+  if (!trigger) return json({ error: "No access." }, 401);
   if (!youtubeKey) return json({ error: "Set the YOUTUBE_API_KEY secret first." }, 500);
-  resetQuotaRun();
+
+  // A manual run may search right away (skipping the 3 h wait), but only once per 10 minutes.
+  const find = trigger.kind === "staff" && payload.find === true;
+  if (trigger.kind === "staff") {
+    const { data: claimed, error: claimError } = await admin.rpc("claim_live_check_manual", { p_user_id: trigger.userId });
+    if (claimError) return json({ error: "Couldn't start a check." }, 500);
+    if (claimed !== true) {
+      return json({ error: "Feeds were checked by hand less than 10 minutes ago. The schedule runs every 10 minutes." }, 429);
+    }
+  }
+
+  const meter = new QuotaMeter();
   const started = await loadQuota(admin);
   if (started.used >= YOUTUBE_DAILY_LIMIT) {
     return json(
@@ -213,14 +248,14 @@ Deno.serve(async (req: Request) => {
 
   for (const source of sources) {
     if (!source.channel_id.startsWith("@")) continue;
-    source.channel_id = await resolveHandle(source.channel_id, youtubeKey).catch(() => "");
+    source.channel_id = await resolveHandle(meter, source.channel_id, youtubeKey).catch(() => "");
   }
 
   let videos: Map<string, VideoState>;
   try {
-    videos = await fetchVideos(sources.map((s) => s.video_id), youtubeKey);
+    videos = await fetchVideos(meter, sources.map((s) => s.video_id), youtubeKey);
   } catch (error) {
-    const quota = await saveQuota(admin, started);
+    const quota = await saveQuota(admin, started, meter);
     return json(
       { error: error instanceof Error ? error.message : "YouTube didn't answer.", quota },
       502,
@@ -232,6 +267,7 @@ Deno.serve(async (req: Request) => {
     if (video && !source.channel_id) source.channel_id = video.channelId;
     if (video && !source.channel_name) source.channel_name = video.channelTitle;
   }
+  const allowlist = officialChannels(sources);
 
   const followers = sources.filter(
     (s) => (s.follow_channel || !s.video_id) && s.channel_id.startsWith("UC") && !isPlayable(videos.get(s.video_id)),
@@ -240,13 +276,13 @@ Deno.serve(async (req: Request) => {
   const channelErrors = new Map<string, string>();
   for (const channelId of new Set(followers.map((s) => s.channel_id))) {
     try {
-      uploads.set(channelId, await recentUploads(channelId, youtubeKey));
+      uploads.set(channelId, await recentUploads(meter, channelId, youtubeKey));
     } catch (error) {
       channelErrors.set(channelId, error instanceof Error ? error.message : "Channel lookup failed.");
     }
   }
   try {
-    await pullVideos([...uploads.values()].flat(), videos, youtubeKey);
+    await pullVideos(meter, [...uploads.values()].flat(), videos, youtubeKey);
   } catch (error) {
     const message = error instanceof Error ? error.message : "YouTube didn't answer.";
     for (const channelId of uploads.keys()) channelErrors.set(channelId, message);
@@ -281,6 +317,7 @@ Deno.serve(async (req: Request) => {
   const budget = { left: MAX_SEARCHES };
   const searched: string[] = [];
   const replaced: string[] = [];
+  const reviews = new Map<string, Review>();
   const nowMs = Date.now();
 
   for (const [mandirId, list] of byMandir) {
@@ -289,33 +326,38 @@ Deno.serve(async (req: Request) => {
     if (!mandir) continue;
     const last = mandir.live_searched_at ? Date.parse(mandir.live_searched_at) : 0;
     if (!find && last && nowMs - last < SEARCH_COOLDOWN_MS) continue;
-    const spent = started.used + quotaSnap().units;
+    const spent = started.used + meter.units;
     const headroom = YOUTUBE_DAILY_LIMIT - spent;
     if (headroom < 100) break;
     if (!find && headroom < 500) break;
     if (budget.left <= 0) break;
-    const found = await findReplacement(mandir, list, videos, youtubeKey, budget);
+    const found = await findReplacement(meter, mandir, list, videos, youtubeKey, budget);
     if (!found) continue;
     searched.push(mandirId);
-    if (found.video) {
+    const slot = list.find((o) => o.source.id === found.target.id);
+    if (found.video && allowlist.get(mandirId)?.has(found.video.channelId)) {
+      // From an official channel for this mandir: publish.
       found.target.video_id = found.video.id;
       found.target.channel_id = found.video.channelId || found.target.channel_id;
       found.target.channel_name = found.video.channelTitle || found.target.channel_name;
-      const slot = list.find((o) => o.source.id === found.target.id);
       if (slot) {
         slot.video = found.video;
         slot.error = "";
       }
       replaced.push(mandirId);
-    } else {
-      const slot = list.find((o) => o.source.id === found.target.id);
-      if (slot && !slot.error) slot.error = "No live video found.";
+    } else if (found.video) {
+      // Search found someone else's stream. Hold it for a person to approve.
+      reviews.set(found.target.id, { video: found.video, at: new Date().toISOString() });
+      if (slot && !slot.error) slot.error = "Found a stream from an unlisted channel. Review it on the mandir page.";
+    } else if (slot && !slot.error) {
+      slot.error = "No live video found.";
     }
   }
 
   const now = new Date().toISOString();
   for (const { source, video, error } of outcomes) {
     const seen = video ?? videos.get(source.video_id);
+    const review = reviews.get(source.id);
     await admin
       .from("live_sources")
       .update({
@@ -327,6 +369,15 @@ Deno.serve(async (req: Request) => {
         last_title: seen?.title ?? "",
         last_viewers: video?.viewers ?? null,
         last_error: error,
+        ...(review
+          ? {
+              review_video_id: review.video.id,
+              review_channel_id: review.video.channelId,
+              review_channel_name: review.video.channelTitle,
+              review_title: review.video.title,
+              review_found_at: review.at,
+            }
+          : {}),
       })
       .eq("id", source.id);
   }
@@ -360,7 +411,11 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  const quota = await saveQuota(admin, started, { live: live.length, replaced: replaced.length });
+  const quota = await saveQuota(admin, started, meter, {
+    live: live.length,
+    replaced: replaced.length,
+    review: reviews.size,
+  });
   return json({
     checked: sources.length,
     mandirs: byMandir.size,
@@ -368,7 +423,8 @@ Deno.serve(async (req: Request) => {
     rotated: outcomes.filter((o) => o.video && o.video.id !== o.source.video_id).length,
     searched: searched.length,
     replaced: replaced.length,
+    review: reviews.size,
     quota,
     feeds: live,
   });
-});
+}));

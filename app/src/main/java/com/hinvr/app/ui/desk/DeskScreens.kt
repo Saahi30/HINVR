@@ -19,45 +19,51 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hinvr.app.R
+import com.hinvr.app.data.DeskRequest
+import com.hinvr.app.data.DeskRequestState
 import com.hinvr.app.data.MemberPlace
-import com.hinvr.app.data.SessionSnapshot
+import com.hinvr.app.data.attempt
+import com.hinvr.app.i18n.localized
+import com.hinvr.app.navigation.LocalCatalogRepository
 import com.hinvr.app.i18n.userMessage
 import com.hinvr.app.navigation.LocalSessionRepository
-import com.hinvr.app.ui.catalog.HinvrCatalog
 import com.hinvr.app.ui.catalog.TileScene
 import com.hinvr.app.ui.components.CustomRequestPill
+import com.hinvr.app.ui.components.DeskStateLine
 import com.hinvr.app.ui.components.HinvrBackground
+import com.hinvr.app.ui.components.HinvrDateDialog
+import com.hinvr.app.ui.components.HinvrGoldOutlineButton
 import com.hinvr.app.ui.components.HinvrPrimaryButton
 import com.hinvr.app.ui.components.IvoryCard
 import com.hinvr.app.ui.components.PortraitPhotoCard
@@ -69,9 +75,7 @@ import com.hinvr.app.ui.theme.Atmosphere
 import com.hinvr.app.ui.theme.HinvrSideInset
 import com.hinvr.app.ui.theme.HinvrTheme
 import com.hinvr.app.ui.theme.HinvrTypography
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
@@ -94,26 +98,33 @@ private val HomePujas = listOf(
     PujaOption("Custom", R.string.puja_custom),
 )
 
+@Composable
 private fun pujaDateFormat(): DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())
+    DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", LocalConfiguration.current.locales[0])
+
+/** The desk reads English and an ISO date, whatever language the member uses. */
+private fun deskDate(date: LocalDate): String =
+    "$date (" + date.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)) + ")"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     val session = LocalSessionRepository.current
     val context = LocalContext.current
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val snap by session.snapshot.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
-    var puja by remember { mutableStateOf<String?>(null) }
-    var customPuja by remember { mutableStateOf("") }
-    var preferredDate by remember { mutableStateOf<LocalDate?>(null) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var timeOfDay by remember { mutableStateOf("Morning") }
-    var specialRequest by remember { mutableStateOf("") }
-    var selectedPlace by remember { mutableStateOf<MemberPlace?>(null) }
-    var placeError by remember { mutableStateOf<String?>(null) }
-    var submitted by remember { mutableStateOf(false) }
+    var puja by rememberSaveable { mutableStateOf<String?>(null) }
+    var customPuja by rememberSaveable { mutableStateOf("") }
+    var preferredDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var timeOfDay by rememberSaveable { mutableStateOf("Morning") }
+    var specialRequest by rememberSaveable { mutableStateOf("") }
+    var selectedPlace by rememberSaveable(stateSaver = PlaceSaver) { mutableStateOf<MemberPlace?>(null) }
+    var placeError by rememberSaveable { mutableStateOf<String?>(null) }
+    var sentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    val sent = sentId?.let { id -> snap.deskRequests.find { it.id == id } }
     val place = selectedPlace ?: snap.places.firstOrNull()
     val pujaLabel = when {
         puja == "Custom" -> customPuja.trim()
@@ -125,20 +136,22 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     } else {
         stringResource(R.string.morning)
     }
-    val noSpecial = stringResource(R.string.no_special)
     val ready = pujaLabel.isNotBlank() && preferredDate != null && place != null
 
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
         Column(Modifier.fillMaxSize()) {
             SabhaTopBar(title = stringResource(R.string.pooja_title), onBack = onBack)
-            if (submitted && preferredDate != null) {
+            if (sent != null && preferredDate != null) {
                 PujaSent(
+                    request = sent,
                     puja = pujaLabel,
                     date = preferredDate!!,
                     timeOfDay = timeLabel,
                     specialRequest = specialRequest.trim(),
                     place = place,
                     onBack = onBack,
+                    onRetry = { scope.launch { session.retryDeskRequest(sent.id) } },
+                    onEdit = { sentId = null },
                 )
             } else {
                 Column(
@@ -199,7 +212,7 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
                         onSaveNew = { newPlace ->
                             scope.launch {
                                 placeError = null
-                                runCatching { session.addPlace(newPlace) }
+                                attempt { session.addPlace(newPlace) }
                                     .onSuccess { selectedPlace = newPlace }
                                     .onFailure {
                                         placeError = context.userMessage(it.message, R.string.err_save_place)
@@ -216,19 +229,24 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
 
                     Spacer(Modifier.height(28.dp))
                     HinvrPrimaryButton(
-                        text = stringResource(R.string.send_request),
-                        enabled = ready,
+                        text = if (sending) stringResource(R.string.sending) else stringResource(R.string.send_request),
+                        enabled = ready && !sending,
                         onClick = {
                             val date = preferredDate ?: return@HinvrPrimaryButton
                             val chosen = place ?: return@HinvrPrimaryButton
-                            val note = specialRequest.trim().ifBlank { noSpecial }
+                            // English for the desk: the puja's key name, ISO date, morning or evening.
+                            val pujaName = if (puja == "Custom") customPuja.trim() else puja.orEmpty()
+                            val note = specialRequest.trim().ifBlank { "No special request" }
                             val city = snap.city.trim().let { if (it.isBlank()) "" else " · $it" }
+                            val summary = "$pujaName · ${deskDate(date)} · $timeOfDay$city · " +
+                                "${chosen.label}: ${chosen.address} · $note"
                             scope.launch {
-                                session.addLocalRequest(
-                                    "POOJA",
-                                    "$pujaLabel · ${date.format(pujaDateFormat())} · $timeLabel$city · ${chosen.label}: ${chosen.address} · $note",
-                                )
-                                submitted = true
+                                sending = true
+                                try {
+                                    sentId = session.submitDeskRequest("POOJA", summary)?.id
+                                } finally {
+                                    sending = false
+                                }
                             }
                         },
                     )
@@ -238,8 +256,10 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     }
 
     if (showDatePicker) {
-        PujaDateDialog(
+        HinvrDateDialog(
             current = preferredDate,
+            confirmLabel = stringResource(R.string.choose_this_day),
+            title = stringResource(R.string.choose_day),
             onDismiss = { showDatePicker = false },
             onConfirm = {
                 preferredDate = it
@@ -252,54 +272,76 @@ fun PoojaScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
 @Composable
 fun YatraScreen(onBack: () -> Unit, onConcierge: () -> Unit) {
     val colors = HinvrTheme.colors
+    val catalog = LocalCatalogRepository.current
+    val mandirs by catalog.mandirs.collectAsStateWithLifecycle()
+    val rows = mandirs.localized()
     HinvrBackground(atmosphere = Atmosphere.Sabha) {
-        Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .imePadding()
+                .navigationBarsPadding(),
+        ) {
             SabhaTopBar(onBack = onBack)
-            Column(Modifier.padding(horizontal = HinvrSideInset)) {
-                SectionTitle(stringResource(R.string.yatra_title))
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.yatra_body),
-                    style = HinvrTypography.bodyLarge,
-                    color = colors.inkMuted,
-                )
-                Spacer(Modifier.height(18.dp))
-            }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = HinvrSideInset),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(HinvrCatalog.mandirs) { row ->
-                    PortraitPhotoCard(
-                        title = row.name,
-                        place = row.city,
-                        scene = if (row.id == "kedarnath") TileScene.YatraRoad else row.scene,
-                        live = false,
-                        mandirId = row.id,
-                        onClick = onConcierge,
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                Column(Modifier.padding(horizontal = HinvrSideInset)) {
+                    SectionTitle(stringResource(R.string.yatra_title))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.yatra_body),
+                        style = HinvrTypography.bodyLarge,
+                        color = colors.inkMuted,
                     )
+                    Spacer(Modifier.height(18.dp))
                 }
-            }
-            Column(Modifier.padding(HinvrSideInset)) {
-                Spacer(Modifier.height(20.dp))
-                CustomRequestPill(onClick = onConcierge)
-                Spacer(Modifier.height(18.dp))
-                WaitlistForm(kind = "YATRA", defaultCity = null)
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = HinvrSideInset),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(rows, key = { it.id }) { row ->
+                        PortraitPhotoCard(
+                            title = row.name,
+                            place = row.city,
+                            scene = if (row.id == "kedarnath") TileScene.YatraRoad else row.scene,
+                            live = false,
+                            photoUrl = row.photoUrl,
+                            mandirId = row.id,
+                            onClick = onConcierge,
+                        )
+                    }
+                }
+                Column(Modifier.padding(HinvrSideInset)) {
+                    Spacer(Modifier.height(20.dp))
+                    CustomRequestPill(onClick = onConcierge)
+                    Spacer(Modifier.height(18.dp))
+                    WaitlistForm(kind = "YATRA", defaultCity = null)
+                    Spacer(Modifier.height(18.dp))
+                }
             }
         }
     }
 }
 
+/** Success only once the server has it; otherwise an honest "saved, not sent yet". */
 @Composable
 private fun PujaSent(
+    request: DeskRequest,
     puja: String,
     date: LocalDate,
     timeOfDay: String,
     specialRequest: String,
     place: MemberPlace?,
     onBack: () -> Unit,
+    onRetry: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     val colors = HinvrTheme.colors
+    val (title, body) = when (request.state) {
+        DeskRequestState.Sending -> stringResource(R.string.sending) to stringResource(R.string.visit_sending_body)
+        DeskRequestState.Sent -> stringResource(R.string.request_sent) to stringResource(R.string.puja_sent_body)
+        DeskRequestState.Waiting -> stringResource(R.string.request_saved) to stringResource(R.string.request_saved_body)
+        DeskRequestState.Failed -> stringResource(R.string.request_not_sent) to stringResource(R.string.request_not_sent_body)
+    }
     Column(
         Modifier
             .verticalScroll(rememberScrollState())
@@ -307,13 +349,9 @@ private fun PujaSent(
             .padding(horizontal = HinvrSideInset)
             .padding(top = 12.dp, bottom = 28.dp),
     ) {
-        Text(stringResource(R.string.request_sent), style = HinvrTypography.headlineLarge, color = colors.ink)
+        Text(title, style = HinvrTypography.headlineLarge, color = colors.ink)
         Spacer(Modifier.height(10.dp))
-        Text(
-            stringResource(R.string.puja_sent_body),
-            style = HinvrTypography.bodyLarge,
-            color = colors.inkMuted,
-        )
+        Text(body, style = HinvrTypography.bodyLarge, color = colors.inkMuted)
         Spacer(Modifier.height(22.dp))
         IvoryCard {
             Text(puja, style = HinvrTypography.titleMedium, color = colors.ink)
@@ -330,9 +368,15 @@ private fun PujaSent(
             if (specialRequest.isNotBlank()) {
                 Text(specialRequest, style = HinvrTypography.bodyLarge, color = colors.inkMuted)
             }
+            Spacer(Modifier.height(8.dp))
+            DeskStateLine(request, onRetry)
         }
         Spacer(Modifier.height(22.dp))
         HinvrPrimaryButton(stringResource(R.string.back), onBack)
+        if (request.state == DeskRequestState.Failed) {
+            Spacer(Modifier.height(8.dp))
+            HinvrGoldOutlineButton(stringResource(R.string.edit_request), onEdit)
+        }
     }
 }
 
@@ -365,12 +409,14 @@ private fun QuietChip(
                 colors.gold.copy(alpha = if (selected) 0.55f else 0.16f),
                 shape,
             )
-            .clickable(
+            .selectable(
+                selected = selected,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                role = Role.RadioButton,
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
     )
 }
 
@@ -434,12 +480,14 @@ private fun WhenCard(
                         .padding(3.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(if (selected) colors.ivory else colors.linen)
-                        .clickable(
+                        .selectable(
+                            selected = selected,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
+                            role = Role.RadioButton,
                             onClick = { onTimeClick(key) },
                         )
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 14.dp),
                     textAlign = TextAlign.Center,
                 )
             }
@@ -447,58 +495,31 @@ private fun WhenCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PujaDateDialog(
-    current: LocalDate?,
-    onDismiss: () -> Unit,
-    onConfirm: (LocalDate) -> Unit,
-) {
-    val today = LocalDate.now()
-    val latest = today.plusMonths(18)
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = (current ?: today).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val day = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
-                return !day.isBefore(today) && !day.isAfter(latest)
-            }
-
-            override fun isSelectableYear(year: Int): Boolean = year in today.year..latest.year
-        },
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                val picked = state.selectedDateMillis?.let {
-                    Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
-                } ?: return@TextButton
-                onConfirm(picked)
-            }) { Text(stringResource(R.string.choose_this_day)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    ) {
-        DatePicker(state = state)
-    }
-}
-
 @Composable
 private fun WaitlistForm(kind: String, defaultCity: String?) {
     val session = LocalSessionRepository.current
-    val snap by session.snapshot.collectAsStateWithLifecycle(initialValue = SessionSnapshot())
+    val snap by session.snapshot.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val colors = HinvrTheme.colors
-    var city by remember(defaultCity, snap.city) { mutableStateOf(defaultCity ?: snap.city) }
-    var submitted by remember { mutableStateOf(false) }
-    val cityConfirm = stringResource(R.string.city_confirm)
+    var city by rememberSaveable(defaultCity, snap.city) { mutableStateOf(defaultCity ?: snap.city) }
+    var sentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    val sent = sentId?.let { id -> snap.deskRequests.find { it.id == id } }
 
-    if (submitted) {
+    if (sent != null) {
         Text(
-            stringResource(R.string.waitlist_done, kind.lowercase()),
+            when (sent.state) {
+                DeskRequestState.Sent -> if (kind == "POOJA") {
+                    stringResource(R.string.waitlist_done_pooja)
+                } else {
+                    stringResource(R.string.waitlist_done_yatra)
+                }
+                else -> stringResource(R.string.waitlist_saved)
+            },
             style = HinvrTypography.bodyLarge,
             color = colors.gold,
         )
+        DeskStateLine(sent) { scope.launch { session.retryDeskRequest(sent.id) } }
         return
     }
     Text(
@@ -510,12 +531,24 @@ private fun WaitlistForm(kind: String, defaultCity: String?) {
     SabhaSearchField(city, { city = it }, stringResource(R.string.your_city))
     Spacer(Modifier.height(12.dp))
     HinvrPrimaryButton(
-        text = stringResource(R.string.join_waitlist),
+        text = if (sending) stringResource(R.string.sending) else stringResource(R.string.join_waitlist),
+        enabled = !sending,
         onClick = {
             scope.launch {
-                session.addLocalRequest(kind, city.ifBlank { cityConfirm })
-                submitted = true
+                sending = true
+                try {
+                    // English for the desk, whatever the app language.
+                    val where = city.trim().ifBlank { "City to confirm" }
+                    sentId = session.submitDeskRequest(kind, "Waitlist · $where")?.id
+                } finally {
+                    sending = false
+                }
             }
         },
     )
 }
+
+private val PlaceSaver = listSaver<MemberPlace?, String>(
+    save = { place -> if (place == null) emptyList() else listOf(place.label, place.address) },
+    restore = { saved -> if (saved.size == 2) MemberPlace(saved[0], saved[1]) else null },
+)
