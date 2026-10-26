@@ -70,11 +70,11 @@ Crew is cream everywhere except splash. HINVR needs *dusk* as well — that is t
 
 Used for: Home, Mandirs directory, Concierge home, Plans, Pooja catalog, Yatra browse, Profile lists, Onboarding pages 2–3.
 
-- Canvas: warm linen `#F4EDE3` (token `linen`)
-- Ink: temple stone `#1A120C` (existing `ink`)
-- Quiet text: warm grey-brown `#6B5E4E` (`inkMuted`)
-- Cards: white / ivory `#FFF8F0` (`ivory`) floating on linen
-- Accents from photography; chrome stays gold + saffron, used sparingly
+- Canvas: ochre paper `#DCC99A` (token `linen`) under a text-free paper grain
+- Ink: temple brown `#4A2F1F` (`ink`)
+- Quiet text: warm grey-brown `#7A6454` (`inkMuted`)
+- Cards: ivory `#F3EEE2` (`ivory`) with a gold hairline, floating on the paper
+- Accents from photography; chrome stays clay + gold line, used sparingly
 
 This is where Crew’s liveliness lives. **Default new browse screens to Sabha unless they are immersive.**
 
@@ -82,9 +82,9 @@ This is where Crew’s liveliness lives. **Default new browse screens to Sabha u
 
 Used for: Splash, Live player, VR player, Pass (the card itself), Pay success, maybe Plans comparison if it should feel like a vault.
 
-- Canvas: temple stone `#1A120C` / `#100B08` (existing `dusk` / `duskDeep`)
-- Type: cream `#F3E6D0`
-- Light: antique gold, diya amber, saffron for the one primary action
+- Canvas: temple stone `#4A2F1F` / `#3A241C` (`dusk` / `duskDeep`)
+- Type: cream `#F3EEE2`
+- Light: antique gold, diya amber; gold for the one primary action
 - Photography still full-bleed; gold hairline, not cream cards stacked in a cave
 
 Splash matches Crew’s dark pill: one object, tactile, almost nothing else.
@@ -97,58 +97,70 @@ Going Home → Live player is linen → night. That cut should feel like enterin
 
 ## Color
 
-Existing Compose tokens in `app/.../ui/theme/Color.kt` stay the sacred set. Add light-surface tokens when Home is rebuilt; do not recast the whole app as Crew navy.
+`app/.../ui/theme/Color.kt` is the source of truth. The table below is what ships. The palette moved from bright linen + saffron to an **ochre manuscript sheet + temple clay**: quieter, older, closer to a printed invitation than a lifestyle app. Gold is linework, not fill.
 
-| Token | Hex | Role |
-|---|---|---|
-| `linen` | `#F4EDE3` | Sabha background |
-| `ivory` | `#FFF8F0` | Raised cards on linen |
-| `ink` | `#1A120C` | Primary text on Sabha (already exists) |
-| `inkMuted` | `#6B5E4E` | Secondary on Sabha |
-| `dusk` / `duskDeep` | `#1A120C` / `#100B08` | Sanctum canvas |
-| `stone` / `stoneRaised` | `#2C2118` / `#3D2E22` | Dark cards, docks |
-| `cream` / `creamMuted` | `#F3E6D0` / `#D9C7A8` | Text on Sanctum |
-| `gold` / `goldDim` | `#C9A227` / `#8A7018` | Membership, pass, selected tab |
-| `saffron` / `saffronDeep` | `#C45C26` / `#9A3F16` | Primary CTA |
-| `vermillion` | `#B3392B` | Seal, live dot, urgency — not error-only |
-| `amber` / `flame` | `#E8A317` / `#FFF1C1` | Diya, success, live glow |
+| Token (`HinvrColors`) | Kotlin name | Hex | Role |
+|---|---|---|---|
+| `linen` | `Paper` | `#DCC99A` | Sabha canvas: the ochre sheet, under a text-free paper grain |
+| `ivory` / `cream` / `flame` | `Surface` | `#F3EEE2` | Raised cards on Paper; text on Sanctum |
+| `creamMuted` | `CreamMuted` | `#D4CBBA` | Secondary text on Sanctum |
+| `ink` / `dusk` | `Ink` (`TempleStone`) | `#4A2F1F` | Primary text on Sabha; Sanctum canvas |
+| `inkMuted` | `InkMuted` | `#7A6454` | Secondary text on Sabha |
+| `duskDeep` | `TempleStoneDeep` | `#3A241C` | Deepest Sanctum field, scrims |
+| `stone` / `stoneRaised` | `TempleStoneMid` / `TempleStoneLight` | `#5C4032` / `#6E5140` | Dark cards on Sanctum |
+| `saffron` / `burgundy` | `Clay` | `#6E4A3C` | **Primary CTA**, selected chip, Live pill field |
+| `saffronDeep` / `olive` | `ClayDeep` | `#4A322A` | Pressed CTA, deep clay |
+| — | `ServiceClay` (+ `Lift` / `Deep`) | `#8A6756` | Bento service tiles and the bottom dock glass |
+| — | `Terracotta` | `#A65336` | Material `primary`; sparing warm accent |
+| `vermillion` | `Vermillion` | `#641A1D` | Seal, live dot, urgency — not error-only |
+| `gold` / `goldDim` | `AntiqueGold` / `AntiqueGoldDim` | `#B08958` / `#8C6E45` | Hairlines, membership marks, selected tab |
+| `amber` | `DiyaAmber` | `#C4A574` | Diya, success, warm glow |
+| `photoWarmth` | `PhotoWarmth` | `#493225` | Warm grade over photography |
 
 **Rules**
 
-- One primary CTA per screen, saffron on Sabha, gold on Sanctum.
+- One primary CTA per screen: clay on Sabha, gold on Sanctum.
+- Gold is a 1dp line or a mark. Never a large fill.
 - Never color-code deities or sampradaya.
-- Live pill: vermillion dot + cream “LIVE”, not green-for-go.
-- Membership chip: gold fill or gold hairline, never a Material “tonal” purple.
+- Live pill: clay field, vermillion-to-cream dot, cream “LIVE”. Not green-for-go. **Only for a feed the server confirms is live now.** Recordings get a static label (see Motion).
+- Membership chip: gold hairline on a crisp 2dp label, never a Material “tonal” purple.
 - Photography supplies teal, sky, marigold. UI chrome does not compete with it.
 
-Crew’s palette is cream + navy + burgundy. Ours is **linen + stone + gold + fire**. Same temperature, different religion.
+Crew’s palette is cream + navy + burgundy. Ours is **ochre paper + temple clay + gold line**. Same temperature, different religion.
 
 ---
 
 ## Type
 
-Already the right idea in `Type.kt`: **serif for display/headlines, sans for everything else.** Commit to real files, not `FontFamily.Serif` / `SansSerif` system defaults.
+`Type.kt` is the source of truth: **serif for display and headlines, sans for everything else**, from bundled font files, never system defaults.
 
-**Proposed (Google Fonts, Play-safe)**
+**Faces (shipped, in `res/font`)**
 
 | Role | Face | Use |
 |---|---|---|
-| Display / section titles | **Fraunces** (soft optical) or **Newsreader** | “Sit in the sabha from anywhere.” Home rails. Plans headline |
-| Hindi display | **Tiro Devanagari Hindi** | Same role in `values-hi` |
-| UI / body / prices | **Figtree** or **Outfit** | Labels, buttons, member ID, ₹ |
-| Wordmark | Custom or Fraunces with wide tracking | **HINVR** — letterspaced, not a cheap stencil |
+| Display / headlines (English) | **Fraunces** variable, weight 680, `SOFT` 50, `WONK` 0, `opsz` 72. Display is *italic* | “Sit in the sabha from anywhere.” Home rails. Plans headline |
+| Display / headlines (Hindi) | **Noto Serif Devanagari**, weight 680, upright | Same role in `values-hi` |
+| UI / body / prices (English) | **Figtree** 400 / 500 / 600 | Labels, buttons, member ID, ₹ |
+| UI / body (Hindi) | **Noto Sans Devanagari** 400–700 | Same role in `values-hi` |
+| Wordmark | Fraunces with wide tracking | **HINVR**, letterspaced, not a cheap stencil |
 
-**Scale (phone)**
+Only these four families ship. Do not add more display faces.
 
-| Style | Size | Weight | Notes |
-|---|---|---|---|
-| Display | 28–34 | Medium serif | 1–2 lines. Never all-caps serif |
-| Section title | 22–26 | Semibold serif | Left aligned, 20–24dp side inset |
-| Card title on photo | 18–22 | Bold sans, white | With gradient scrim |
-| Eyebrow | 11 | Medium sans, +1.2 tracking, caps | `GOA` → `TIRUPATI` · `LIVE NOW` |
-| Body | 14–16 | Regular sans | Quiet brown on linen |
-| Price / QR meta | 22–28 | Semibold sans | Pass and exclusive-rate cards |
-| Button | 14 | Semibold sans | Sentence case. “Watch live darshan” not “SUBMIT” |
+**Scale (phone, as shipped)**
+
+| Style | Material slot | Size / line | Weight | Notes |
+|---|---|---|---|---|
+| Display | `displayLarge` | 52 / 56 | Bold *italic* serif, −0.8 tracking | One per screen, 1–2 lines, over Paper. Never all-caps |
+| Headline | `headlineLarge` | 36 / 42 | Bold serif | Screen titles |
+| Section title | `headlineMedium` | 26 / 32 | Bold serif | Left aligned, 22dp side inset |
+| Card title | `titleLarge` | 22 / 28 | Bold serif | Ivory cards |
+| Card title on photo | card title style | 18 / 22 | SemiBold sans, cream | With gradient scrim |
+| Title | `titleMedium` | 16 / 22 | SemiBold sans | Rows, list titles |
+| Body | `bodyLarge` / `bodyMedium` | 16 / 24, 14 / 20 | **SemiBold** sans | Heavier than usual on purpose: it holds over the paper grain |
+| Button | `labelLarge` | 14 / 20 | SemiBold sans | Sentence case. “Watch live darshan” not “SUBMIT” |
+| Eyebrow | `labelSmall` | 11 / 16 | SemiBold sans, +1.2 tracking, caps | `TIRUPATI` · `LIVE NOW` |
+
+Hindi drops the tracking and the italic. Devanagari does not slant.
 
 **Copy voice** (this is type, not marketing fluff)
 
@@ -169,19 +181,25 @@ One line of serif, then the product. If the headline could sit on a temple trust
 
 ## Shape, space, depth
 
+Corners are **crisp, like a printed card**, not soft app bubbles. Softness is kept for things you hold or fill in: the pass, sheets, forms, the dock.
+
 | Token | Value | Where |
 |---|---|---|
-| `radius.card` | 28dp | Photo cards, service tiles |
-| `radius.sheet` | 32dp | Filters, Plans sheet |
-| `radius.pill` | 999dp | Chips, search, composer |
-| `radius.seal` | 50% | Pass tab mark, splash logo well |
-| Side inset | 20–24dp | Never 16dp Material default on Home |
-| Section gap | 28–36dp | Rails need air. Crew’s “cream-space” |
+| `HinvrCardRadius` | 4dp | Photo cards, mandir hero, ivory cards, status cards, selected plan |
+| Service tile | 12dp | Bento service tiles |
+| Label / chip | 2dp | Status labels, membership badge, filter chips (gold hairline) |
+| Form surface | 18–20dp | Inputs, choice cards, visit-request steps |
+| Pass object | 24dp | The pass card and its envelope |
+| `HinvrSheetRadius` | 32dp | Bottom sheets, Plans gate sheet |
+| `HinvrPillRadius` | 999dp | Search, composer, dock, Live pill, CTA pills |
+| Seal | 50% | Pass tab seal, splash seal |
+| `HinvrSideInset` | 22dp | Never 16dp Material default on Home |
+| Section gap | 28–36dp | Rails need air |
 | Card peek | 28–40dp of next card | Horizontal rails *must* leak the next item |
-| Shadow | 8–16dp blur, 4–8% black, y=6 | Soft lift on linen. No harsh Material elevation |
-| Hairline | 1dp gold @ 20–30% | Dark cards, pass edge |
+| Shadow | 8–12dp, 6–7% black | Soft lift on paper. No harsh Material elevation |
+| Hairline | 1dp gold | Ivory cards, chips, pass edge. Full gold on light, 30–60% on dark |
 
-**Glass:** `backdrop blur` ~20dp + ivory/cream @ 70–85% on the *dock* under a photo card (Crew’s Passes / Flights / Stay / Dining bar). Do not frost the whole screen.
+**Glass:** the bottom dock is `ServiceClay` @ 90% over a 16dp backdrop blur, with a 1dp cream hairline @ 34%. 62dp tall, floating pill. It is clay on every tab, Sabha included: the dock is the one dark object on the paper, the way the pass seal is. Do not frost the whole screen.
 
 **Notch:** the Crew dock has a small center bite into the photo. Worth copying once on the **mandir hero card**. If it is expensive in Compose, a clean attached pill is fine; the attached-ness matters more than the bite.
 
@@ -202,21 +220,27 @@ This is the product surface. Budget for photos the way Crew budgets for villas.
 - Crowd as scale, never as chaos-porn
 - Hands with diya, feet on stone, prasad — cropped, respectful
 - Painterly *illustrated* tiles for the six home services (same energy as Crew’s villa / jet / passport — scene, not icon)
-- Local hosts / pandits: real faces, no stock “smiling guru”
+- Local hosts / pandits: real faces of real people, with their consent, no stock “smiling guru”
 
 **No**
 
-- AI Vishnu with lens flare
+- AI Vishnu with lens flare, or any generated deity, murti or stencil
+- Generated pictures of a **real, named temple**. A member who has stood at Somnath will see the lie
+- Generated “script” or texture with letters in it. Fake Devanagari reads as gibberish to every Hindi reader
+- Invented people (hosts, pandits, testimonials) presented as real
 - Random Om watermark
 - Flat Material temple icon as the hero
 - Stock Bali / generic “spiritual retreat”
 - Watermarked tourist snaps
+- Photos of the garbha griha or murti
+
+**Sourcing rule.** Named places are real, licensed photographs (Wikimedia Commons CC0 / CC BY / CC BY-SA, or our own shoot), credited in each app’s `res/raw/photo_credits.json` (`resource`, `title`, `author`, `license`, `licenseUrl`, `sourceUrl`, `modified`), which the phone’s Legal screen and the headset credits read. Generated imagery is allowed only for the service illustrations and abstract textures (paper, metal), never with text, deities or real places in it, and is logged in [`design/asset_sources.md`](design/asset_sources.md).
 
 **Overlays:** bottom third of every photo card gets a dark gradient (transparent → 60–75% stone) so white type holds. Never thin white type on a bright sky.
 
 **Honesty labels** on media: `Official temple stream` · `Recorded 360 · not live`. Crew is glossy; we can be glossy and still not lie.
 
-Placeholder rule until assets exist: linen card + gold hairline + serif name is better than a stretch-blurred thumbnail. Never grey “image failed.”
+Placeholder rule until assets exist: ivory card on paper + gold hairline + serif name is better than a stretch-blurred thumbnail. Never grey “image failed.”
 
 ---
 
@@ -226,7 +250,8 @@ Placeholder rule until assets exist: linen card + gold hairline + serif name is 
 |---|---|
 | Splash | Seal eases in, diya catches, one bell, 2.5s. Skippable after 0.8s. No bhajan loop |
 | Home rails | Inertial horizontal scroll. Cards do not snap-fight the user |
-| Live pill | Soft pulse on the vermillion dot, 1.2s, low amplitude |
+| Live pill | The dot breathes 0.82 → 1.22 scale over 0.9s, reversing. That is the only constantly moving thing on a screen, and it appears only when a feed is live now |
+| Recorded label | `RECORDED 360 · NOT LIVE` is a static label (2dp, gold hairline). It never pulses and never uses the Live pill |
 | Pass seal | Slight press scale 0.96. Gold sheen is a gradient, not a spinning gif |
 | Crew-style text ring | Optional on Home: `NEW DARSHAN · ASK CONCIERGE ·` rotating around the seal. Kill it if it feels like a casino |
 | Screen change | Shared-axis or fade. No bounce. Entering Live/VR is a fade to black |
@@ -264,13 +289,13 @@ Asymmetric rounded tiles with **illustrations**, serif name, one-line benefit in
 | Tile | Benefit line |
 |---|---|
 | Live Darshan | Aarti, from the sabha |
-| VR Darshan | 360. Move your phone |
-| Priority Pass | Show this at the desk |
+| VR Darshan | Recorded 360, honestly labelled |
+| Priority Assist | Show this at the desk |
 | Book Pandit | One city. Verified |
 | Concierge | Ask. Then a human |
 | Yatra | Club desk, not a portal |
 
-Uneven heights (Crew’s Stays tall / Visa square). Do **not** use the current 88dp two-column text boxes.
+Uneven heights (Crew’s Stays tall / Visa square): honour each tile’s `tall` flag. 12dp corners, `ServiceClay` ombré.
 
 ### 4. Portrait photo card + glass dock
 
@@ -343,7 +368,7 @@ IA and gates stay as `screens.md`. This is look-and-feel only.
 |---|---|---|
 | **Splash** | Sanctum | Pattern 1. Diya + seal. No buttons |
 | **Onboarding** | Sabha (pages) with one Sanctum card mock | Full-bleed photo per page, serif line, skip text, saffron Continue |
-| **Account** | Sabha | Email and password, gold underline. Forgot password returns through the recovery link. Linen, easy to read at noon |
+| **Account** | Sabha | Email and password, gold underline. Forgot password returns through the recovery link. Paper, easy to read at noon |
 | **Profile setup** | Sabha | One screen, large chips for Me / Parents / Family |
 | **Home** | Sabha, hero may be photo | Patterns 2 + 3 + 4 + 9. Live rail is photo chips with LIVE pill, never a text empty-state as the hero |
 | **Notifications** | Sabha | Rows, not cards. Empty: serif “We will remind you before aarti.” |
@@ -362,7 +387,7 @@ IA and gates stay as `screens.md`. This is look-and-feel only.
 
 **Bottom nav (all Main tabs)**
 
-Linen or translucent ivory blur on Sabha screens; stone on Pass. Selected Pass = seal. Other tabs: line icons, gold when selected, inkMuted when not. Do not use the current all-dusk bar on a cream Home — it will look like two apps stacked.
+A floating clay-glass pill on every tab (see **Shape → Glass**). Selected Pass = the raised seal. Other tabs: line icons, gold when selected, cream at reduced alpha when not; labels show on all tabs from 376dp wide, on the active tab only below that. Icons are drawn for this brand. A Material bank icon (`AccountBalance`) is not a mandir.
 
 ---
 
@@ -374,34 +399,31 @@ From `screens.md`, restated visually:
 - No search hits: serif line + “Ask Concierge — we will add it.”
 - Stream down: still. Temple name. “The feed is the temple’s, not ours.”
 - Gated tap: Plans sheet with the **reason** in serif (“VR darshan is included in Gold”), never a toast
-- Loading: linen skeletons with 28dp radii, not circular spinners in the hero
+- Loading: paper skeletons at the component’s own radius (4dp cards, 12dp tiles), not circular spinners in the hero
+- Failed send: say so, keep the request, offer retry. Never show “Sent” for something the desk did not receive
+- Offline pass: keep the last good code and say until when it is valid. Never blank the pass because the network blinked
 
 ---
 
-## Gap vs the app today
+## Honesty in content
 
-The skeleton is the right *graph* and the wrong *surface*.
+The same rule as the labels, applied to everything on screen:
 
-| Now | Bible |
-|---|---|
-| Entire main app is dusk stone | Sabha linen for storefront, Sanctum for rite |
-| Home = 88dp labeled boxes | Bento illustrations + photo rails |
-| Nearby = brown rectangles + a gold dot | Portrait photo cards with peek |
-| Bottom bar = Material dark nav | Light blur + Pass as seal |
-| Type = system serif/sans | Fraunces + Figtree (or the pair above) |
-| No photography | Photography is the UI |
-
-P0 in `screens.md` can stay “openable in an emulator.” It does not feel like a company until Home matches patterns 2–4.
+- No invented threads, timestamps (“Updated 12 min ago”), hosts, reviews or member counts. If the server did not say it, the screen does not say it
+- “Live” is a server fact, checked recently. Bundled data defaults to not live
+- Desk-only instructions (“paste a 360 URL in the desk”) never reach a member
+- Name things for what we sell: **Priority Assist**, not “Priority Pass” (a third-party trademark) and never “skip the line,” not even to deny it
 
 ---
 
-## Compose notes (when we implement)
+## Compose notes
 
-- Tokens: keep `HinvrColors`; add `linen`, `ivory`, `inkMuted`. Do not drive Sabha off `MaterialTheme.colorScheme.background` if that stays dusk.
-- Shapes: `RoundedCornerShape(28.dp)` as default card; 16dp is too Material for this brand.
-- Fonts: download Fraunces + Figtree into `res/font`, wire in `Type.kt`. Hindi: Tiro Devanagari.
-- Blur: `Modifier.blur` / `RenderEffect` for docks; degrade to 85% ivory if API is old.
-- Images: Coil, `ContentScale.Crop`, always a scrim modifier on text-on-photo.
+- Tokens: `HinvrColors` in `Theme.kt`; raw colors in `Color.kt`. Sabha reads `colors.linen` / `colors.ink`, never `MaterialTheme.colorScheme.background`.
+- Shapes: `HinvrCardRadius` (4dp) for cards; the other radii are in **Shape, space, depth**. Don’t invent new ones per screen.
+- Fonts: Fraunces + Figtree, Noto Serif / Sans Devanagari, wired in `Type.kt`.
+- Blur: `clayGlass` (haze) for the dock; degrade to solid `ServiceClay` @ 90% if blur is unavailable.
+- Images: Coil, `ContentScale.Crop`, always a scrim modifier on text-on-photo. Remote CMS photo first, bundled photo second, typographic placeholder last.
+- Touch targets ≥ 48dp, even when the visible icon well is smaller.
 - Do not add a fifth tab. Raise the Pass item.
 
 ---
@@ -413,5 +435,6 @@ Change colors here if the brand shifts. Do not silently restyle screens without 
 | Date | Decision |
 |---|---|
 | 2026-09-06 | Crew is the liveliness reference. Palette stays temple (linen / stone / gold / fire), not Crew navy-burgundy. Dual atmosphere: Sabha + Sanctum. Four tabs remain; Pass is the seal. |
+| 2026-10-26 | The bible adopts the shipped look. Sabha is an ochre manuscript sheet (`#DCC99A`) under a text-free paper grain, not bright linen. Saffron gives way to temple clay (`#6E4A3C`) as the primary CTA; gold becomes linework only. Cards go crisp (4dp, labels 2dp) like a printed invitation; softness stays on the pass (24dp), forms, sheets and pills. Display is Fraunces bold italic at 52sp; body is Figtree SemiBold so it holds over the grain. Hindi pairs Noto Serif / Sans Devanagari. The dock is clay glass on every tab. The Live pill keeps its 0.9s breathing dot but is reserved for server-confirmed live feeds. Named places must be real, credited photographs; generated deity and fake-script imagery is removed. **Open:** the temple and state card photos (`temple_*`, `state_*`) are still generated and must be replaced before public launch. “Priority Pass” is renamed **Priority Assist**. |
 
 When someone asks “should this look like Crew?” the answer is: **same pulse, our gods, our card.**
