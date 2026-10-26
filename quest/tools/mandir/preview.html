@@ -1,0 +1,124 @@
+<!doctype html>
+<!--
+  Look around the generated sanctum in a browser, no headset or Blender needed.
+  From quest/:  python -m http.server 8123   then open
+  http://localhost:8123/tools/mandir/preview.html  (add ?view=stand|garbha|up|back|threshold|wide)
+  Drag to look around. The room is drawn unlit with its baked light, as on the Quest.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctum Preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #note { position: fixed; left: 12px; bottom: 10px; color: #c9b8a0; font: 13px system-ui, sans-serif; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="note">Loading…</div>
+<script>
+  const say = (text) => { document.getElementById('note').textContent = text; };
+  addEventListener('error', (e) => say('Error: ' + e.message));
+  addEventListener('unhandledrejection', (e) => say('Error: ' + (e.reason && e.reason.message || e.reason)));
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const base = '../../app/src/main/assets/mandir/';
+const params = new URLSearchParams(location.search);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(Number(params.get('fov') || 80), innerWidth / innerHeight, 0.02, 60);
+
+// The props are lit at runtime; roughly what the app sets up in the sanctum.
+scene.add(new THREE.HemisphereLight(0xffd9a8, 0x3a2414, 0.9));
+const warm = new THREE.PointLight(0xffb870, 6, 12, 1.4);
+warm.position.set(0, 3.4, -0.4);
+scene.add(warm);
+
+const markers = await (await fetch(base + 'markers.json')).json();
+const v = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+const stand = v(markers.stand);
+const homes = {
+  marigold: [-0.40, 0.10], diya: [-0.20, 0.10], aarti_thali: [0.03, 0.10], kumkum: [0.25, 0.10], coin: [0.40, 0.10],
+  lotus: [-0.30, -0.11], coconut: [-0.10, -0.11], laddoo: [0.08, -0.11], agarbatti: [0.26, -0.11],
+};
+const loader = new GLTFLoader();
+const load = (path) => new Promise((ok, fail) => loader.load(base + path, (g) => ok(g.scene), undefined, fail));
+// ?day loads the daytime lighting; ?festival=deepmala|abhishek|modak|hibiscus puts that puja's prop out.
+const room = await load(params.has('day') ? 'sanctum_day.glb' : 'sanctum.glb');
+scene.add(room);
+const side = v(markers.side);
+const mala = await load('props/mala.glb');
+mala.position.set(side.x + 0.17, side.y + 0.003, side.z + 0.08);
+scene.add(mala);
+const festival = { deepmala: 'deepmala', abhishek: 'lota', modak: 'modak', hibiscus: 'hibiscus' }[params.get('festival')];
+if (festival) {
+  const prop = await load(`props/${festival}.glb`);
+  prop.position.set(side.x - 0.07, side.y + 0.003, side.z);
+  scene.add(prop);
+  if (festival === 'deepmala') {
+    for (const [x, y, z] of markers.deepmala_wicks) {
+      const flame = await load('props/flame.glb');
+      flame.position.set(prop.position.x + x, prop.position.y + y, prop.position.z + z);
+      scene.add(flame);
+    }
+  }
+}
+// ?light shows only the baked light, without the textures.
+if (params.has('light')) room.traverse((o) => { if (o.isMesh) { o.material.map = null; o.material.color.set(0xffffff); o.material.needsUpdate = true; } });
+for (const [name, [x, z]] of Object.entries(homes)) {
+  const prop = await load(`props/${name}.glb`);
+  prop.position.set(stand.x + x, stand.y + 0.003, stand.z + z);
+  scene.add(prop);
+}
+// Where the app draws the 16:9 darshan stream (DarshanPanel), shown here as a dim screen.
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), new THREE.MeshBasicMaterial({ color: 0x2a3440 }));
+screen.position.copy(v(markers.darshan));
+scene.add(screen);
+const bell = await load('props/ghanta.glb');
+bell.position.copy(v(markers.ghanta_pivot));
+scene.add(bell);
+
+const eye = 1.6;
+const views = {
+  stand: [[0, eye, 0.05], [0, 0.9, -0.6]],
+  side: [[-0.55, 1.35, -0.15], [-0.98, 0.8, -0.62]],
+  garbha: [[0, eye, 0.05], [0, 1.3, -5.2]],
+  threshold: [[0, eye, -2.35], [0, 1.2, -5.2]],
+  up: [[0, eye, 0.05], [0.0, 4.6, -0.6]],
+  back: [[0, eye, 0.05], [0, 1.3, 3.6]],
+  wide: [[2.7, 2.6, 3.1], [-0.4, 1.0, -2.5]],
+  ghanta: [[0, eye, 0.05], [0.7, 1.7, -0.25]],
+};
+const [from, at] = views[params.get('view') || 'garbha'];
+camera.position.set(...from);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(...at);
+controls.update();
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+let triangles = 0;
+room.traverse((o) => { if (o.isMesh) triangles += o.geometry.index.count / 3; });
+document.getElementById('note').textContent = `Sanctum: ${Math.round(triangles / 1000)}k triangles · drag to look around`;
+renderer.setAnimationLoop(() => renderer.render(scene, camera));
+document.title = 'Sanctum Preview';
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>
