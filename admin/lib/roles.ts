@@ -14,7 +14,7 @@ export const ROLE_HINTS: Record<StaffRole, string> = {
   admin: "Everything except the team.",
   finance: "Memberships, invoices, audit.",
   desk: "Scanner, desk requests, card list.",
-  editor: "Catalog and home screen.",
+  editor: "Catalog, home screen and festivals.",
 };
 
 /** Mirrors the role checks in the database policies. The database is the real gate. */
@@ -28,6 +28,8 @@ const CAN = {
   live: ["owner", "admin", "editor"],
   notify: ["owner", "admin"],
   audit: ["owner", "admin", "finance"],
+  insights: ["owner", "admin", "editor"],
+  crashes: ["owner", "admin"],
   team: ["owner"],
   setupDetails: ["owner"],
 } as const satisfies Record<string, readonly StaffRole[]>;

@@ -18,6 +18,15 @@ export function IconTemple({ className }: { className?: string }) {
   );
 }
 
+export function IconCalendar({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" />
+      <path d="M2 6.5h12M5 1.5v3M11 1.5v3" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconHome({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
@@ -103,6 +112,15 @@ export function IconLog({ className }: { className?: string }) {
     <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
       <path d="M5.5 4h8M5.5 8h8M5.5 12h8" stroke="currentColor" strokeLinecap="round" />
       <path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function IconChart({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M2.5 13.5h11" stroke="currentColor" strokeLinecap="round" />
+      <path d="M4.5 11V8M8 11V4.5M11.5 11V6.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
     </svg>
   );
 }

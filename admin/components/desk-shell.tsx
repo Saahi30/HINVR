@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   IconBell,
+  IconCalendar,
+  IconChart,
   IconClose,
   IconGrid,
   IconHome,
@@ -27,8 +29,10 @@ const sections: Array<{ title: string; items: NavItem[] }> = [
     title: "Catalog",
     items: [
       { href: "/", label: "Overview", icon: IconGrid, exact: true },
+      { href: "/insights", label: "Insights", icon: IconChart, need: "insights" },
       { href: "/mandirs", label: "Mandirs", icon: IconTemple, need: "catalog" },
       { href: "/home", label: "Home screen", icon: IconHome, need: "catalog" },
+      { href: "/festivals", label: "Festivals", icon: IconCalendar, need: "catalog" },
     ],
   },
   {
@@ -65,6 +69,8 @@ function crumbs(pathname: string) {
   if (pathname.startsWith("/mandirs/")) return ["Catalog", "Mandirs", "Edit"];
   if (pathname.startsWith("/mandirs")) return ["Catalog", "Mandirs"];
   if (pathname.startsWith("/home")) return ["Catalog", "Home screen"];
+  if (pathname.startsWith("/festivals")) return ["Catalog", "Festivals"];
+  if (pathname.startsWith("/insights")) return ["Insights"];
   if (pathname.startsWith("/requests")) return ["Ops", "Requests"];
   if (pathname.startsWith("/scan")) return ["Ops", "Scan pass"];
   if (pathname.startsWith("/live")) return ["Ops", "Live"];
