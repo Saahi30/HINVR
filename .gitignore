@@ -23,3 +23,13 @@ quest/.gradle
 .env
 .env.*
 !/.env.example
+# Build and tool caches
+/.next
+quest/build
+quest/.kotlin
+supabase/.temp
+*.tsbuildinfo
+# Signing material
+*.jks
+*.keystore
+keystore.properties
